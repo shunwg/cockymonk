@@ -1,0 +1,21 @@
+# Xcode / build products (generated on Mac day — never committed)
+*.xcodeproj/
+DerivedData/
+.build/
+build/
+xcuserdata/
+*.xcresult
+*.ipa
+*.dSYM.zip
+ExportOptions.plist
+
+# macOS / Windows noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+
+# Orchestrator scratch (gate artifacts are committed; scratch is not)
+.design/*/scratch/

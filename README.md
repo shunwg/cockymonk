@@ -1,10 +1,10 @@
 # Cocky Monk starter kit
-Everything Claude Code needs to build a Kokkelimonke-style bluffing game for iOS — spec, constitution, design system, house skills, and scripts. Unzip into an empty folder, do the 5-minute edit, run setup, start building.
+Everything Claude Code needs to build a game-master-led bluffing party game for iOS — spec, constitution, design system, house skills, and scripts. Unzip into an empty folder, do the 5-minute edit, run setup, start building.
 
 ## What's in the box
 | File | What it is | Edit how often |
 |---|---|---|
-| `PRD.md` | v2 spec — game-master flow, board-race scoring, 3 themes, nb/en, milestones M1–M9 | When the game design changes |
+| `PRD.md` | v3 spec — game-master flow, board-race scoring, 3 themes, nb/en, milestones M1–M10 | When the game design changes |
 | `CLAUDE.md` | Project constitution Claude Code obeys every session | Rarely — keep it lean |
 | `DESIGN.md` | Playful design system: tokens, the Nose, motion, sound, voice | When the look evolves |
 | `TOOLBELT.md` | Invited external plugins/MCPs/skills, tiered Core → Situational | When you add/drop tools |
@@ -24,6 +24,12 @@ Everything Claude Code needs to build a Kokkelimonke-style bluffing game for iOS
 | 2 | `PRD.md` §13 | Answer the open questions (name! en deck? default theme?), delete the section |
 | 3 | — | Name is set: **Cocky Monk**. Before public release: 30-min trademark search (Patentstyret + EUIPO) |
 | 4 | `scripts/ship.sh` header | (Later, at M7) set the three ASC_* env vars |
+
+## Two tracks: Windows now, Mac later
+Everything Xcode-shaped (build, simulator, TestFlight) needs macOS — see `MAC_RUNBOOK.md` when a Mac is available.
+Until then, the whole studio system runs on Windows: the browser Lab (`node Tools/serve-lab.mjs`), engine rule tests
+(`node --test Lab/js/engine.test.mjs`), deck authoring + validation (`node Tools/validate_deck.mjs --all`), the design-token
+pipeline (`node Tools/tokens-build.mjs`), and the Lottie preview page. Team lanes live in `LANES.md`.
 
 ## First run
 ```bash
@@ -63,4 +69,4 @@ claude                       # then inside the session:
 5. When you correct Claude the same way three times → move the correction into CLAUDE.md or a skill (that's what `/plugin install skill-creator` is for).
 
 ## Legal reminder
-Ship under your own name with your own cards. "Kokkelimonke", its card texts and art are off-limits (PRD §3 — the validator even greps for it).
+Ship under your own name with your own cards. The published game this project is inspired by — its name, card texts, and art — is off-limits (see PRD §3; the deck validator even greps for the forbidden name).

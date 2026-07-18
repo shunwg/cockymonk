@@ -1,0 +1,17 @@
+# Shell scripts must stay LF — they run on macOS (bash chokes on CRLF shebangs)
+*.sh text eol=lf
+# Keep JSON/Swift/JS deterministic across the 3 machines
+*.json text eol=lf
+*.swift text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+# Binary assets
+*.png binary
+*.ogg binary
+*.caf binary
+*.m4a binary
+*.ttf binary
+*.otf binary

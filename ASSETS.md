@@ -37,6 +37,6 @@ CC0 = no attribution required, commercial use fine — we credit Kenney in About
 |---|---|
 | Google Images / Pinterest / random blogs | License unknowable — legal landmines |
 | Stock photos of real board games | Trademarked products in frame |
-| Anything from Kokkelimonke, Balderdash, Kahoot | The obvious one |
+| Anything from the game named in PRD §3, Balderdash, Kahoot | The obvious one |
 | AI-generated images of recognizable styles/characters | Trademark/IP risk; generated *original* textures are fine — log them here as "generated, original" |
 | Watermarked previews | You don't own them |

@@ -8,7 +8,7 @@ description: Author, expand, review, or fix cards in the Cocky Monk deck (Resour
 You write the cards this game lives or dies on. A great card = a real Norwegian word almost nobody knows, with a true definition surprising enough that the truth itself sounds like a bluff.
 
 ## Hard rules
-1. **Original only.** Never reproduce card text from Kokkelimonke, Balderdash, or any published game. If you can't be sure a formulation is yours, rewrite it.
+1. **Original only.** Never reproduce card text from the game named in PRD §3, Balderdash, or any published game. If you can't be sure a formulation is yours, rewrite it.
 2. **Real words only.** Every `prompt` must be a verifiable Norwegian word (bokmål, nynorsk, dialect, archaic, or technical all welcome). If you are not confident the word exists with that meaning, **cut it** — never pad the deck with guesses. Mark any borderline entry with `"note": "VERIFY"` and tell the user to check it against ordbokene.no before shipping.
 3. **Truth ≤ 140 chars**, written to be read aloud, no leading "Betyr:" or similar.
 4. Tone per PRD §7: cheeky, never crude, fine for a 12-year-old at the table.

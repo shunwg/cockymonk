@@ -18,7 +18,7 @@ check "duplicate ids"       '[.cards[].id] | group_by(.) | map(select(length>1)[
 check "duplicate prompts"   '[.cards[].prompt | ascii_downcase] | group_by(.) | map(select(length>1)[0]) | .[]'
 check "truth > 140 chars"   '.cards[] | select((.truth|length) > 140) | .id'
 check "difficulty not 1-3"  '.cards[] | select(.difficulty < 1 or .difficulty > 3) | .id'
-if grep -qi "kokkelimonke" "$DECK"; then echo "FAIL: forbidden trademark found in deck"; FAILS=$((FAILS+1)); else echo "OK:   trademark check"; fi
+if grep -qi "kokkelimonk[e]" "$DECK"; then echo "FAIL: forbidden trademark found in deck"; FAILS=$((FAILS+1)); else echo "OK:   trademark check"; fi
 
 echo "----"
 echo "Cards: $N   |   Difficulty mix: $(jq -r '[.cards[].difficulty] | group_by(.) | map("\(.[0]): \(length)") | join("  ")' "$DECK")"
