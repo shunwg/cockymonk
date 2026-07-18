@@ -20,6 +20,12 @@ CC0 = no attribution required, commercial use fine — we credit Kenney in About
 | Fredoka (SemiBold, Bold) | Google Fonts | OFL 1.1 | Display face everywhere (DESIGN.md §2) |
 | Logo mark (nose-face SVG) | Original, in `Reference/cocky-monk-demo.html` | Ours | App icon, brand, loader, empty states |
 | `Lab/vendor/lottie.min.js` (lottie-web 5.12.2) | unpkg.com/lottie-web | MIT | Lab Lottie preview page only — **never shipped in the app** (the app uses lottie-ios ≥ 4.5.0 via SPM, see CLAUDE.md exception) |
+| `Resources/Lottie/confetti_win.json` | generated, original — ours | Ours | Winner-screen confetti burst (one-shot 2.0 s; RM poster: settled scatter at bottom) |
+| `Resources/Lottie/gullnese_shimmer.json` | generated, original — ours | Ours | Gullnese award glint (loopable 1.6 s; RM poster: nose with static sparkles) |
+| `Resources/Lottie/gm_steal_sting.json` | generated, original — ours | Ours | GM-steal sting overlay (one-shot 0.8 s; RM poster: faint violet ring) |
+| `Resources/Lottie/celebration_salongen.json` | generated, original — ours | Ours | Salongen Mål/landmark ceremony — trophy pops onto doily (one-shot 1.8 s; RM poster: trophy standing) |
+| `Resources/Lottie/celebration_fjellet.json` | generated, original — ours | Ours | Fjellet Mål/landmark ceremony — summit flag plant with waving flag (one-shot 1.8 s; RM poster: planted flag) |
+| `Resources/Lottie/celebration_verdensrommet.json` | generated, original — ours | Ours | Verdensrommet Mål/landmark ceremony — moon landing with slow-mo dust (one-shot 2.2 s; RM poster: landed rocket + flag dot) |
 
 ## Curated further sources (vetted for license clarity)
 | Source | License | Best for |
