@@ -9,13 +9,21 @@ Everything Claude Code needs to build a game-master-led bluffing party game for 
 | `DESIGN.md` | Playful design system: tokens, the Nose, motion, sound, voice | When the look evolves |
 | `TOOLBELT.md` | Invited external plugins/MCPs/skills, tiered Core → Situational | When you add/drop tools |
 | `ASSETS.md` + `AssetsIncoming/` | License ledger + 1,540 bundled CC0 assets (Kenney: pieces, icons, card/UI audio) | When assets are promoted |
-| `.claude/skills/` | card-author · playtest-loop · release-captain · asset-wrangler | They're yours — sharpen them |
+| `LANES.md` | 3-person ownership matrix + interface contracts (Lane A engine · B UI/motion · C content/assets) | When the team changes |
+| `MAC_RUNBOOK.md` | Every macOS-only step (Xcode, lottie-ios, M1–M10, TestFlight, App Store checklist), staged for Mac day | Mac day |
+| `DesignSystem/tokens.json` | **Single source of truth** for all design tokens → generates `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, `DESIGN-TOKENS.md` | Via `/director` |
+| `Lab/` | Componentized browser port of the demo — play, iterate and test the game on Windows (`node Tools/serve-lab.mjs`) | Daily (Lane B) |
+| `Content/` | Word-candidate lists per language + VERIFY queue (Lane C workshop) | Content days |
+| `Tools/` | Zero-dep Node toolchain: validate_deck · tokens-build · serve-lab · engine-vectors.json (the rules contract) | Rarely |
+| `Resources/deck_nb.json` + `deck_en.json` + `fakes_*.json` | The shipping decks + bot fake pools (card-author skill only) | `/newcards` |
+| `Resources/Lottie/` | Original generated celebration animations (preview: `/Lab/lottie/player.html`) | motion-designer |
+| `.claude/skills/` | card-author · playtest-loop · release-captain · asset-wrangler · **game-director** · **qa-gate** · **playtest-panel** · **motion-designer** | They're yours — sharpen them |
 | `.claude/agents/` | swift-reviewer · swiftui-specialist subagents | Rarely |
-| `.claude/commands/` | `/playtest` · `/newcards` · `/ship` · `/theme` | Rarely |
-| `scripts/` | setup · build · run · test · validate_deck · ship | Rarely |
+| `.claude/commands/` | `/playtest` · `/newcards` · `/ship` · `/theme` · `/director` · `/qa` | Rarely |
+| `scripts/` | setup · build · run · test · validate_deck · ship (macOS; validate_deck delegates to Node) | Rarely |
 | `project.yml` | XcodeGen spec → generates the .xcodeproj | Version bumps, signing |
 | `Resources/deck_*.sample.json` | Card schema + example cards (nb + en) | Never (reference only) |
-| `Reference/cocky-monk-demo.html` | **Playable prototype** — canonical flow, pacing, scoring, bot behavior, all 3 themes. Open in any browser | When the design does |
+| `Reference/cocky-monk-demo.html` | **FROZEN canonical prototype** — flow, pacing, scoring, bot behavior, all 3 themes. Open in any browser; never edit (iterate in `Lab/`) | Never |
 
 ## The 5-minute edit checklist (before first run)
 | # | Where | Do |

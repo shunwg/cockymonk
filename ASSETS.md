@@ -19,6 +19,7 @@ CC0 = no attribution required, commercial use fine — we credit Kenney in About
 |---|---|---|---|
 | Fredoka (SemiBold, Bold) | Google Fonts | OFL 1.1 | Display face everywhere (DESIGN.md §2) |
 | Logo mark (nose-face SVG) | Original, in `Reference/cocky-monk-demo.html` | Ours | App icon, brand, loader, empty states |
+| `Lab/vendor/lottie.min.js` (lottie-web 5.12.2) | unpkg.com/lottie-web | MIT | Lab Lottie preview page only — **never shipped in the app** (the app uses lottie-ios ≥ 4.5.0 via SPM, see CLAUDE.md exception) |
 
 ## Curated further sources (vetted for license clarity)
 | Source | License | Best for |

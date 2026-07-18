@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cocky Monk — Lottie preview</title>
+<link rel="stylesheet" href="/Lab/css/tokens.css">
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: var(--color-core-inkNight, #1B1B2E); color: var(--color-core-paperText, #F4EFE4); padding: 24px; }
+  h1 { font-size: 20px; } .sub { opacity: .7; font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+  .card { background: #23233B; border-radius: 22px; padding: 14px; border: 2.5px solid rgba(244,239,228,.15); }
+  .stage { background: #14142a; border-radius: 14px; height: 220px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .stage > div { width: 100%; height: 100%; }
+  .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 13px; }
+  .name { font-weight: 600; } .size { opacity: .6; }
+  .missing { opacity: .45; font-style: italic; }
+  button { background: var(--color-core-turnYellow, #FFC53D); border: none; border-radius: 10px; padding: 4px 12px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>🎬 Lottie assets — <code>Resources/Lottie/</code></h1>
+<p class="sub">Serve via <code>node Tools/serve-lab.mjs</code>. Each file must be ≤ 200 KB, original, token-colored, with a poster-worthy end frame (Reduced Motion fallback). Register every file in ASSETS.md.</p>
+<div class="grid" id="grid"></div>
+<script src="/Lab/vendor/lottie.min.js"></script>
+<script>
+const CANON = ["confetti_win","gullnese_shimmer","gm_steal_sting","celebration_salongen","celebration_fjellet","celebration_verdensrommet"];
+async function names() {
+  try { const m = await (await fetch("/Resources/Lottie/manifest.json")).json(); return m.files ?? CANON; }
+  catch { return CANON; }
+}
+(async () => {
+  const grid = document.getElementById("grid");
+  for (const n of await names()) {
+    const card = document.createElement("div"); card.className = "card";
+    const stage = document.createElement("div"); stage.className = "stage";
+    const holder = document.createElement("div"); stage.appendChild(holder);
+    const meta = document.createElement("div"); meta.className = "meta";
+    card.append(stage, meta); grid.appendChild(card);
+    const url = `/Resources/Lottie/${n}.json`;
+    try {
+      const res = await fetch(url); if (!res.ok) throw 0;
+      const data = await res.json();
+      const kb = (JSON.stringify(data).length / 1024).toFixed(1);
+      const anim = lottie.loadAnimation({ container: holder, renderer: "svg", loop: true, autoplay: true, animationData: data });
+      const btn = document.createElement("button"); btn.textContent = "↻";
+      btn.onclick = () => anim.goToAndPlay(0, true);
+      meta.innerHTML = `<span class="name">${n}</span><span class="size">${kb} KB ${kb > 200 ? "⚠ over budget" : ""}</span>`;
+      meta.appendChild(btn);
+    } catch {
+      stage.innerHTML = `<span class="missing">${n}.json — missing</span>`;
+      meta.innerHTML = `<span class="name">${n}</span><span class="size">—</span>`;
+    }
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 # TOOLBELT.md — external tools invited into this project
 
-Philosophy: **5–6 active tools max.** Every MCP tool definition eats context; a lean belt beats a full one. `scripts/setup.sh` installs the Core tier and prints the rest.
+Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a lean belt beats a full one. (Skills are different: they load on demand and cost nothing until invoked — the skill list below can grow.) `scripts/setup.sh` installs the Core tier and prints the rest.
+
+**Cross-platform tier (Windows + Mac):** Node ≥ 18 — runs the whole `Tools/` toolchain (`validate_deck.mjs`, `tokens-build.mjs`, `serve-lab.mjs`) and the Lab engine tests. This is the only tool the Windows phase needs.
 
 ## Core (install day 1)
 | Tool | Type | Install | Why |
@@ -26,12 +28,12 @@ Philosophy: **5–6 active tools max.** Every MCP tool definition eats context; 
 |---|---|
 | Unity / Godot MCPs | Wrong tool — this is a SwiftUI app, not an engine game |
 | Firebase / Supabase plugins | v1 has zero backend by design (PRD §2). Revisit only at online-multiplayer v3 |
-| Playwright / Chrome DevTools | Web tools; no web here |
+| Playwright / Chrome DevTools | The Lab is browser-based, but Claude's built-in Browser pane covers it — no extra web MCPs |
 | Any analytics SDK MCP | Privacy label is "Data Not Collected" (CLAUDE.md guardrail) |
 
 ## House skills & agents (already in this repo)
-`.claude/skills/`: **card-author** · **playtest-loop** · **release-captain** · **asset-wrangler**
+`.claude/skills/`: **card-author** · **playtest-loop** · **release-captain** · **asset-wrangler** · **game-director** (phase-gated orchestrator) · **qa-gate** (validator battery) · **playtest-panel** (5 simulated player personas) · **motion-designer** (original Lottie assets)
 `.claude/agents/`: **swift-reviewer** · **swiftui-specialist**
-`.claude/commands/`: **/playtest** · **/newcards** · **/ship** · **/theme**
+`.claude/commands/`: **/playtest** · **/newcards** · **/ship** · **/theme** · **/director** · **/qa**
 
-Asset sourcing lives in `ASSETS.md` — 4 Kenney CC0 packs are already bundled in `AssetsIncoming/`.
+Asset sourcing lives in `ASSETS.md` — 4 Kenney CC0 packs are already bundled in `AssetsIncoming/`. Lottie authoring: the **text-to-lottie** skill (from `diffusionstudio/lottie`, vendored into `.claude/skills/text-to-lottie/` — see its PROVENANCE.md) backs motion-designer with spec maps, motion-taste rules, and recipes; `Lab/vendor/lottie.min.js` (MIT) powers the Lab preview page at `/Lab/lottie/player.html`.
