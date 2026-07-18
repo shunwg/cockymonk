@@ -1,0 +1,21 @@
+{
+  "$schema_note": "Bot fake pool (PRD §9). Written only by the card-author skill. text ≤120 chars, original, plausible against any word.",
+  "fakes": [
+    { "id": "fen-0001", "text": "An old unit for firewood – about as much as one person can carry." },
+    { "id": "fen-0002", "text": "A dialect word for thin morning mist over water." },
+    { "id": "fen-0003", "text": "A tool once used for skinning eels." },
+    { "id": "fen-0004", "text": "A folk dance in triple time." },
+    { "id": "fen-0005", "text": "A sailor's term for slack in a rope." },
+    { "id": "fen-0006", "text": "The sound a cow makes when it is impatient." },
+    { "id": "fen-0007", "text": "The small hole in a cheese slicer." },
+    { "id": "fen-0008", "text": "An old word for the last sip left in a coffee cup." },
+    { "id": "fen-0009", "text": "The bottom layer of a haystack." },
+    { "id": "fen-0010", "text": "A type of knot that unties itself." },
+    { "id": "fen-0011", "text": "The leather patch inside a ski boot." },
+    { "id": "fen-0012", "text": "Weather arriving from two directions at once." },
+    { "id": "fen-0013", "text": "The outermost plank of a rowing boat." },
+    { "id": "fen-0014", "text": "An old word for pocket lint." },
+    { "id": "fen-0015", "text": "The feeling of forgetting why you entered a room." },
+    { "id": "fen-0016", "text": "A small pile of freshly raked leaves." }
+  ]
+}

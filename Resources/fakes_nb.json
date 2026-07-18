@@ -1,0 +1,21 @@
+{
+  "$schema_note": "Bot fake pool (PRD §9). Written only by the card-author skill. text ≤120 chars, original, plausible against any word.",
+  "fakes": [
+    { "id": "fnb-0001", "text": "Gammelt mål for ved – omtrent så mye som én mann kan bære." },
+    { "id": "fnb-0002", "text": "Dialektord for tynn morgentåke over vann." },
+    { "id": "fnb-0003", "text": "Redskap som ble brukt til å flå ål." },
+    { "id": "fnb-0004", "text": "Folkedans fra Setesdal i tretakt." },
+    { "id": "fnb-0005", "text": "Sjømannsuttrykk for slakk i et tau." },
+    { "id": "fnb-0006", "text": "Lyden kua lager når den er utålmodig." },
+    { "id": "fnb-0007", "text": "Det lille hullet i en ostehøvel." },
+    { "id": "fnb-0008", "text": "Gammelt ord for den siste slurken i en kaffekopp." },
+    { "id": "fnb-0009", "text": "Det nederste laget i en høystakk." },
+    { "id": "fnb-0010", "text": "En type knute som løsner av seg selv." },
+    { "id": "fnb-0011", "text": "Skinnlappen på innsiden av en skistøvel." },
+    { "id": "fnb-0012", "text": "Uvær som kommer fra to kanter samtidig." },
+    { "id": "fnb-0013", "text": "Den ytterste planken i en robåt." },
+    { "id": "fnb-0014", "text": "Gammelt ord for lommerusk." },
+    { "id": "fnb-0015", "text": "Følelsen av å glemme hvorfor man gikk inn i et rom." },
+    { "id": "fnb-0016", "text": "En liten haug med nyrakt løv." }
+  ]
+}

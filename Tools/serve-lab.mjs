@@ -19,7 +19,10 @@ createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     let path = decodeURIComponent(url.pathname);
-    if (path === "/" || path === "/Lab" || path === "/Lab/") path = "/Lab/index.html";
+    // Redirect so relative asset URLs resolve under /Lab/ (not the site root).
+    if (path === "/" || path === "/Lab") { res.writeHead(302, { location: "/Lab/" }).end(); return; }
+    if (path === "/Lab/") path = "/Lab/index.html";
+    if (path.endsWith("/")) path += "index.html";
     const file = normalize(join(ROOT, path));
     if (!file.startsWith(normalize(ROOT + sep))) { res.writeHead(403).end("forbidden"); return; }
     const body = await readFile(file);

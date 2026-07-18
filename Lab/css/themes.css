@@ -1,0 +1,40 @@
+/* themes.css — the three boards. Background layers, space styling and pawn
+ * flavor ONLY (DESIGN.md §3: themes change clothes, never rules). Lane B.
+ * Adding a theme: one entry in js/themes.js + one block here. */
+
+/* Salongen — warm wooden parlor */
+.theme-salongen .boardwrap {
+  background: repeating-linear-gradient(90deg,
+    var(--color-theme-salongen-board-base) 0 26px,
+    var(--color-theme-salongen-board-alt) 26px 52px);
+}
+.theme-salongen .space {
+  background: radial-gradient(circle at 35% 30%, #d4b284, #8a6a44);
+  border: 2.5px solid #4d341f; color: #3a2614;
+}
+
+/* Fjellet — layered paper-cut mountain: sky / forest / snow */
+.theme-fjellet .boardwrap {
+  background: linear-gradient(180deg,
+    var(--color-theme-fjellet-sky) 0%,
+    var(--color-theme-fjellet-sky-low) 33%,
+    var(--color-theme-fjellet-forest) 33%,
+    var(--color-theme-fjellet-forest-low) 66%,
+    var(--color-theme-fjellet-snow) 66%,
+    var(--color-theme-fjellet-snow-peak) 100%);
+}
+.theme-fjellet .space { background: #e2ddd2; border: 2.5px dashed #6b6558; color: #4a463c; }
+
+/* Verdensrommet — deep space, drifting stars (static under Reduced Motion) */
+.theme-rom .boardwrap {
+  background: var(--color-theme-verdensrommet-space);
+  background-image:
+    radial-gradient(var(--color-theme-verdensrommet-star-bright) 1.2px, transparent 1.2px),
+    radial-gradient(var(--color-theme-verdensrommet-star-dim) 1px, transparent 1px);
+  background-size: 64px 64px, 92px 92px;
+  background-position: 0 0, 30px 40px;
+}
+.theme-rom .space {
+  background: #141430; border: 2.5px solid var(--color-accent-gm);
+  box-shadow: 0 0 10px #9b6dff55 inset; color: #b9a8ff;
+}

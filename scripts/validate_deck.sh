@@ -3,6 +3,8 @@
 # Checks: valid JSON, required fields, unique ids, unique prompts, truth <= 140 chars,
 # difficulty in 1..3, forbidden trademark absent. Exits non-zero on any failure.
 set -euo pipefail
+# Cross-platform: delegate to the Node validator when node is available (the jq path below stays as the macOS fallback).
+if command -v node >/dev/null 2>&1; then exec node "$(dirname "$0")/../Tools/validate_deck.mjs" "$@"; fi
 DECK="${1:-Resources/deck_nb.json}"
 [ -f "$DECK" ] || { echo "No $DECK yet — run /newcards to create it. (Validating sample instead.)"; DECK="Resources/deck_nb.sample.json"; }
 command -v jq >/dev/null || { echo "jq required: brew install jq"; exit 1; }
