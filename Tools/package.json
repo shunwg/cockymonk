@@ -1,0 +1,7 @@
+{
+  "name": "cocky-monk-tools",
+  "private": true,
+  "description": "Zero-dependency Node toolchain for the Cocky Monk studio system (validate, build tokens, serve the Lab).",
+  "type": "module",
+  "engines": { "node": ">=18" }
+}
