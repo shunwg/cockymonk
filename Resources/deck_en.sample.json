@@ -1,0 +1,9 @@
+{
+  "$schema_note": "Reference only. Real English deck = deck_en.json via card-author skill. Cards must be English-obscure, never translations of Norwegian cards.",
+  "cards": [
+    { "id": "ord-0001", "category": "ord", "prompt": "snollygoster", "truth": "A shrewd, unprincipled person – especially a politician.", "difficulty": 2, "note": "" },
+    { "id": "ord-0002", "category": "ord", "prompt": "borborygmus", "truth": "The rumbling sound your stomach makes.", "difficulty": 2, "note": "" },
+    { "id": "ord-0003", "category": "ord", "prompt": "mumpsimus", "truth": "Someone who stubbornly sticks to an old habit or error, even when shown it is wrong.", "difficulty": 3, "note": "" },
+    { "id": "ord-0004", "category": "ord", "prompt": "nurdle", "truth": "A tiny plastic pellet used as raw material in manufacturing.", "difficulty": 2, "note": "" }
+  ]
+}

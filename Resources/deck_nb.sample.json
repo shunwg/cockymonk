@@ -1,0 +1,11 @@
+{
+  "$schema_note": "Reference only — never shipped. Real deck lives in deck_nb.json (created by the card-author skill). Fields: id {cat}-{0000}, category, prompt, truth (<=140 chars, read-aloud friendly), difficulty 1-3, note ('' or 'VERIFY').",
+  "cards": [
+    { "id": "ord-0001", "category": "ord", "prompt": "dvergmål",    "truth": "Gammelt og poetisk ord for ekko.", "difficulty": 2, "note": "" },
+    { "id": "ord-0002", "category": "ord", "prompt": "attergløyme", "truth": "Nynorsk ord for en kvinne som aldri ble gift – en som ble «gjenglemt».", "difficulty": 2, "note": "" },
+    { "id": "ord-0003", "category": "ord", "prompt": "skarve",      "truth": "Ussel eller stakkarslig – som i «en skarve hundrelapp».", "difficulty": 1, "note": "" },
+    { "id": "ord-0004", "category": "ord", "prompt": "krypinn",     "truth": "Et lite og lunt sted å bo eller gjemme seg.", "difficulty": 1, "note": "" },
+    { "id": "ord-0005", "category": "ord", "prompt": "gjøn",        "truth": "Spøk og moro – å drive gjøn med noen er å erte dem.", "difficulty": 1, "note": "" },
+    { "id": "ord-0006", "category": "ord", "prompt": "mannevond",   "truth": "Om et dyr som er aggressivt mot mennesker.", "difficulty": 1, "note": "" }
+  ]
+}

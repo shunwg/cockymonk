@@ -1,0 +1,1 @@
+Work on the board theme "$ARGUMENTS" (Salongen, Fjellet, or Verdensrommet). Read DESIGN.md §3 and ASSETS.md, use the asset-wrangler skill for any new material, implement via the BoardTheme protocol only, then run /playtest board with that theme active.

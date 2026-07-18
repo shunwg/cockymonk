@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Cocky Monk — demo</title>
+<style>
+  :root{
+    --inkNight:#1B1B2E; --paper:#FFF6E8; --inkText:#23233B; --paperText:#F4EFE4;
+    --truthGreen:#3BD489; --bluffPink:#FF5C97; --turnYellow:#FFC53D; --gmViolet:#9B6DFF; --mutedViolet:#8A87B8;
+    --radiusCard:22px; --radiusBtn:16px;
+    --shadow:4px 5px 0 rgba(10,10,24,.45);
+    --display:'Fredoka',ui-rounded,-apple-system,"SF Pro Rounded",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    color:var(--paperText);
+    font-family:var(--display);
+    background:
+      radial-gradient(600px 340px at 85% -80px, #9b6dff26, transparent 70%),
+      radial-gradient(520px 320px at 0% 110%, #ff5c9722, transparent 70%),
+      radial-gradient(#ffffff09 1.2px, transparent 1.2px) 0 0/26px 26px,
+      var(--inkNight);
+    display:flex;justify-content:center;
+  }
+  #app{width:100%;max-width:480px;min-height:100%;display:flex;flex-direction:column;padding:16px;position:relative;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;min-height:38px;}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.3px;color:var(--paperText);font-size:17px;}
+  .brand .logo{filter:drop-shadow(0 2px 0 rgba(0,0,0,.4));}
+  .brand .small{font-weight:500;}
+  .iconbtn{background:#ffffff10;border:2px solid #ffffff2e;color:var(--paperText);border-radius:999px;
+    padding:5px 13px;font:inherit;font-weight:600;cursor:pointer;}
+  h1{font-weight:700;font-size:clamp(30px,8.5vw,38px);margin:8px 0 4px;line-height:1.08;letter-spacing:-.4px;}
+  h2{font-weight:600;font-size:22px;margin:16px 0 8px;letter-spacing:-.2px;}
+  .sub{color:var(--mutedViolet);font-size:15px;margin:0 0 16px;line-height:1.45;}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mutedViolet);}
+  .card .eyebrow{color:#8a7a5c;}
+  .card{background:var(--paper);color:var(--inkText);border:2.5px solid var(--inkText);
+    border-radius:var(--radiusCard);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;
+    background-image:repeating-linear-gradient(0deg,transparent 0 3px,#00000006 3px 4px);}
+  .card.secret{background:linear-gradient(145deg,#efe6ff,#ddccff);border-color:var(--gmViolet);
+    border-style:dashed;background-image:none;}
+  .word{font-family:var(--display);font-size:clamp(38px,11vw,52px);font-weight:700;line-height:1.02;
+    word-break:break-word;color:var(--inkText);letter-spacing:-.5px;}
+  .btn{display:block;width:100%;border:2.5px solid var(--inkText);border-radius:var(--radiusBtn);
+    padding:16px;font:inherit;font-size:18px;font-weight:700;cursor:pointer;margin-top:12px;
+    background:var(--turnYellow);color:var(--inkText);box-shadow:0 5px 0 #b8860bcc;
+    transition:transform .08s, box-shadow .08s;}
+  .btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 #b8860bcc;}
+  .btn:disabled{opacity:.35;cursor:default;box-shadow:none;}
+  .btn.secondary{background:#ffffff0e;color:var(--paperText);border-color:#ffffff3a;box-shadow:0 5px 0 #00000055;font-weight:600;}
+  .btn.secondary:active{box-shadow:0 1px 0 #00000055;}
+  .btn.gm{background:var(--gmViolet);color:#fff;box-shadow:0 5px 0 #5c3ab8;}
+  .btn.gm:active{box-shadow:0 1px 0 #5c3ab8;}
+  .btn.pulse:not(:disabled){animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+  .modebtn{text-align:left;background:var(--paper);color:var(--inkText);border:2.5px solid var(--inkText);
+    border-radius:var(--radiusCard);padding:16px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:center;}
+  .modebtn:active{transform:translateY(4px);box-shadow:1px 1px 0 rgba(10,10,24,.45);}
+  .modebtn small{display:block;font-weight:500;color:#5c5645;margin-top:3px;line-height:1.35;}
+  .modebtn b{font-size:18px;}
+  .phones{flex:none;display:flex;gap:4px;align-items:flex-end;}
+  .phoneico{width:20px;height:32px;border:2.5px solid var(--inkText);border-radius:6px;background:#fff;position:relative;}
+  .phoneico::after{content:"";position:absolute;left:50%;bottom:3px;transform:translateX(-50%);
+    width:6px;height:2.5px;border-radius:2px;background:var(--inkText);}
+  .phoneico.p2{height:26px;background:var(--turnYellow);}
+  .phoneico.p3{height:29px;background:#ffe1ec;}
+  input[type=text]{width:100%;padding:14px;font:inherit;font-size:17px;border-radius:var(--radiusBtn);
+    border:2.5px solid var(--inkText);background:#fff;color:var(--inkText);}
+  textarea{width:100%;padding:14px;font:inherit;font-size:18px;border-radius:var(--radiusBtn);
+    border:2.5px solid var(--inkText);background:#fff;color:var(--inkText);resize:none;height:100px;}
+  input:focus,textarea:focus{outline:3px solid var(--turnYellow);outline-offset:1px;}
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;}
+  .pchip{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;font-weight:600;font-size:14px;
+    background:#ffffff14;border:2px solid #ffffff2a;transition:transform .3s, background .3s;color:var(--paperText);}
+  .card .pchip{color:var(--inkText);background:#00000010;border-color:#00000022;}
+  .pchip .dot{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid rgba(0,0,0,.25);}
+  .pchip.done{background:var(--truthGreen);color:var(--inkText);border-color:var(--truthGreen);transform:rotateX(360deg);}
+  .seg{display:flex;gap:8px;margin:8px 0;}
+  .seg button{flex:1;padding:12px 6px;border-radius:var(--radiusBtn);border:2px solid #ffffff30;
+    background:#ffffff0a;color:var(--paperText);font:inherit;font-weight:600;cursor:pointer;font-size:14px;}
+  .seg button.on{background:var(--turnYellow);color:var(--inkText);border-color:var(--turnYellow);
+    box-shadow:0 3px 0 #b8860bcc;font-weight:700;}
+  .handover{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;z-index:50;
+    background:radial-gradient(500px 400px at 50% 30%, #2a2a46, var(--inkNight) 75%);}
+  .holdbtn{width:156px;height:156px;border-radius:50%;border:none;cursor:pointer;margin-top:28px;
+    font:inherit;font-weight:700;font-size:16px;color:var(--inkText);
+    background:conic-gradient(var(--turnYellow) calc(var(--p,0)*1%), #ffffff18 0);
+    display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;
+    box-shadow:0 6px 0 rgba(0,0,0,.45);}
+  .holdbtn .inner{width:122px;height:122px;border-radius:50%;background:var(--turnYellow);
+    border:2.5px solid var(--inkText);display:flex;align-items:center;justify-content:center;padding:8px;}
+  .opt{display:flex;gap:12px;align-items:flex-start;background:var(--paper);color:var(--inkText);
+    border:2.5px solid var(--inkText);border-radius:var(--radiusCard);padding:14px;margin-bottom:11px;
+    cursor:pointer;box-shadow:var(--shadow);transition:transform .08s, box-shadow .08s;}
+  .opt:active{transform:translateY(3px);box-shadow:1px 2px 0 rgba(10,10,24,.45);}
+  .opt .letter{flex:none;width:38px;height:38px;border-radius:50%;background:var(--inkText);color:var(--paper);
+    font-weight:700;display:flex;align-items:center;justify-content:center;font-size:18px;font-family:var(--display);}
+  .opt.truth{border-color:var(--truthGreen);background:#e7fff3;box-shadow:4px 5px 0 #1d8f5b88, 0 0 22px #3bd48944;}
+  .opt.bluff{border-color:var(--bluffPink);}
+  .opt.decoy{border-color:var(--gmViolet);border-style:dashed;}
+  .pop{animation:pop .5s cubic-bezier(.34,1.6,.64,1);}
+  @keyframes pop{0%{opacity:0;transform:scale(.85) rotate(-1.5deg)}100%{opacity:1;transform:none}}
+  .stagger{opacity:0;animation:rise .4s ease forwards;}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .votedots{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap;align-items:center;}
+  .votedots .dot{width:16px;height:16px;border-radius:50%;border:2px solid #00000033;}
+  .author{display:flex;align-items:center;gap:9px;margin-top:9px;font-weight:600;font-size:14px;}
+  .face{width:34px;height:34px;border-radius:50%;position:relative;flex:none;border:2.5px solid var(--inkText);}
+  .face::before{content:"";position:absolute;left:7px;top:11px;width:4px;height:4px;border-radius:50%;background:var(--inkText);}
+  .face::after{content:"";position:absolute;right:7px;top:11px;width:4px;height:4px;border-radius:50%;background:var(--inkText);}
+  .face .smile{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:12px;height:6px;
+    border:2.5px solid var(--inkText);border-top:none;border-radius:0 0 12px 12px;}
+  .nose{position:absolute;left:96%;top:13px;height:9px;width:6px;border-radius:0 7px 7px 0;
+    background:var(--bluffPink);border:2.5px solid var(--inkText);border-left:none;
+    transform-origin:left center;transition:width .5s cubic-bezier(.34,1.56,.64,1);}
+  .nose.violet{background:var(--gmViolet);} .nose.gold{background:gold;}
+  .bob{animation:bob 2.4s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1.5deg)}}
+  .hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;margin:26px 0 18px;}
+  .boardwrap{border-radius:var(--radiusCard);border:3px solid #0a0a18;padding:16px;position:relative;
+    overflow:hidden;min-height:300px;box-shadow:var(--shadow), inset 0 0 40px rgba(0,0,0,.28);}
+  .board{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;position:relative;}
+  .space{aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;position:relative;font-family:var(--display);}
+  .space .mark{position:absolute;top:-9px;right:-5px;font-size:16px;filter:drop-shadow(0 1px 0 rgba(0,0,0,.4));}
+  .space.goal{animation:goalglow 2s ease-in-out infinite;}
+  @keyframes goalglow{0%,100%{box-shadow:0 0 0 0 #ffc53d00}50%{box-shadow:0 0 0 5px #ffc53d55}}
+  .pawn{position:absolute;width:31px;height:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:15px;border:2.5px solid #0a0a18;z-index:5;
+    transition:left .3s cubic-bezier(.34,1.4,.64,1), top .3s cubic-bezier(.34,1.4,.64,1);
+    box-shadow:0 3px 0 rgba(0,0,0,.45);}
+  .pawn.leader::after{content:"👑";position:absolute;top:-16px;font-size:12px;}
+  .theme-salongen .boardwrap{background:repeating-linear-gradient(90deg,#6b4a2f 0 26px,#7a5636 26px 52px);}
+  .theme-salongen .space{background:radial-gradient(circle at 35% 30%,#d4b284,#8a6a44);border:2.5px solid #4d341f;color:#3a2614;}
+  .theme-fjellet .boardwrap{background:
+    linear-gradient(180deg,#39507a 0%,#4c6a8f 33%,#5e7f74 33%,#6f8f6f 66%,#e8edf2 66%,#ffffff 100%);}
+  .theme-fjellet .space{background:#e2ddd2;border:2.5px dashed #6b6558;color:#4a463c;}
+  .theme-rom .boardwrap{background:#0D0D1F;
+    background-image:radial-gradient(#ffffff66 1.2px,transparent 1.2px),radial-gradient(#ffffff33 1px,transparent 1px);
+    background-size:64px 64px,92px 92px;background-position:0 0,30px 40px;}
+  .theme-rom .space{background:#141430;border:2.5px solid var(--gmViolet);box-shadow:0 0 10px #9b6dff55 inset;color:#b9a8ff;}
+  .confetti{position:fixed;top:-16px;width:10px;height:14px;z-index:99;animation:fall linear forwards;border-radius:2px;}
+  @keyframes fall{to{transform:translateY(105vh) rotate(720deg);}}
+  .fade{animation:fadein .35s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .scoreline{display:flex;justify-content:space-between;font-weight:600;padding:7px 2px;border-bottom:1.5px dashed #ffffff26;align-items:center;}
+  .small{font-size:13px;color:var(--mutedViolet);}
+  .banner{border-radius:var(--radiusBtn);padding:12px 14px;font-weight:700;text-align:center;margin-bottom:11px;
+    border:2.5px solid transparent;}
+  .banner.gm{background:var(--gmViolet);color:#fff;border-color:#5c3ab8;box-shadow:0 4px 0 #5c3ab8;}
+  .banner.green{background:var(--truthGreen);color:var(--inkText);border-color:#1d8f5b;box-shadow:0 4px 0 #1d8f5b;}
+  .thinking{display:inline-block;animation:think 1.2s ease-in-out infinite;}
+  @keyframes think{0%,100%{opacity:.4}50%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const LOGO=(sz=26)=>`<svg class="logo" width="${sz*1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
+  <circle cx="13" cy="13" r="11" fill="#FFF6E8" stroke="#23233B" stroke-width="2.6"/>
+  <circle cx="9.5" cy="10.5" r="1.6" fill="#23233B"/><circle cx="16.5" cy="10.5" r="1.6" fill="#23233B"/>
+  <path d="M9 17 q4 3.4 8 0" stroke="#23233B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M23 11 h14 a3.4 3.4 0 0 1 0 6.8 h-14 z" fill="#FF5C97" stroke="#23233B" stroke-width="2.4"/>
+</svg>`;
+/* =============================================================
+   Cocky Monk demo v2 — two modes on one engine:
+   HOTSEAT: one phone passed around (real people).
+   PARTY (demo): "each on their own phone" — here the other
+   phones are computer players, and YOU start as game master.
+   Real party mode = MultipeerConnectivity in the iOS build.
+   ============================================================= */
+
+/* ---------- i18n ---------- */
+const STR={
+ nb:{
+  title:"Cocky Monk", demo:"demo", pickLang:"Velg språk",
+  mode:"Hvordan vil du spille?", hotseatName:"Én telefon", hotseatSub:"Send telefonen rundt bordet — ekte folk",
+  partyName:"Hver sin telefon", partySub:"Demo: motspillerne er roboter. Du starter som spillmester.",
+  players:"Hvem spiller?", addPlayer:"+ Legg til spiller", namePh:"Navn…", needPlayers:"3–8 spillere",
+  yourName:"Ditt navn", bots:"Roboter", next:"Neste",
+  length:"Spillengde", theme:"Brett", kort:"Kort · til 8", std:"Standard · til 15", mara:"Maraton · til 25",
+  salongen:"Salongen", fjellet:"Fjellet", rom:"Verdensrommet", begin:"Start spillet",
+  gmIs:n=>`${n} er spillmester`, youAreGm:"Du er spillmester", fearNose:"Frykt nesen.", roundN:r=>`Runde ${r}`,
+  gmHint:"Bare spillmesteren ser dette skjermbildet.",
+  theWord:"Ordet er", secret:"Hemmelig sannhet", peek:"Hold for å se sannheten",
+  decoys:"Dine lokke-forklaringer (0–2, anbefalt 1)", decoyPh:i=>`Lokkeforklaring ${i}…`,
+  passOn:"Send telefonen videre", giveTo:n=>`Gi telefonen til ${n}`, noPeek:"Ikke titt.", hold:"Hold",
+  yourBluff:w=>`Din tur til å dikte. Hva betyr «${w}»?`, bluffPh:"Skriv en troverdig løgn…",
+  emptyBluff:"Selv en dårlig løgn er bedre enn ingen.", lockIn:"Lever løgnen",
+  allIn:"Alle løgnene er inne.", waitingFor:"Venter på", thinkingDots:"tenker…", openVote:"Åpne avstemning",
+  gmComposing:n=>`${n} dikter lokkemat`, shuffling:"Spillmesteren blander kortene…",
+  votingTime:n=>`${n}, hva er sannheten?`, yourVote:"Hva er sannheten?", cantOwn:"(ditt eget svar er skjult)",
+  votesIn:"Stemmene tikker inn", youVoted:"Din stemme er levert.",
+  backToGm:n=>`Tilbake til spillmesteren ${n}`, revealTitle:"Avsløringen",
+  tapReveal:"Trykk for å avsløre neste", skip:"Neste ▸", votes:"stemmer", by:"skrevet av", theTruth:"SANNHETEN",
+  you:"deg", gmDecoy:"spillmesterens lokkemat", gmSteal:"Ingen fant sannheten. Spillmesteren håver inn! +2",
+  doubleHit:n=>`${n} skrev rett og slett sannheten. +3!`, toBoard:"Til brettet!",
+  board:"Brettet", boardSub:t=>`Først til ${t}. Sjekkes når alle har vært spillmester.`,
+  nextRound:"Neste runde", winner:n=>`${n} vant!`, shared:"Delt seier!",
+  restOfYou:"Resten av dere: godt forsøk.", goldNose:n=>`Gullnesen: ${n} — spillets beste løgner`,
+  playAgain:"Spill igjen", pts:"p",
+  rules:"+2 riktig svar · +1 per stemme på din løgn · +2 til spillmester hvis ingen fant sannheten",
+ },
+ en:{
+  title:"Cocky Monk", demo:"demo", pickLang:"Choose language",
+  mode:"How do you want to play?", hotseatName:"One phone", hotseatSub:"Pass the phone around — real people",
+  partyName:"A phone each", partySub:"Demo: your opponents are bots. You start as game master.",
+  players:"Who's playing?", addPlayer:"+ Add player", namePh:"Name…", needPlayers:"3–8 players",
+  yourName:"Your name", bots:"Bots", next:"Next",
+  length:"Game length", theme:"Board", kort:"Short · to 8", std:"Standard · to 15", mara:"Marathon · to 25",
+  salongen:"The Parlor", fjellet:"The Mountain", rom:"Outer Space", begin:"Start the game",
+  gmIs:n=>`${n} is game master`, youAreGm:"You are game master", fearNose:"Fear the nose.", roundN:r=>`Round ${r}`,
+  gmHint:"Only the game master sees this screen.",
+  theWord:"The word is", secret:"Secret truth", peek:"Hold to see the truth",
+  decoys:"Your decoy explanations (0–2, 1 encouraged)", decoyPh:i=>`Decoy ${i}…`,
+  passOn:"Pass the phone on", giveTo:n=>`Give the phone to ${n}`, noPeek:"No peeking.", hold:"Hold",
+  yourBluff:w=>`Your turn to invent. What does “${w}” mean?`, bluffPh:"Write a credible lie…",
+  emptyBluff:"Even a bad lie beats no lie.", lockIn:"Submit the lie",
+  allIn:"All lies accounted for.", waitingFor:"Waiting for", thinkingDots:"thinking…", openVote:"Open the vote",
+  gmComposing:n=>`${n} is composing decoys`, shuffling:"The game master shuffles the cards…",
+  votingTime:n=>`${n}, what's the truth?`, yourVote:"What's the truth?", cantOwn:"(your own answer is hidden)",
+  votesIn:"Votes are coming in", youVoted:"Your vote is in.",
+  backToGm:n=>`Back to game master ${n}`, revealTitle:"The Reveal",
+  tapReveal:"Tap to reveal the next one", skip:"Next ▸", votes:"votes", by:"written by", theTruth:"THE TRUTH",
+  you:"you", gmDecoy:"the game master's decoy", gmSteal:"Nobody found the truth. The game master cashes in! +2",
+  doubleHit:n=>`${n} simply wrote the truth. +3!`, toBoard:"To the board!",
+  board:"The board", boardSub:t=>`First to ${t}. Checked when everyone has been game master.`,
+  nextRound:"Next round", winner:n=>`${n} wins!`, shared:"Shared victory!",
+  restOfYou:"The rest of you: nice try.", goldNose:n=>`Golden Nose: ${n} — the game's best liar`,
+  playAgain:"Play again", pts:"p",
+  rules:"+2 correct vote · +1 per vote your lie gets · +2 to the GM if nobody finds the truth",
+ }
+};
+const t=(k,...a)=>{const v=STR[S.lang][k];return typeof v==="function"?v(...a):v;};
+
+/* ---------- decks & bot material (all original) ---------- */
+const DECKS={
+ nb:[
+  {p:"dvergmål",t:"Gammelt og poetisk ord for ekko."},
+  {p:"attergløyme",t:"Nynorsk ord for en kvinne som aldri ble gift – en som ble «gjenglemt»."},
+  {p:"skarve",t:"Ussel eller stakkarslig – som i «en skarve hundrelapp»."},
+  {p:"krypinn",t:"Et lite og lunt sted å bo eller gjemme seg."},
+  {p:"gjøn",t:"Spøk og moro – å drive gjøn med noen er å erte dem."},
+  {p:"mannevond",t:"Om et dyr som er aggressivt mot mennesker."},
+  {p:"sut",t:"Sorg eller bekymring – «ingen sut» betyr ingen grunn til uro."},
+  {p:"skjemt",t:"Gammelt ord for spøk og moro – «skjemt og alvor»."},
+ ],
+ en:[
+  {p:"snollygoster",t:"A shrewd, unprincipled person – especially a politician."},
+  {p:"borborygmus",t:"The rumbling sound your stomach makes."},
+  {p:"mumpsimus",t:"Someone who stubbornly sticks to an old habit or error, even when shown it is wrong."},
+  {p:"nurdle",t:"A tiny plastic pellet used as raw material in manufacturing."},
+  {p:"collywobbles",t:"A queasy, nervous feeling in the stomach."},
+ ]
+};
+const FAKES={
+ nb:["Gammelt mål for ved – omtrent så mye som én mann kan bære.",
+     "Dialektord for tynn morgentåke over vann.",
+     "Redskap som ble brukt til å flå ål.",
+     "Folkedans fra Setesdal i tretakt.",
+     "Sjømannsuttrykk for slakk i et tau.",
+     "Lyden kua lager når den er utålmodig.",
+     "Det lille hullet i en ostehøvel.",
+     "Gammelt ord for den siste slurken i en kaffekopp.",
+     "Det nederste laget i en høystakk.",
+     "En type knute som løsner av seg selv.",
+     "Skinnlappen på innsiden av en skistøvel.",
+     "Uvær som kommer fra to kanter samtidig.",
+     "Den ytterste planken i en robåt.",
+     "Gammelt ord for lommerusk.",
+     "Følelsen av å glemme hvorfor man gikk inn i et rom.",
+     "En liten haug med nyrakt løv."],
+ en:["An old unit for firewood – about as much as one person can carry.",
+     "A dialect word for thin morning mist over water.",
+     "A tool once used for skinning eels.",
+     "A folk dance in triple time.",
+     "A sailor's term for slack in a rope.",
+     "The sound a cow makes when it is impatient.",
+     "The small hole in a cheese slicer.",
+     "An old word for the last sip left in a coffee cup.",
+     "The bottom layer of a haystack.",
+     "A type of knot that unties itself.",
+     "The leather patch inside a ski boot.",
+     "Weather arriving from two directions at once.",
+     "The outermost plank of a rowing boat.",
+     "An old word for pocket lint.",
+     "The feeling of forgetting why you entered a room.",
+     "A small pile of freshly raked leaves."]
+};
+const BOTNAMES={nb:["Kåre 🤖","Berit 🤖","Odd 🤖","Solveig 🤖","Trygve 🤖"],
+                en:["Max 🤖","Ava 🤖","Pip 🤖","Ida 🤖","Leo 🤖"]};
+
+/* ---------- tiny synth ---------- */
+let AC=null, mute=false;
+function beep(f=600,d=.08,type="sine",g=.15,when=0){
+  if(mute)return;
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),v=AC.createGain();
+    o.type=type;o.frequency.value=f;v.gain.value=g;o.connect(v);v.connect(AC.destination);
+    const t0=AC.currentTime+when;o.start(t0);
+    v.gain.setValueAtTime(g,t0);v.gain.exponentialRampToValueAtTime(.001,t0+d);o.stop(t0+d+.02);
+  }catch(e){}}
+const snd={
+  click:()=>beep(520,.05,"square",.08),
+  flip:()=>{beep(700,.06,"triangle",.12);beep(1000,.05,"triangle",.1,.05);},
+  shuffle:()=>{for(let i=0;i<6;i++)beep(300+Math.random()*500,.04,"square",.05,i*.05);},
+  hop:()=>beep(340,.06,"sine",.14),
+  truth:()=>{[523,659,784].forEach((f,i)=>beep(f,.16,"triangle",.14,i*.12));},
+  sting:()=>{beep(180,.3,"sawtooth",.12);beep(140,.35,"sawtooth",.1,.12);},
+  boing:n=>beep(260+n*70,.12,"sine",.15),
+  wobble:()=>beep(200,.12,"triangle",.1),
+};
+
+/* ---------- state & helpers ---------- */
+const AVA=["#FFB020","#4FC3F7","#FF7043","#9CCC65","#BA68C8","#4DD0E1","#F06292","#AED581"];
+const PAWN_ICON={salongen:"♟",fjellet:"🥾",rom:"🚀"};
+const MARKS={salongen:["☕","🕰️","🏆"],fjellet:["🌲","❄️","🚩"],rom:["🛰️","☄️","🌕"]};
+let S;
+function fresh(){
+  S={lang:"nb",mode:null,phase:"LANG",players:[],botCount:3,target:15,theme:"salongen",
+     deck:[],fakePool:[],round:0,gm:0,card:null,decoys:["",""],
+     bluffs:{},order:[],options:[],votes:{},voteIdx:0,revealIdx:0,
+     deltas:{},gmStole:false,doubles:[],afterHand:null,cur:0,tm:[]};
+}
+fresh();
+const norm=s=>s.toLowerCase().replace(/[^\wæøåäöéèü]+/g," ").trim();
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const later=(fn,ms)=>{S.tm.push(setTimeout(fn,ms));};
+const clearTm=()=>{S.tm.forEach(clearTimeout);S.tm=[];};
+const party=()=>S.mode==="party";
+const userIsGm=()=>S.gm===0;
+const isBot=i=>party()&&i!==0;
+const app=document.getElementById("app");
+
+/* ---------- shell ---------- */
+function shell(inner,{gm=false}={}){
+  app.innerHTML=`
+   <div class="topbar">
+     <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
+     <span>
+       ${["LANG","MODE","PLAYERS","PARTYSETUP"].includes(S.phase)?"":`<button class="iconbtn" onclick="cycleTheme()">🎨</button>`}
+       <button class="iconbtn" onclick="toggleMute()">${mute?"🔇":"🔊"}</button>
+     </span>
+   </div>
+   <div class="fade" style="flex:1;display:flex;flex-direction:column;">${inner}</div>`;
+  app.style.boxShadow=gm?"inset 0 0 0 4px var(--gmViolet)":"none";
+}
+window.toggleMute=()=>{mute=!mute;render();};
+window.cycleTheme=()=>{const o=["salongen","fjellet","rom"];S.theme=o[(o.indexOf(S.theme)+1)%3];snd.click();render();};
+
+/* ---------- render dispatch ---------- */
+function render(){
+  document.body.className="theme-"+S.theme;
+  ({LANG:rLang,MODE:rMode,PLAYERS:rPlayers,PARTYSETUP:rPartySetup,SETUP:rSetup,
+    GM_INTRO:rGmIntro,GM_DASH:rGmDash,BLUFF:rBluff,WAIT:rWait,VOTE:rVote,VOTEWAIT:rVoteWait,
+    REVEAL:rReveal,BOARD:rBoard,WINNER:rWinner})[S.phase]();
+}
+
+/* ---------- setup phases ---------- */
+function rLang(){
+  shell(`
+   <div class="hero">
+     ${LOGO(64)}
+     <h1 style="font-size:clamp(38px,11vw,48px)">${t("title")}</h1>
+     <p class="sub" style="margin:0">${t("pickLang")}</p>
+   </div>
+   <button class="btn" onclick="setLang('nb')">Norsk</button>
+   <button class="btn secondary" onclick="setLang('en')">English</button>
+   <div style="flex:1"></div>`);
+}
+window.setLang=l=>{S.lang=l;S.phase="MODE";snd.click();render();};
+
+function rMode(){
+  shell(`<h2>${t("mode")}</h2>
+   <button class="btn modebtn" onclick="setMode('hotseat')">
+     <span class="phones"><span class="phoneico"></span></span>
+     <span><b>${t("hotseatName")}</b><small>${t("hotseatSub")}</small></span></button>
+   <button class="btn modebtn" onclick="setMode('party')">
+     <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
+     <span><b>${t("partyName")}</b><small>${t("partySub")}</small></span></button>
+   <div style="flex:1"></div>`);
+}
+window.setMode=m=>{S.mode=m;snd.click();S.phase=m==="party"?"PARTYSETUP":"PLAYERS";render();};
+
+function rPlayers(){
+  shell(`<h2>${t("players")}</h2>
+   <div>${S.players.map((p,i)=>`
+     <div class="pchip" style="margin-bottom:6px;justify-content:space-between;">
+       <span style="display:flex;gap:8px;align-items:center;"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>
+       <span style="cursor:pointer" onclick="delP(${i})">✕</span></div>`).join("")}</div>
+   ${S.players.length<8?`<input type="text" id="pname" placeholder="${t("namePh")}" maxlength="14"
+      onkeydown="if(event.key==='Enter')addP()">
+   <button class="btn secondary" onclick="addP()">${t("addPlayer")}</button>`:""}
+   <div style="flex:1"></div><p class="small">${t("needPlayers")}</p>
+   <button class="btn" ${S.players.length<3?"disabled":""} onclick="S.phase='SETUP';snd.click();render()">${t("next")}</button>`);
+  const inp=document.getElementById("pname");if(inp)inp.focus();
+}
+window.addP=()=>{const i=document.getElementById("pname");const n=i.value.trim();
+  if(!n)return;S.players.push({name:n,color:AVA[S.players.length],score:0,bluffVotes:0});snd.click();render();};
+window.delP=i=>{S.players.splice(i,1);S.players.forEach((p,j)=>p.color=AVA[j]);render();};
+
+function rPartySetup(){
+  shell(`<h2>${t("yourName")}</h2>
+   <input type="text" id="uname" maxlength="14" value="${esc(S.uname||"")}" placeholder="${t("namePh")}">
+   <h2>${t("bots")}</h2>
+   <div class="seg">${[2,3,4,5].map(n=>`
+     <button class="${S.botCount===n?"on":""}" onclick="S.botCount=${n};snd.click();render()">${n} 🤖</button>`).join("")}</div>
+   <div style="flex:1"></div>
+   <button class="btn" onclick="partyPlayers()">${t("next")}</button>`);
+  document.getElementById("uname").oninput=e=>S.uname=e.target.value;
+}
+window.partyPlayers=()=>{
+  const n=(S.uname||"").trim()||( S.lang==="nb"?"Du":"You");
+  S.players=[{name:n,color:AVA[0],score:0,bluffVotes:0}];
+  BOTNAMES[S.lang].slice(0,S.botCount).forEach((b,i)=>S.players.push({name:b,color:AVA[i+1],score:0,bluffVotes:0}));
+  S.phase="SETUP";snd.click();render();
+};
+
+function rSetup(){
+  shell(`<h2>${t("length")}</h2>
+   <div class="seg">${[["kort",8],["std",15],["mara",25]].map(([k,v])=>`
+     <button class="${S.target===v?"on":""}" onclick="S.target=${v};snd.click();render()">${t(k)}</button>`).join("")}</div>
+   <h2>${t("theme")}</h2>
+   <div class="seg">${["salongen","fjellet","rom"].map(th=>`
+     <button class="${S.theme===th?"on":""}" onclick="S.theme='${th}';snd.click();render()">${t(th)}</button>`).join("")}</div>
+   <div style="flex:1"></div><p class="small">${t("rules")}</p>
+   <button class="btn" onclick="startGame()">${t("begin")}</button>`);
+}
+window.startGame=()=>{S.deck=shuffle(DECKS[S.lang]);S.round=0;S.gm=0;  /* user (index 0) is first GM */
+  S.players.forEach(p=>{p.score=0;p.bluffVotes=0;});newRound();};
+
+/* ---------- round lifecycle ---------- */
+function newRound(){
+  clearTm();
+  S.round++;
+  if(!S.deck.length)S.deck=shuffle(DECKS[S.lang]);
+  S.card=S.deck.pop();
+  S.fakePool=shuffle(FAKES[S.lang]);
+  S.decoys=["",""];S.bluffs={};S.votes={};S.deltas={};S.gmStole=false;S.doubles=[];
+  S.gmDecoyDone=!(party()&&S.gm!==0);
+  S.order=S.players.map((_,i)=>i).filter(i=>i!==S.gm);
+  S.voteIdx=0;S.phase="GM_INTRO";snd.flip();render();
+  if(party()&&!userIsGm())later(()=>{if(S.phase==="GM_INTRO")enterBluffing();},2000);
+}
+const takeFake=()=>S.fakePool.pop()||"…";
+
+function rGmIntro(){
+  const gm=S.players[S.gm];
+  shell(`
+   <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+     <div class="banner gm">${t("roundN",S.round)}</div>
+     <h1 style="color:var(--gmViolet)">${party()&&userIsGm()?t("youAreGm"):t("gmIs",esc(gm.name))}</h1>
+     <p class="sub">${t("fearNose")}</p>
+     <div style="display:flex;justify-content:center;margin:16px 0;">
+       <div class="face bob" style="background:${gm.color};width:68px;height:68px;">
+         <div class="smile" style="width:18px;height:9px;bottom:11px;"></div>
+         <div class="nose violet" style="top:29px;width:28px;height:13px;"></div></div></div>
+   </div>
+   ${party()&&!userIsGm()
+     ? `<p class="small" style="text-align:center">…</p>`
+     : `<button class="btn gm" onclick="enterGmDash()">${t("next")}</button>`}`);
+}
+window.enterGmDash=()=>{snd.click();S.phase="GM_DASH";render();if(party())scheduleBotBluffs();};
+
+/* PARTY: bots write their bluffs on their own "phones" */
+function scheduleBotBluffs(){
+  S.order.filter(i=>isBot(i)).forEach((i,k)=>{
+    later(()=>{
+      if(S.bluffs[i]!==undefined)return;
+      S.bluffs[i]=takeFake();snd.flip();
+      botTickUI(i);
+      maybeAllBluffsIn();
+    }, rnd(1800,3500)+k*rnd(800,2200));
+  });
+}
+function botTickUI(i){
+  const chip=document.getElementById("chip"+i);
+  if(chip){chip.classList.add("done");chip.innerHTML=chip.innerHTML.replace("…","✓").replace(t("thinkingDots"),"✓");}
+  if(S.phase==="WAIT")render();               // waiting room has no inputs → safe full render
+  if(S.phase==="GM_DASH")refreshGmAction();   // GM dash has inputs → surgical update only
+}
+function maybeAllBluffsIn(){
+  const allIn=S.order.every(i=>S.bluffs[i]!==undefined);
+  if(!allIn||!S.gmDecoyDone)return;
+  if(S.phase==="WAIT"){                       // user is a bluffer, bot GM shuffles + opens
+    later(()=>{snd.shuffle();buildOptions();S.phase="VOTE";render();scheduleBotVotes();},1200);
+  }
+}
+function refreshGmAction(){
+  const el=document.getElementById("gmaction");if(!el)return;
+  const allIn=S.order.every(i=>S.bluffs[i]!==undefined);
+  const waiting=S.order.filter(i=>S.bluffs[i]===undefined).map(i=>S.players[i].name);
+  el.innerHTML= allIn
+    ? `<div class="banner green">${t("allIn")}</div>
+       <button class="btn pulse" onclick="gmOpensVote()">🎉 ${t("openVote")}</button>`
+    : `<p class="small">${t("waitingFor")}: ${waiting.map(esc).join(", ")}</p>
+       ${party()?"":`<button class="btn gm" onclick="nextBluffer()">${t("passOn")} →</button>`}`;
+}
+
+function rGmDash(){
+  shell(`
+   <p class="small">${t("gmHint")}</p>
+   <div class="card"><span class="eyebrow">${t("theWord")}</span><div class="word">${esc(S.card.p)}</div></div>
+   <div class="card secret" onpointerdown="peek(true)" onpointerup="peek(false)" onpointerleave="peek(false)">
+     <b style="color:var(--gmViolet)">🔒 ${t("secret")}</b>
+     <div id="truthtxt" style="margin-top:6px;filter:blur(7px);transition:filter .2s;">${esc(S.card.t)}</div>
+     <div class="small">${t("peek")}</div></div>
+   <b>${t("decoys")}</b>
+   ${[0,1].map(i=>`<input type="text" style="margin-top:8px" maxlength="140"
+      placeholder="${t("decoyPh",i+1)}" value="${esc(S.decoys[i])}" oninput="S.decoys[${i}]=this.value">`).join("")}
+   <div class="chiprow" style="margin-top:14px;">
+     ${S.order.map(i=>{const p=S.players[i];const done=S.bluffs[i]!==undefined;
+       return `<span class="pchip ${done?"done":""}" id="chip${i}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done?"✓":(party()?`<span class="thinking">${t("thinkingDots")}</span>`:"…")}</span>`;}).join("")}
+   </div>
+   <div id="gmaction"></div>`,{gm:true});
+  refreshGmAction();
+}
+window.peek=on=>{const el=document.getElementById("truthtxt");if(el)el.style.filter=on?"none":"blur(7px)";};
+window.gmOpensVote=()=>{clearTm();snd.shuffle();buildOptions();
+  if(party()){S.phase="VOTEWAIT";render();scheduleBotVotes();}
+  else{const first=S.players[S.order[0]].name;hand(first,()=>{S.phase="VOTE";render();});}};
+
+/* ---------- hotseat plumbing (unchanged mechanics) ---------- */
+function nextBluffer(){
+  const nxt=S.order.find(i=>S.bluffs[i]===undefined);
+  hand(S.players[nxt].name,()=>{S.phase="BLUFF";S.cur=nxt;render();});
+}
+window.nextBluffer=nextBluffer;
+function hand(name,after){
+  S.afterHand=after;
+  const d=document.createElement("div");d.className="handover";d.id="hand";
+  d.innerHTML=`<h1>📱</h1><h2>${t("giveTo",esc(name))}</h2><p class="sub">${t("noPeek")}</p>
+    <button class="holdbtn" id="hb"><span class="inner">${t("hold")} 1s</span></button>`;
+  document.body.appendChild(d);
+  const hb=d.querySelector("#hb");let t0=null,raf=null;
+  const step=()=>{const p=Math.min(100,(Date.now()-t0)/10);hb.style.setProperty("--p",p);
+    if(p>=100){cancelAnimationFrame(raf);d.remove();snd.flip();S.afterHand();}
+    else raf=requestAnimationFrame(step);};
+  hb.addEventListener("pointerdown",e=>{e.preventDefault();t0=Date.now();raf=requestAnimationFrame(step);});
+  const stop=()=>{cancelAnimationFrame(raf);hb.style.setProperty("--p",0);};
+  hb.addEventListener("pointerup",stop);hb.addEventListener("pointerleave",stop);
+}
+
+/* ---------- bluff entry (user) ---------- */
+function enterBluffing(){S.cur=0;S.phase="BLUFF";render();
+  scheduleBotBluffs();
+  later(()=>{if(!S.gmDecoyDone){S.decoys[0]=takeFake();S.gmDecoyDone=true;maybeAllBluffsIn();}},rnd(2500,5000));
+}
+function rBluff(){
+  const p=S.players[S.cur];
+  shell(`
+   <div class="banner" style="background:${p.color};color:var(--inkText)">${esc(p.name)}</div>
+   <div class="card"><div class="word" style="font-size:36px">${esc(S.card.p)}</div></div>
+   <p>${t("yourBluff",esc(S.card.p))}</p>
+   <textarea id="btxt" maxlength="140" placeholder="${t("bluffPh")}"></textarea>
+   <p class="small" id="berr"></p>
+   <div style="flex:1"></div>
+   <button class="btn" onclick="lockBluff()">${t("lockIn")}</button>`);
+  document.getElementById("btxt").focus();
+}
+window.lockBluff=()=>{
+  const v=document.getElementById("btxt").value.trim();
+  if(!v){document.getElementById("berr").textContent=t("emptyBluff");snd.wobble();return;}
+  S.bluffs[S.cur]=v;snd.flip();
+  if(party()){                                   // user done → waiting room while the rest tick in
+    S.phase="WAIT";render();
+    maybeAllBluffsIn();
+  }else{
+    hand(S.players[S.gm].name,()=>{S.phase="GM_DASH";render();});
+  }
+};
+
+/* PARTY: user's waiting room while others "type on their phones" */
+function rWait(){
+  const gm=S.players[S.gm];
+  shell(`
+   <h2>${t("roundN",S.round)}</h2>
+   <div class="card"><div class="word" style="font-size:34px">${esc(S.card.p)}</div>
+     <div class="banner green" style="margin:10px 0 0">✓</div></div>
+   <div class="card">
+     <div class="chiprow">
+       ${S.order.map(i=>{const p=S.players[i];const done=S.bluffs[i]!==undefined;
+         return `<span class="pchip ${done?"done":""}" id="chip${i}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done?"✓":`<span class="thinking">${t("thinkingDots")}</span>`}</span>`;}).join("")}
+       <span class="pchip"><span class="dot" style="background:${gm.color}"></span>👑 <span class="thinking">${t("gmComposing",esc(gm.name))}</span></span>
+     </div>
+     <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
+   </div>
+   <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+     <div class="face bob" style="background:${S.players[0].color};width:60px;height:60px;">
+       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
+       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+   </div>`);
+}
+
+/* ---------- options & voting ---------- */
+function buildOptions(){
+  const opts=[];const truthOpt={text:S.card.t,kind:"truth",authors:[]};
+  for(const i of S.order){
+    const b=S.bluffs[i];
+    if(norm(b)===norm(S.card.t)){S.doubles.push(i);continue;}
+    const same=opts.find(o=>norm(o.text)===norm(b));
+    if(same)same.authors.push(i);else opts.push({text:b,kind:"bluff",authors:[i]});
+  }
+  S.decoys.filter(d=>d&&d.trim()).forEach(d=>opts.push({text:d.trim(),kind:"decoy",authors:[S.gm]}));
+  S.options=shuffle([...opts,truthOpt]).map((o,i)=>({...o,letter:String.fromCharCode(65+i)}));
+}
+function scheduleBotVotes(){
+  S.order.filter(i=>isBot(i)).forEach((i,k)=>{
+    later(()=>{
+      if(S.votes[i]!==undefined)return;
+      S.votes[i]=botPick(i);snd.click();
+      if(S.phase==="VOTEWAIT")render();
+      maybeAllVotesIn();
+    }, rnd(1500,3000)+k*rnd(700,1800));
+  });
+}
+function botPick(i){
+  const truthIdx=S.options.findIndex(o=>o.kind==="truth");
+  const others=S.options.map((o,idx)=>idx).filter(idx=>idx!==truthIdx&&!S.options[idx].authors.includes(i));
+  if(!others.length||Math.random()<0.35)return truthIdx;
+  return others[Math.floor(Math.random()*others.length)];
+}
+function maybeAllVotesIn(){
+  if(Object.keys(S.votes).length<S.order.length)return;
+  clearTm();
+  later(()=>{computeScores();S.revealIdx=0;S.phase="REVEAL";render();
+             if(party()&&!userIsGm())later(autoReveal,1400);},600);
+}
+function rVote(){
+  const voter=party()?0:S.order[S.voteIdx];const p=S.players[voter];
+  shell(`
+   <div class="banner" style="background:${p.color};color:var(--inkText)">
+     ${party()?t("yourVote"):t("votingTime",esc(p.name))}</div>
+   <p class="small">${t("cantOwn")}</p>
+   ${S.options.map((o,i)=>o.authors.includes(voter)?"":`
+     <div class="opt stagger" style="animation-delay:${i*70}ms" onclick="castVote(${i})">
+       <div class="letter">${o.letter}</div><div>${esc(o.text)}</div></div>`).join("")}`);
+}
+window.castVote=i=>{
+  snd.click();
+  if(party()){
+    S.votes[0]=i;S.phase="VOTEWAIT";render();maybeAllVotesIn();
+  }else{
+    S.votes[S.order[S.voteIdx]]=i;S.voteIdx++;
+    if(S.voteIdx<S.order.length)hand(S.players[S.order[S.voteIdx]].name,()=>render());
+    else hand(S.players[S.gm].name,()=>{computeScores();S.revealIdx=0;S.phase="REVEAL";render();});
+  }
+};
+function rVoteWait(){
+  const n=Object.keys(S.votes).length,total=S.order.length;
+  shell(`
+   <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
+   ${userIsGm()?"":`<div class="banner green">${t("youVoted")}</div>`}
+   ${S.options.map(o=>{
+     const c=Object.values(S.votes).filter(oi=>S.options[oi]===o).length;
+     return `<div class="opt" style="cursor:default">
+       <div class="letter">${o.letter}</div>
+       <div style="flex:1">${esc(o.text)}
+         <div class="votedots">${"<span class='dot' style='background:var(--mutedViolet)'></span>".repeat(c)}
+           <span class="small">${c}</span></div></div></div>`;}).join("")}
+  `,{gm:userIsGm()});
+}
+
+/* ---------- scoring ---------- */
+function computeScores(){
+  const d={};S.players.forEach((_,i)=>d[i]=0);
+  let truthFound=false;
+  for(const[v,oi]of Object.entries(S.votes)){
+    const voter=+v,opt=S.options[oi];
+    if(opt.kind==="truth"){d[voter]+=2;truthFound=true;}
+    else opt.authors.forEach(a=>{d[a]+=1;S.players[a].bluffVotes++;});
+  }
+  S.doubles.forEach(i=>d[i]+=3);
+  if(!truthFound){d[S.gm]+=2;S.gmStole=true;}
+  S.deltas=d;
+}
+
+/* ---------- reveal ---------- */
+function revealSeq(){return [...S.options.filter(o=>o.kind!=="truth"),S.options.find(o=>o.kind==="truth")];}
+function rReveal(){
+  const seq=revealSeq();
+  const shown=seq.slice(0,S.revealIdx);
+  const done=S.revealIdx>=seq.length;
+  const hostIsBot=party()&&!userIsGm();
+  shell(`
+   <h2>${t("revealTitle")} <span class="small">· ${t("roundN",S.round)}</span></h2>
+   ${S.doubles.map(i=>`<div class="banner green">${t("doubleHit",esc(S.players[i].name))}</div>`).join("")}
+   ${shown.map((o,si)=>{
+      const voters=Object.entries(S.votes).filter(([,oi])=>S.options[oi]===o).map(([v])=>S.players[+v]);
+      const isT=o.kind==="truth";
+      return `<div class="opt ${o.kind} ${si===shown.length-1?"pop":""}" style="cursor:default">
+        <div class="letter" style="${isT?"background:var(--truthGreen);color:var(--inkText)":""}">${o.letter}</div>
+        <div style="flex:1">
+          ${isT?`<b style="color:var(--truthGreen)">✓ ${t("theTruth")}</b><br>`:""}
+          ${esc(o.text)}
+          <div class="votedots">${voters.map(v=>`<span class="dot" title="${esc(v.name)}" style="background:${v.color}"></span>`).join("")}
+            <span class="small">${voters.length} ${t("votes")}</span></div>
+          ${!isT?`<div class="author">
+             ${o.authors.map(a=>{const pl=S.players[a];const gmA=a===S.gm;
+               return `<span class="face" style="background:${pl.color}">
+                         <span class="nose ${gmA?"violet":""}" style="width:${6+voters.length*14}px"></span></span>
+                       <span>${t("by")} ${a===0&&party()?t("you"):esc(pl.name)}${gmA?` · <span style="color:var(--gmViolet)">${t("gmDecoy")}</span>`:""}</span>`;}).join("")}
+           </div>`:""}
+        </div></div>`;}).join("")}
+   ${done&&S.gmStole?`<div class="banner gm">😈 ${t("gmSteal")}</div>`:""}
+   <div style="flex:1"></div>
+   ${done
+     ?`<button class="btn" onclick="goBoard()">${t("toBoard")}</button>`
+     :`<button class="btn gm" onclick="manualReveal()">${hostIsBot?t("skip"):t("tapReveal")}</button>`}
+  `,{gm:userIsGm()||!party()});
+}
+function doRevealStep(){
+  const seq=revealSeq();
+  if(S.revealIdx>=seq.length)return;
+  const isTruth=S.revealIdx===seq.length-1;
+  S.revealIdx++;
+  if(isTruth){snd.truth();if(S.gmStole)setTimeout(snd.sting,500);}
+  else{const o=seq[S.revealIdx-1];
+       const v=Object.values(S.votes).filter(oi=>S.options[oi]===o).length;snd.boing(v);}
+  render();
+}
+window.manualReveal=()=>{clearTm();doRevealStep();
+  if(party()&&!userIsGm()&&S.revealIdx<revealSeq().length)later(autoReveal,1700);};
+function autoReveal(){
+  if(S.phase!=="REVEAL")return;
+  doRevealStep();
+  if(S.revealIdx<revealSeq().length)later(autoReveal,1700);
+  else later(goBoard,1600);
+}
+window.goBoard=()=>{if(S.phase==="BOARD")return;clearTm();snd.click();
+  S.phase="BOARD";render();setTimeout(animateBoard,400);};
+
+/* ---------- board ---------- */
+function cellPos(i){const row=Math.floor(i/5);let col=i%5;if(row%2)col=4-col;return{row,col};}
+function rBoard(){
+  const T=S.target;const th=MARKS[S.theme];const marks={};
+  marks[Math.floor(T/3)]=th[0];marks[Math.floor(2*T/3)]=th[1];marks[T]=th[2];
+  let cells="";
+  for(let i=0;i<=T;i++){const{row,col}=cellPos(i);
+    cells+=`<div class="space ${i===T?"goal":""}" data-i="${i}" style="grid-row:${row+1};grid-column:${col+1}">
+              ${i===0?"▶":i}${marks[i]?`<span class="mark">${marks[i]}</span>`:""}</div>`;}
+  shell(`
+   <h2>${t("board")}</h2><p class="sub">${t("boardSub",T)}</p>
+   <div class="boardwrap"><div class="board">${cells}</div><div id="pawns"></div></div>
+   <div style="margin-top:10px">
+     ${S.players.map((p,i)=>`<div class="scoreline">
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
+        ${esc(p.name)} ${i===S.gm?"👑":""} <span class="small">👃${p.bluffVotes}</span>
+        ${S.deltas[i]?`<b style="color:var(--turnYellow)">+${S.deltas[i]}</b>`:""}</span>
+        <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
+   </div>
+   <div style="flex:1"></div>
+   <button class="btn" id="nextbtn" disabled>${t("nextRound")}</button>`);
+  placePawns();
+}
+function pawnEl(i){
+  let el=document.getElementById("pw"+i);
+  if(!el){el=document.createElement("div");el.id="pw"+i;el.className="pawn";
+    el.style.background=S.players[i].color;el.textContent=PAWN_ICON[S.theme];
+    document.getElementById("pawns").appendChild(el);}
+  return el;
+}
+function moveTo(i,space,offset){
+  const cell=document.querySelector(`.space[data-i="${Math.min(space,S.target)}"]`);
+  if(!cell)return;
+  const wrap=document.querySelector(".boardwrap").getBoundingClientRect();
+  const r=cell.getBoundingClientRect();
+  const el=pawnEl(i);
+  el.style.left=(r.left-wrap.left+r.width/2-15+offset*7)+"px";
+  el.style.top =(r.top -wrap.top +r.height/2-15-offset*5)+"px";
+}
+function placePawns(){S.players.forEach((p,i)=>moveTo(i,p.score,i));markLeader();}
+function markLeader(){
+  const max=Math.max(...S.players.map(p=>p.score));
+  S.players.forEach((p,i)=>pawnEl(i).classList.toggle("leader",p.score===max&&max>0));
+}
+function animateBoard(){
+  const earners=S.players.map((_,i)=>i).filter(i=>S.deltas[i]>0);
+  let e=0;
+  const nextEarner=()=>{
+    if(e>=earners.length)return finishRound();
+    const i=earners[e++];let steps=S.deltas[i];
+    const hop=()=>{
+      if(steps--<=0){markLeader();return setTimeout(nextEarner,250);}
+      S.players[i].score++;
+      snd.hop();if(navigator.vibrate)navigator.vibrate(10);
+      moveTo(i,S.players[i].score,i);
+      const sc=document.getElementById("sc"+i);if(sc)sc.textContent=S.players[i].score+" "+t("pts");
+      setTimeout(hop,330);
+    };hop();
+  };
+  setTimeout(nextEarner,300);
+}
+window.animateBoard=animateBoard;
+function finishRound(){
+  S.deltas={};
+  const rotationDone=(S.round%S.players.length)===0;
+  const past=S.players.filter(p=>p.score>=S.target);
+  if(rotationDone&&past.length){S.phase="WINNER";snd.truth();render();confetti();return;}
+  const btn=document.getElementById("nextbtn");if(!btn)return;
+  btn.disabled=false;
+  btn.onclick=()=>{S.gm=(S.gm+1)%S.players.length;newRound();};
+}
+
+/* ---------- winner ---------- */
+function rWinner(){
+  const max=Math.max(...S.players.map(p=>p.score));
+  const winners=S.players.filter(p=>p.score===max);
+  const liar=[...S.players].sort((a,b)=>b.bluffVotes-a.bluffVotes)[0];
+  shell(`
+   <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+     <h1 style="font-size:42px">🏆</h1>
+     <h1>${winners.length>1?t("shared"):t("winner",esc(winners[0].name))}</h1>
+     <p class="sub">${t("restOfYou")}</p>
+     <div class="card" style="display:flex;gap:12px;align-items:center;justify-content:center;">
+       <span class="face" style="background:${liar.color};width:48px;height:48px;">
+         <span class="nose gold" style="top:20px;width:${10+liar.bluffVotes*10}px;height:10px;"></span></span>
+       <b>${t("goldNose",esc(liar.name))} (👃 ${liar.bluffVotes})</b></div>
+     <div style="margin-top:14px">${[...S.players].sort((a,b)=>b.score-a.score).map(p=>`
+        <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+   </div>
+   <button class="btn" onclick="replay()">${t("playAgain")}</button>`);
+}
+window.replay=()=>{clearTm();
+  const keep={lang:S.lang,mode:S.mode,players:S.players.map(p=>({...p,score:0,bluffVotes:0})),
+              target:S.target,theme:S.theme,botCount:S.botCount,uname:S.uname};
+  fresh();Object.assign(S,keep);S.phase="SETUP";render();};
+
+function confetti(){
+  const cols=["#FFC53D","#FF5C97","#3BD489","#9B6DFF","#4FC3F7"];
+  for(let i=0;i<80;i++){
+    const c=document.createElement("div");c.className="confetti";
+    c.style.left=Math.random()*100+"vw";c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(2+Math.random()*2)+"s";c.style.animationDelay=(Math.random()*0.8)+"s";
+    document.body.appendChild(c);setTimeout(()=>c.remove(),5000);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
