@@ -1,0 +1,218 @@
+{
+  "$schema_note": "Language-neutral rules authority for Cocky Monk, generated from PRD §5.3 (scoring), §5.4 (length & fairness) and §5.5 (edge cases). Drives Lab/js/engine.test.mjs (node --test) now and Tests/EngineTests (Swift Testing) on Mac day. The Lab and the demo are NOT rules authorities — this file is. Player index 0 in each round vector is that round's GM. Options of kind 'truth' have no authors; 'decoy' options are authored by the GM; voters never see options they authored (E5) and the GM never votes (E6).",
+  "decisions": [
+    { "id": "D1", "note": "Merged identical bluffs (PRD §5.5): each author scores ceil(votes/authorCount); for the Gullnese bluffVotes tally each author is credited the option's full vote count." },
+    { "id": "D2", "note": "Win threshold: score >= target, checked only when round % playerCount == 0 (demo line 807 behavior, canonical per PRD §5.4 'full rotation')." },
+    { "id": "D3", "note": "Dobbeltreff authors are removed from the option pool (their bluff merges with truth), receive +3, and still vote; the truth option remains votable by them (truth has no authors)." }
+  ],
+  "rounds": [
+    {
+      "id": "R1-truth-found-basic",
+      "desc": "PRD §5.3 rows 1-2: +2 truth voter, +1 per vote to lie authors (incl. GM decoy).",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "c", "kind": "bluff", "authors": [3] },
+        { "id": "d", "kind": "decoy", "authors": [0] }
+      ],
+      "votes": { "1": "t", "2": "a", "3": "d" },
+      "expected": {
+        "deltas": { "0": 1, "1": 3, "2": 0, "3": 0 },
+        "gmStole": false,
+        "bluffVotes": { "0": 1, "1": 1, "2": 0, "3": 0 }
+      }
+    },
+    {
+      "id": "R2-gm-steal",
+      "desc": "PRD §5.3 row 3: nobody voted the truth → GM +2, on top of GM decoy votes.",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "c", "kind": "bluff", "authors": [3] },
+        { "id": "d", "kind": "decoy", "authors": [0] }
+      ],
+      "votes": { "1": "b", "2": "d", "3": "a" },
+      "expected": {
+        "deltas": { "0": 3, "1": 1, "2": 1, "3": 0 },
+        "gmStole": true,
+        "bluffVotes": { "0": 1, "1": 1, "2": 1, "3": 0 }
+      }
+    },
+    {
+      "id": "R3-dobbeltreff",
+      "desc": "PRD §5.3 row 4 + D3: Bo's bluff ≈ truth → +3, merged out of the pool; Bo may still vote the truth.",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "doubles": [2],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "c", "kind": "bluff", "authors": [3] }
+      ],
+      "votes": { "1": "t", "2": "t", "3": "a" },
+      "expected": {
+        "deltas": { "0": 0, "1": 3, "2": 5, "3": 0 },
+        "gmStole": false,
+        "bluffVotes": { "0": 0, "1": 1, "2": 0, "3": 0 }
+      }
+    },
+    {
+      "id": "R4-identical-bluffs-merge",
+      "desc": "PRD §5.5 + D1: Anne and Cam wrote identical bluffs → one merged option, points split rounding up for each.",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "m", "kind": "bluff", "authors": [1, 3] },
+        { "id": "b", "kind": "bluff", "authors": [2] }
+      ],
+      "votes": { "1": "t", "2": "m", "3": "t" },
+      "expected": {
+        "deltas": { "0": 0, "1": 3, "2": 0, "3": 3 },
+        "gmStole": false,
+        "bluffVotes": { "0": 0, "1": 1, "2": 0, "3": 1 }
+      }
+    },
+    {
+      "id": "R5-three-players-two-decoys",
+      "desc": "PRD §5.5: 3 players → 2 bluffs + truth + up to 2 GM decoys; truth found → no steal.",
+      "players": ["GM", "Anne", "Bo"],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "d1", "kind": "decoy", "authors": [0] },
+        { "id": "d2", "kind": "decoy", "authors": [0] }
+      ],
+      "votes": { "1": "d1", "2": "t" },
+      "expected": {
+        "deltas": { "0": 1, "1": 0, "2": 2 },
+        "gmStole": false,
+        "bluffVotes": { "0": 1, "1": 0, "2": 0 }
+      }
+    },
+    {
+      "id": "R6-decoy-harvest-plus-steal",
+      "desc": "GM earns per decoy vote AND the steal when nobody finds the truth (PRD §5.3: GM earns only via decoys + steal).",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "c", "kind": "bluff", "authors": [3] },
+        { "id": "d", "kind": "decoy", "authors": [0] }
+      ],
+      "votes": { "1": "d", "2": "d", "3": "a" },
+      "expected": {
+        "deltas": { "0": 4, "1": 1, "2": 0, "3": 0 },
+        "gmStole": true,
+        "bluffVotes": { "0": 2, "1": 1, "2": 0, "3": 0 }
+      }
+    },
+    {
+      "id": "R7-drop-mid-round",
+      "desc": "PRD §5.5: a bluffer drops mid-round → their pending bluff and vote are skipped; scoring proceeds with the rest.",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "dropped": [3],
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] }
+      ],
+      "votes": { "1": "b", "2": "t" },
+      "expected": {
+        "deltas": { "0": 0, "1": 0, "2": 3, "3": 0 },
+        "gmStole": false,
+        "bluffVotes": { "0": 0, "1": 0, "2": 1, "3": 0 }
+      }
+    }
+  ],
+  "games": [
+    {
+      "id": "G1-win-only-at-rotation-end",
+      "desc": "PRD §5.4 + D2: crossing the target mid-rotation does not win; the check fires only when the rotation completes.",
+      "players": ["Anne", "Bo", "Cam"],
+      "target": 8,
+      "roundDeltas": [
+        { "0": 0, "1": 5, "2": 0 },
+        { "0": 0, "1": 4, "2": 2 },
+        { "0": 1, "1": 0, "2": 0 }
+      ],
+      "expected": {
+        "winCheckAfterRound": [false, false, true],
+        "winnerAfterRound": [null, null, "Bo"],
+        "finalScores": { "0": 1, "1": 9, "2": 2 }
+      }
+    },
+    {
+      "id": "G2-tie-triggers-omkamp",
+      "desc": "PRD §5.4: tie past the line at rotation end → omkamp (sudden death); tied players bluff, next-highest scorer acts as GM.",
+      "players": ["Anne", "Bo", "Cam"],
+      "target": 8,
+      "roundDeltas": [
+        { "0": 5, "1": 3, "2": 1 },
+        { "0": 1, "1": 3, "2": 2 },
+        { "0": 3, "1": 3, "2": 0 }
+      ],
+      "expected": {
+        "winCheckAfterRound": [false, false, true],
+        "omkampAfterRound": 3,
+        "omkampParticipants": ["Anne", "Bo"],
+        "omkampGm": "Cam",
+        "finalScores": { "0": 9, "1": 9, "2": 3 }
+      }
+    },
+    {
+      "id": "G3-omkamp-still-tied-shared-victory",
+      "desc": "PRD §5.4: omkamp resolves nothing → shared victory, shared confetti.",
+      "players": ["Anne", "Bo", "Cam"],
+      "target": 8,
+      "setup": { "scores": { "0": 9, "1": 9, "2": 3 }, "inOmkamp": true, "participants": [0, 1] },
+      "omkampDeltas": { "0": 1, "1": 1, "2": 0 },
+      "expected": { "sharedVictory": true, "winners": ["Anne", "Bo"] }
+    }
+  ],
+  "behaviors": [
+    {
+      "id": "E1-empty-bluff-rejected",
+      "desc": "PRD §5.5: empty/whitespace bluff is blocked; state unchanged, playful nudge signalled.",
+      "action": { "type": "submitBluff", "player": 1, "text": "   " },
+      "expected": { "rejected": true }
+    },
+    {
+      "id": "E2-decoy-gating",
+      "desc": "PRD §5.5: the shuffle may never fire before the GM decoy state is settled, even with all bluffs in.",
+      "given": { "allBluffsIn": true, "gmDecoyDone": false },
+      "expected": { "canOpenVote": false },
+      "then": { "gmDecoyDone": true, "expected": { "canOpenVote": true } }
+    },
+    {
+      "id": "E3-gm-drop-restarts-round",
+      "desc": "PRD §5.5: GM drops → role passes to the next player, round restarts with a fresh card.",
+      "given": { "players": 4, "gm": 1, "phase": "bluffing" },
+      "action": { "type": "removePlayer", "player": 1 },
+      "expected": { "newGm": 2, "roundRestarted": true, "freshCard": true }
+    },
+    {
+      "id": "E4-own-answer-hidden",
+      "desc": "PRD §5.2#4: a voter's own option never appears in their vote list; truth (no authors) is visible to all bluffers.",
+      "given": "R1-truth-found-basic",
+      "expected": { "visibleOptionsFor": { "1": ["t", "b", "c", "d"], "2": ["t", "a", "c", "d"], "3": ["t", "a", "b", "d"] } }
+    },
+    {
+      "id": "E5-gm-does-not-vote",
+      "desc": "PRD §5.1: the game master never votes.",
+      "given": "R1-truth-found-basic",
+      "action": { "type": "castVote", "player": 0, "option": "a" },
+      "expected": { "rejected": true }
+    },
+    {
+      "id": "E6-gm-rotation-order",
+      "desc": "PRD §5.1: GM rotates every round in setup order, wrapping around.",
+      "given": { "players": 3, "gmSequence": true },
+      "expected": { "gmByRound": [0, 1, 2, 0, 1, 2] }
+    }
+  ]
+}
