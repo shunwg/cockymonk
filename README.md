@@ -1,6 +1,15 @@
 # Cocky Monk starter kit
 Everything Claude Code needs to build a game-master-led bluffing party game for iOS — spec, constitution, design system, house skills, and scripts. Unzip into an empty folder, do the 5-minute edit, run setup, start building.
 
+## ▶ Play the full game right now (Windows, no install)
+Double-click **`Play Cocky Monk.cmd`** — or open **`dist/CockyMonk.html`** in any browser. It's the complete game in one self-contained file: hotseat (pass-one-phone) and practice-vs-bots modes, all 3 board themes, the full 150-card Norwegian + 100-card English decks, the reveal ceremony with the growing Nose, board race, Gullnese award, sound, and the six Lottie celebrations. No Node, no server, works offline.
+
+Rebuild it after changing anything in `Lab/`, `Resources/`, or `DesignSystem/`:
+```bash
+node Tools/build-standalone.mjs      # → dist/CockyMonk.html
+```
+To iterate on the game with live reload instead, run the Lab dev server: `node Tools/serve-lab.mjs` → http://localhost:8787/Lab/.
+
 ## What's in the box
 | File | What it is | Edit how often |
 |---|---|---|

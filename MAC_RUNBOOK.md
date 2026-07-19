@@ -37,6 +37,14 @@ struct StaticMotionPlayer: MotionPlayer {} // Reduced Motion: renders the asset'
 ```
 Views get a `MotionPlayer` from the environment; `accessibilityReduceMotion` picks the static one. **No Lottie type outside `Sources/Views/Motion/`.**
 
+**Call sites are already proven in the Lab** — mirror `Lab/js/lottie.js` + its four trigger points in `Lab/js/ui.js` when wiring the Swift side:
+| Moment | Asset | Lab trigger (ui.js) |
+|---|---|---|
+| Winner screen | `confetti_win` (one-shot) + `gullnese_shimmer` (loop, on the badge) | `SCREENS.WINNER`, guarded once per game |
+| GM steal (truth revealed, nobody found it) | `gm_steal_sting` | `doRevealStep`, when `G.gmStole` |
+| First pawn reaches Mål | `celebration_{salongen\|fjellet\|verdensrommet}` | `animateBoard` hop, `goalCelebrated` guard |
+Reduced Motion: the Lab no-ops the overlay (static UI is the poster) — the Swift `StaticMotionPlayer` does the same.
+
 ## Engine port (Lane A, first real Swift work)
 - `Tools/engine-vectors.json` is the contract — port each vector to Swift Testing cases in `Tests/EngineTests/` before/with the engine (TDD).
 - Mirror `Lab/js/engine.js` shape: pure reducer (`dispatch(state, action) -> state`), injected RNG, no timers. `Lab/js/bots.js` constants → `Sources/Engine/BotTuning.swift` (one block, PRD §4).

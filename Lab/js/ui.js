@@ -10,6 +10,9 @@ import { TUNING, BOT_NAMES, botPick, bluffOffsets, voteOffsets } from "./bots.js
 import { play, setMuted, isMuted } from "./audio.js";
 import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi } from "./state.js";
+import {
+  preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
+} from "./lottie.js";
 
 /* ---------- state ---------- */
 let U = freshUi();       // screen flow (Lane B)
@@ -32,8 +35,15 @@ const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" 
   <path d="M23 11 h14 a3.4 3.4 0 0 1 0 6.8 h-14 z" fill="#FF5C97" stroke="#23233B" stroke-width="2.4"/>
 </svg>`;
 
-/* ---------- content loading (http → real decks; file:// → embedded mini) ---------- */
+/* ---------- content loading (inlined bundle → http real decks → embedded mini) ---------- */
 async function loadContent(lang) {
+  // Standalone single-file build inlines the full decks on window.__COCKY__.
+  const bundle = window.__COCKY__;
+  if (bundle?.decks?.[lang]) {
+    CONTENT.deck = bundle.decks[lang];
+    CONTENT.fakes = bundle.fakes?.[lang] ?? MINI_FAKES[lang];
+    return;
+  }
   const suffix = lang === "nb" ? "nb" : "en";
   try {
     const [deckRes, fakesRes] = await Promise.all([
@@ -62,6 +72,7 @@ const takeFakeText = () => U.fakePool.pop() ?? "…";
 
 /* ---------- shell ---------- */
 function shell(inner, { gm = false } = {}) {
+  clearCelebrations();   // no celebration bleeds into the next screen
   app.innerHTML = `
    <div class="topbar">
      <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
@@ -165,6 +176,7 @@ SCREENS.SETUP = () => {
 
 /* ---------- game lifecycle ---------- */
 function startGame() {
+  preloadCelebrations();       // warm the Lottie cache before the first Mål/win
   U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   G = {
     players: U.names.map((name, i) => ({ name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false })),
@@ -174,6 +186,7 @@ function startGame() {
     card: null, bluffs: {}, decoys: ["", ""], gmDecoyDone: false,
     options: null, doubles: [], votes: {}, deltas: null, gmStole: false,
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
+    goalCelebrated: false, celebrated: false,
   };
   newRound();
 }
@@ -517,7 +530,10 @@ function doRevealStep() {
   if (U.revealIdx >= seq.length) return;
   const isTruth = U.revealIdx === seq.length - 1;
   U.revealIdx++;
-  if (isTruth) { play("truthReveal"); if (G.gmStole) setTimeout(() => play("gmSting"), 500); }
+  if (isTruth) {
+    play("truthReveal");
+    if (G.gmStole) { setTimeout(() => play("gmSting"), 500); playCelebration("gm_steal_sting"); }
+  }
   else {
     const o = seq[U.revealIdx - 1];
     const v = Object.values(G.votes).filter((id) => id === o.id).length;
@@ -610,6 +626,11 @@ function animateBoard() {
       G.players[i].score++;
       play("pawnHop");
       if (navigator.vibrate) navigator.vibrate(10);
+      // Mål landmark: first pawn to reach the goal triggers the themed celebration.
+      if (G.players[i].score >= G.target && !G.goalCelebrated) {
+        G.goalCelebrated = true;
+        playCelebration(LANDMARK_FOR[U.theme] ?? "celebration_salongen");
+      }
       moveTo(i, G.players[i].score, i);
       const sc = document.getElementById("sc" + i);
       if (sc) sc.textContent = G.players[i].score + " " + t("pts");
@@ -631,7 +652,7 @@ function finishRound() {
       deltas: Object.fromEntries(G.players.map((p, i) => [i, p.score - G.preOmkampScores[i]])),
     });
     G.winnersIdx = result.winners; G.shared = result.shared;
-    U.screen = "WINNER"; play("truthReveal"); render(); confetti();
+    U.screen = "WINNER"; play("truthReveal"); render();
     return;
   }
 
@@ -639,7 +660,7 @@ function finishRound() {
   const check = winCheck({ scores, round: G.round, playerCount: G.players.length, target: G.target });
   if (check.winners) {
     G.winnersIdx = check.winners; G.shared = check.winners.length > 1;
-    U.screen = "WINNER"; play("truthReveal"); render(); confetti();
+    U.screen = "WINNER"; play("truthReveal"); render();
     return;
   }
   if (check.omkamp) {
@@ -679,14 +700,25 @@ SCREENS.WINNER = () => {
      <h1 style="font-size:42px">🏆</h1>
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
-     <div class="card" style="display:flex;gap:12px;align-items:center;justify-content:center;">
+     <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
        <span class="face" style="background:${liar.color};width:48px;height:48px;">
          <span class="nose gold" style="top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
-       <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b></div>
+       <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
+       <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
         <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
    </div>
    <button class="btn" id="replay">${t("playAgain")}</button>`);
+  // Celebration fires once per game (guard survives mute/theme re-renders).
+  if (!G.celebrated) {
+    G.celebrated = true;
+    if (window.lottie && !reduceMotion()) {
+      playCelebration("confetti_win");
+      mountLottie(document.getElementById("gullnesefx"), "gullnese_shimmer");
+    } else if (!reduceMotion()) {
+      confetti();   // CSS fallback when lottie-web is unavailable
+    }
+  }
   document.getElementById("replay").onclick = () => {
     clearTimers();
     const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount };

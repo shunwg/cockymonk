@@ -1,5 +1,7 @@
 # Shell scripts must stay LF — they run on macOS (bash chokes on CRLF shebangs)
 *.sh text eol=lf
+# Windows batch launcher must be CRLF
+*.cmd text eol=crlf
 # Keep JSON/Swift/JS deterministic across the 3 machines
 *.json text eol=lf
 *.swift text eol=lf
