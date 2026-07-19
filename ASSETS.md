@@ -17,7 +17,7 @@ CC0 = no attribution required, commercial use fine — we credit Kenney in About
 ## Promoted into the app (grows as you build)
 | Asset | From | License | Where used |
 |---|---|---|---|
-| Fredoka (SemiBold, Bold) | Google Fonts | OFL 1.1 | Display face everywhere (DESIGN.md §2) |
+| Fredoka (variable, wght 400–700) | Google Fonts | OFL 1.1 | Display face everywhere (DESIGN.md §2). Base64-inlined (latin + latin-ext subsets, ~34 KB woff2) in `Lab/vendor/fredoka.css` → offline brand in the Lab and standalone build |
 | Logo mark (nose-face SVG) | Original, in `Reference/cocky-monk-demo.html` | Ours | App icon, brand, loader, empty states |
 | `Lab/vendor/lottie.min.js` (lottie-web 5.12.2) | unpkg.com/lottie-web | MIT | Lab Lottie preview page only — **never shipped in the app** (the app uses lottie-ios ≥ 4.5.0 via SPM, see CLAUDE.md exception) |
 | `Resources/Lottie/confetti_win.json` | generated, original — ours | Ours | Winner-screen confetti burst (one-shot 2.0 s; RM poster: settled scatter at bottom) |

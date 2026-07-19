@@ -47,9 +47,10 @@ const LOTTIE = ["confetti_win", "gullnese_shimmer", "gm_steal_sting",
                 "celebration_salongen", "celebration_fjellet", "celebration_verdensrommet"];
 
 async function main() {
-  // ---- CSS ----
-  const css = (await Promise.all(CSS_FILES.map((f) => read(`Lab/css/${f}`))))
-    .map((c, i) => `/* ${CSS_FILES[i]} */\n${c}`).join("\n");
+  // ---- fonts: Fredoka base64 @font-face (offline brand), then CSS ----
+  const fontCss = await read("Lab/vendor/fredoka.css").catch(() => "");
+  const css = [fontCss, ...(await Promise.all(CSS_FILES.map((f) => read(`Lab/css/${f}`))))
+    .map((c, i) => `/* ${CSS_FILES[i]} */\n${c}`)].join("\n");
 
   // ---- JS module sources ----
   const sources = {};
@@ -87,8 +88,7 @@ async function main() {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="dark">
 <title>Cocky Monk</title>
-<!-- Fredoka when online; rounded system font (DESIGN.md §2 fallback) offline. -->
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Fredoka is base64-inlined in the <style> below (offline brand); no network font. -->
 <style>
 ${css}
 </style>
