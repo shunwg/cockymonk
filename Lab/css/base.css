@@ -33,16 +33,19 @@ body {
 .iconbtn {
   background: #ffffff10; border: 2px solid #ffffff2e; color: var(--color-text-on-bg);
   border-radius: var(--radius-chip); padding: 5px 13px; font: inherit; font-weight: 600; cursor: pointer;
+  min-height: 44px; min-width: 44px;   /* touch target (DESIGN §9) */
 }
+.iconbtn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 2px; }
 
 h1 { font-weight: var(--type-h1-weight); font-size: var(--type-h1-size); margin: 8px 0 4px; line-height: var(--type-h1-line-height); letter-spacing: var(--type-h1-tracking); }
 h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin: 16px 0 8px; letter-spacing: var(--type-h2-tracking); }
 .sub { color: var(--color-text-secondary); font-size: var(--type-sub-size); margin: 0 0 16px; line-height: 1.45; }
 .small { font-size: 13px; color: var(--color-text-secondary); }
 .eyebrow {
-  display: inline-block; font-size: var(--type-eyebrow-size); font-weight: var(--type-eyebrow-weight);
+  display: inline-flex; align-items: center; gap: 7px; font-size: var(--type-eyebrow-size); font-weight: var(--type-eyebrow-weight);
   letter-spacing: var(--type-eyebrow-tracking); text-transform: uppercase; color: var(--color-text-secondary);
 }
+.eyebrow::before { content: ""; width: 14px; height: 2px; border-radius: 2px; background: currentColor; opacity: .55; }
 .card .eyebrow { color: #8a7a5c; }
 
 .card {
@@ -54,12 +57,14 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
 .card.secret {
   background: linear-gradient(145deg, #efe6ff, #ddccff);
   border-color: var(--color-accent-gm); border-style: dashed; background-image: none; /* "classified" */
+  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;   /* faint dossier glow */
 }
 
 .word {
   font-family: var(--type-display-family); font-size: var(--type-card-word-size);
   font-weight: var(--type-card-word-weight); line-height: var(--type-card-word-line-height);
   word-break: break-word; color: var(--color-text-on-surface); letter-spacing: var(--type-card-word-tracking);
+  text-shadow: 0 1px 0 #ffffffcc, 0 -1px 0 #0000000f;   /* letterpress — pressed into the paper */
 }
 
 .btn {
@@ -76,6 +81,7 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
 .btn.gm:active { box-shadow: 0 1px 0 #5c3ab8; }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+.btn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 3px; }
 
 input[type=text] {
   width: 100%; padding: 14px; font: inherit; font-size: 17px; border-radius: var(--radius-button);
@@ -88,8 +94,13 @@ textarea {
 }
 input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outline-offset: 1px; }
 
-.fade { animation: fadein var(--motion-dur-fade-in) ease; }
+/* Snappy default entrance (movement starts immediately → feels faster). Only real
+   screen changes get it — ui.js gates the class so mid-screen updates don't re-fade. */
+.fade { animation: fadein var(--motion-dur-screen-in) cubic-bezier(0.23, 1, 0.32, 1); }
 @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Ceremony jumps (into reveal/board/winner) earn a richer settle */
+.fade.ceremony { animation: ceremonyIn var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
+@keyframes ceremonyIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

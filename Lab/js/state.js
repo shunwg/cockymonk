@@ -31,6 +31,26 @@ export const STR = {
     playAgain: "Spill igjen", pts: "p",
     rules: "+2 riktig svar · +1 per stemme på din løgn · +2 til spillmester hvis ingen fant sannheten",
     omkamp: "Omkamp!", omkampSub: (ns) => `${ns} står likt forbi mål. Én runde brutal forlengelse — alle stemmer.`,
+    homePitch: "Ett rom, én sannhet — resten er løgn.",
+    homeNewGame: "Nytt spill", homeHowTo: "Slik spiller du", homeAbout: "Om",
+    rulesTitle: "Slik spiller du", rulesSub: "Én runde på 30 sekunder",
+    rulesStep1t: "Spillmesteren trekker", rulesStep1b: "Ett obskurt ord — og den ekte betydningen, kun for mesterens øyne.",
+    rulesStep2t: "Alle andre dikter", rulesStep2b: "Skriv en forklaring så troverdig at den kunne stått i ordboka.",
+    rulesStep3t: "Mesteren åpner avstemningen", rulesStep3b: "Løgner, sannhet og lokkemat blandes og stokkes til A, B, C …",
+    rulesStep4t: "Alle stemmer", rulesStep4b: "Finn den ekte betydningen. Ditt eget svar er skjult for deg.",
+    rulesStep5t: "Avsløringen", rulesStep5b: "Løgnene demaskeres. Nesen vokser ett hakk for hver som lot seg lure.",
+    rulesStep6t: "Kappløpet", rulesStep6b: "Poeng flytter brikken din mot mål. Først forbi vinner.",
+    rulesNose: "Én stemme = ett hakk lengre nese. Frykt den.",
+    rulesScoreEyebrow: "Poeng",
+    rulesScore1: "Du stemte på sannheten",
+    rulesScore2: "Per stemme løgnen din lurte",
+    rulesScore3: "Ingen fant sannheten — til mesteren",
+    rulesScore4: "Dobbeltreff: du skrev nesten sannheten",
+    rulesBack: "Tilbake",
+    aboutTitle: "Om Cocky Monk",
+    aboutBlurb: "Et selskapsspill om å lyve med stil. Dere lager moroa rundt bordet — appen holder bare i nesen.",
+    aboutCredits: "Skrifter og lyder: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
+    aboutPrivacy: "Vi samler ikke inn data. Punktum.",
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -61,6 +81,26 @@ export const STR = {
     playAgain: "Play again", pts: "p",
     rules: "+2 correct vote · +1 per vote your lie gets · +2 to the GM if nobody finds the truth",
     omkamp: "Sudden death!", omkampSub: (ns) => `${ns} are tied past the line. One brutal extra round — everyone votes.`,
+    homePitch: "One room, one truth — the rest are lies.",
+    homeNewGame: "New game", homeHowTo: "How to play", homeAbout: "About",
+    rulesTitle: "How to play", rulesSub: "One round in 30 seconds",
+    rulesStep1t: "The game master draws", rulesStep1b: "One obscure word — and its real meaning, for the master's eyes only.",
+    rulesStep2t: "Everyone else invents", rulesStep2b: "Write a definition so credible it could sit in the dictionary.",
+    rulesStep3t: "The master opens the vote", rulesStep3b: "Lies, truth and decoys are shuffled into A, B, C …",
+    rulesStep4t: "Everyone votes", rulesStep4b: "Find the real meaning. Your own answer is hidden from you.",
+    rulesStep5t: "The reveal", rulesStep5b: "The lies are unmasked. The nose grows a notch for every vote it fooled.",
+    rulesStep6t: "The race", rulesStep6b: "Points move your pawn toward the goal. First past the line wins.",
+    rulesNose: "One vote = one notch longer nose. Fear it.",
+    rulesScoreEyebrow: "Points",
+    rulesScore1: "You voted for the truth",
+    rulesScore2: "Per vote your lie fooled",
+    rulesScore3: "Nobody found the truth — to the master",
+    rulesScore4: "Double hit: you nearly wrote the truth",
+    rulesBack: "Back",
+    aboutTitle: "About Cocky Monk",
+    aboutBlurb: "A party game about lying with style. You make the fun around the table — the app just holds the nose.",
+    aboutCredits: "Fonts and audio: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
+    aboutPrivacy: "We collect no data. Full stop.",
   },
 };
 
@@ -124,7 +164,8 @@ export function freshUi() {
   return {
     lang: "nb",
     mode: null,             // "hotseat" | "party"
-    screen: "LANG",         // LANG MODE PLAYERS PARTYSETUP SETUP GM_INTRO GM_DASH BLUFF WAIT VOTE VOTEWAIT REVEAL BOARD OMKAMP WINNER
+    screen: "HOME",         // HOME LANG MODE PLAYERS PARTYSETUP SETUP GM_INTRO GM_DASH BLUFF WAIT VOTE VOTEWAIT REVEAL BOARD OMKAMP WINNER · RULES ABOUT
+    rulesReturn: "HOME",    // where RULES/ABOUT return to
     names: [],              // hotseat player names (setup)
     uname: "",
     botCount: 3,

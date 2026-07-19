@@ -19,6 +19,7 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 | `turnYellow` | `#FFC53D` | Primary CTA, active player |
 | `gmViolet` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, victory sting |
 | `mutedViolet` | `#8A87B8` | Secondary text, dividers, eyebrows |
+| `mutedVioletText` | `#A6A2D4` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
@@ -51,7 +52,7 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 | `surface` | `{color.core.paper}` | `#FFF6E8` |
 | `text.onSurface` | `{color.core.inkText}` | `#23233B` |
 | `text.onBg` | `{color.core.paperText}` | `#F4EFE4` |
-| `text.secondary` | `{color.core.mutedViolet}` | `#8A87B8` |
+| `text.secondary` | `{color.core.mutedVioletText}` | `#A6A2D4` |
 | `border` | `{color.core.inkText}` | `#23233B` |
 | `accent.truth` | `{color.core.truthGreen}` | `#3BD489` |
 | `accent.bluff` | `{color.core.bluffPink}` | `#FF5C97` |
@@ -73,7 +74,7 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 |---|---|---|---|
 | `text.onSurface (inkText)` `#23233B` | `surface (paper)` `#FFF6E8` | 14.25 | ✓ |
 | `text.onBg (paperText)` `#F4EFE4` | `bg (inkNight)` `#1B1B2E` | 14.74 | ✓ |
-| `text.secondary (mutedViolet)` `#8A87B8` | `bg (inkNight)` `#1B1B2E` | 5.02 | ✓ |
+| `text.secondary (mutedViolet)` `#A6A2D4` | `bg (inkNight)` `#1B1B2E` | 7.03 | ✓ |
 | `accent.truth (truthGreen)` `#3BD489` | `bg (inkNight)` `#1B1B2E` | 8.82 | ✓ |
 | `accent.bluff (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
 | `accent.gm (gmViolet)` `#9B6DFF` | `bg (inkNight)` `#1B1B2E` | 4.85 | ✓ |
@@ -87,15 +88,18 @@ DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapsh
 |---|---|---|
 | salongen | `boardBase` | `#6B4A2F` |
 | salongen | `boardAlt` | `#7A5636` |
+| salongen | `rail` | `#3C2817` |
 | fjellet | `sky` | `#39507A` |
 | fjellet | `skyLow` | `#4C6A8F` |
 | fjellet | `forest` | `#5E7F74` |
 | fjellet | `forestLow` | `#6F8F6F` |
 | fjellet | `snow` | `#E8EDF2` |
 | fjellet | `snowPeak` | `#FFFFFF` |
+| fjellet | `rail` | `#6B6558` |
 | verdensrommet | `space` | `#0D0D1F` |
 | verdensrommet | `starBright` | `#FFFFFF66` |
 | verdensrommet | `starDim` | `#FFFFFF33` |
+| verdensrommet | `rail` | `#241A4A` |
 
 Identical space geometry and pawn physics across themes; only layers, sprites, particles, and sounds differ.
 
@@ -152,6 +156,9 @@ Unit: ms. Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfa
 | `gmChuckleMax` | 800 |
 | `oneShotMax` | 1500 |
 | `boardPhaseCap` | 20000 |
+| `overtakeWobble` | 420 |
+| `countUp` | 280 |
+| `screenIn` | 240 |
 
 ## Motion — springs
 
@@ -171,6 +178,7 @@ Reduced Motion: Every spring here has a Reduced Motion fallback: crossfade (pops
 | `gmStealPulse` | 0.6 | 0 | `cubic-bezier(0.34, 1, 0.64, 1)` | — | Screen tint pulses gmViolet + sting + .heavy haptic; chuckle ≤ 0.8 s (DESIGN §5/§7; demo sting ≈0.65 s) |
 | `bobIdle` | 2.4 | 0 | `cubic-bezier(0.34, 1, 0.64, 1)` | ±7 pt, loops | Waiting face bobs gently ±7 pt with −1°/+1.5° tilt, 2.4 s loop (demo .bob) |
 | `goalPulse` | 2 | 0 | `cubic-bezier(0.34, 1, 0.64, 1)` | loops | Goal space pulses a slow gold ring, 2 s, until claimed — all themes inherit (demo @keyframes goalglow) |
+| `tallyPop` | 0.28 | 0.35 | `cubic-bezier(0.34, 1.525, 0.64, 1)` | — | Vote tally dot lands with a soft pop (DESIGN §7 'anonymous dots land per option with soft pops') |
 
 ## Sound grammar
 

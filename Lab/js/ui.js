@@ -18,6 +18,7 @@ import {
 let U = freshUi();       // screen flow (Lane B)
 let G = null;            // game data — mutated ONLY with engine.js results
 let CONTENT = { deck: null, fakes: null }; // fetched real content, if served over http
+let lastScreen = null;   // gate the entrance animation to REAL screen changes (not surgical re-renders)
 
 const t = (k, ...a) => { const v = STR[U.lang][k]; return typeof v === "function" ? v(...a) : v; };
 const party = () => U.mode === "party";
@@ -71,20 +72,32 @@ const shuffled = (a) => {
 const takeFakeText = () => U.fakePool.pop() ?? "…";
 
 /* ---------- shell ---------- */
+const NO_THEME_BTN = ["HOME", "RULES", "ABOUT", "LANG", "MODE", "PLAYERS", "PARTYSETUP"];
+const NO_HELP_BTN = [...NO_THEME_BTN, "SETUP"];
+const CEREMONY_SCREENS = ["REVEAL", "BOARD", "WINNER"];
+
 function shell(inner, { gm = false } = {}) {
   clearCelebrations();   // no celebration bleeds into the next screen
+  // Entrance animation only on a real screen change — surgical re-renders (tick-ins,
+  // vote tally, reveal beats) must NOT replay the whole-screen fade.
+  const changed = U.screen !== lastScreen;
+  const fadeClass = changed ? (CEREMONY_SCREENS.includes(U.screen) ? "fade ceremony" : "fade") : "";
+  lastScreen = U.screen;
   app.innerHTML = `
    <div class="topbar">
      <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
      <span>
-       ${["LANG", "MODE", "PLAYERS", "PARTYSETUP"].includes(U.screen) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
+       ${NO_HELP_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="helpbtn" aria-label="${t("rulesTitle")}">?</button>`}
+       ${NO_THEME_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
        <button class="iconbtn" id="mutebtn">${isMuted() ? "🔇" : "🔊"}</button>
      </span>
    </div>
-   <div class="fade" style="flex:1;display:flex;flex-direction:column;">${inner}</div>`;
+   <div class="${fadeClass}" style="flex:1;display:flex;flex-direction:column;">${inner}</div>`;
   app.style.boxShadow = gm ? "inset 0 0 0 4px var(--color-accent-gm)" : "none";
   const tb = document.getElementById("themebtn");
   if (tb) tb.onclick = () => { U.theme = nextTheme(U.theme); play("toggle"); render(); };
+  const help = document.getElementById("helpbtn");
+  if (help) help.onclick = () => { U.rulesReturn = U.screen; play("confirm"); U.screen = "RULES"; render(); };
   document.getElementById("mutebtn").onclick = () => { setMuted(!isMuted()); render(); };
 }
 
@@ -94,6 +107,69 @@ export function render() {
   document.body.className = THEMES[U.theme].cssClass;
   SCREENS[U.screen]();
 }
+
+/* ---------- front of house ---------- */
+SCREENS.HOME = () => {
+  shell(`
+   <div class="home-lang seg" role="group" aria-label="${t("pickLang")}">
+     <button class="${U.lang === "nb" ? "on" : ""}" data-lang="nb">Norsk</button>
+     <button class="${U.lang === "en" ? "on" : ""}" data-lang="en">English</button>
+   </div>
+   <div class="hero">
+     <div class="home-badge bob">${LOGO(92)}</div>
+     <span class="eyebrow">${t("fearNose")}</span>
+     <h1 style="font-size:clamp(40px,12vw,54px)">${t("title")}</h1>
+     <p class="sub" style="margin:0">${t("homePitch")}</p>
+   </div>
+   <div style="flex:1"></div>
+   <button class="btn" id="hnew">${t("homeNewGame")}</button>
+   <button class="btn secondary" id="hrules">${t("homeHowTo")}</button>
+   <button class="linkbtn" id="habout">${t("homeAbout")}</button>`);
+  app.querySelectorAll("[data-lang]").forEach((b) => b.onclick = () => {
+    if (U.lang === b.dataset.lang) return;
+    U.lang = b.dataset.lang; play("toggle"); render();
+  });
+  document.getElementById("hnew").onclick = () => { play("confirm"); loadContent(U.lang); U.screen = "MODE"; render(); };
+  document.getElementById("hrules").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "RULES"; render(); };
+  document.getElementById("habout").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "ABOUT"; render(); };
+};
+
+SCREENS.RULES = () => {
+  shell(`
+   <h2>${t("rulesTitle")}</h2>
+   <p class="sub">${t("rulesSub")}</p>
+   ${[1, 2, 3, 4, 5, 6].map((n) => `
+     <div class="step">
+       <span class="step-n">${n}</span>
+       <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
+     </div>`).join("")}
+   <div class="nose-demo" aria-hidden="true">
+     ${[7, 18, 32].map((w) => `
+       <span class="face" style="background:var(--color-avatar-2)"><span class="smile"></span><span class="nose" style="width:${w}px"></span></span>`).join("")}
+   </div>
+   <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
+   <div class="card">
+     <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
+     <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
+     <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
+     <div class="scorerow"><span class="pt violet">+2</span><span>${t("rulesScore3")}</span></div>
+     <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
+   </div>
+   <div style="flex:1"></div>
+   <button class="btn secondary" id="rback">← ${t("rulesBack")}</button>`);
+  document.getElementById("rback").onclick = () => { play("confirm"); U.screen = U.rulesReturn || "HOME"; render(); };
+};
+
+SCREENS.ABOUT = () => {
+  shell(`
+   <div class="hero"><div class="home-badge bob">${LOGO(72)}</div><h1>${t("aboutTitle")}</h1></div>
+   <div class="card"><p style="margin:0 0 10px">${t("aboutBlurb")}</p>
+     <p class="small" style="margin:0 0 6px">${t("aboutCredits")}</p>
+     <p class="small" style="margin:0"><b>${t("aboutPrivacy")}</b></p></div>
+   <div style="flex:1"></div>
+   <button class="btn secondary" id="aback">← ${t("rulesBack")}</button>`);
+  document.getElementById("aback").onclick = () => { play("confirm"); U.screen = U.rulesReturn || "HOME"; render(); };
+};
 
 /* ---------- setup screens ---------- */
 SCREENS.LANG = () => {
@@ -168,10 +244,12 @@ SCREENS.SETUP = () => {
    <div class="seg">${Object.keys(THEMES).map((th) => `
      <button class="${U.theme === th ? "on" : ""}" data-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
    <div style="flex:1"></div><p class="small">${t("rules")}</p>
-   <button class="btn" id="begin">${t("begin")}</button>`);
+   <button class="btn" id="begin">${t("begin")}</button>
+   <button class="linkbtn" id="setuprules">${t("homeHowTo")}</button>`);
   app.querySelectorAll("[data-target]").forEach((b) => b.onclick = () => { U.target = Number(b.dataset.target); play("toggle"); render(); });
   app.querySelectorAll("[data-theme]").forEach((b) => b.onclick = () => { U.theme = b.dataset.theme; play("toggle"); render(); });
   document.getElementById("begin").onclick = startGame;
+  document.getElementById("setuprules").onclick = () => { U.rulesReturn = "SETUP"; play("confirm"); U.screen = "RULES"; render(); };
 };
 
 /* ---------- game lifecycle ---------- */
@@ -463,7 +541,7 @@ SCREENS.VOTEWAIT = () => {
      return `<div class="opt" style="cursor:default">
        <div class="letter">${o.letter}</div>
        <div style="flex:1">${esc(o.text)}
-         <div class="votedots">${"<span class='dot' style='background:var(--color-text-secondary)'></span>".repeat(c)}
+         <div class="votedots">${"<span class='dot land' style='background:var(--color-text-secondary)'></span>".repeat(c)}
            <span class="small">${c}</span></div></div></div>`;
    }).join("")}`, { gm: userIsGm() });
 };
@@ -489,11 +567,14 @@ SCREENS.REVEAL = () => {
   const hostIsBot = party() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
+   <div class="reveal ${done ? "truth-shown" : ""}">
    ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
    ${shown.map((o, si) => {
      const voters = Object.entries(G.votes).filter(([, id]) => id === o.id).map(([v]) => G.players[+v]);
      const isT = o.kind === "truth";
-     return `<div class="opt ${o.kind} ${si === shown.length - 1 ? "pop" : ""}" style="cursor:default">
+     const isLast = si === shown.length - 1;
+     const enter = isLast ? (isT ? "truth-enter" : "pop") : "";
+     return `<div class="opt ${o.kind} ${enter}" style="cursor:default">
        <div class="letter" style="${isT ? "background:var(--color-accent-truth);color:var(--color-text-on-surface)" : ""}">${o.letter}</div>
        <div style="flex:1">
          ${isT ? `<b style="color:var(--color-accent-truth)">✓ ${t("theTruth")}</b><br>` : ""}
@@ -504,12 +585,13 @@ SCREENS.REVEAL = () => {
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
               return `<span class="face" style="background:${pl.color}">
-                        <span class="nose ${gmA ? "violet" : ""}" style="width:${6 + voters.length * 14}px"></span></span>
+                        <span class="nose grow ${gmA ? "violet" : ""}" style="--votes:${voters.length};width:${6 + voters.length * 14}px"></span></span>
                       <span>${t("by")} ${a === 0 && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
        </div></div>`;
    }).join("")}
+   </div>
    ${done && G.gmStole ? `<div class="banner gm">😈 ${t("gmSteal")}</div>` : ""}
    <div style="flex:1"></div>
    ${done
@@ -532,7 +614,15 @@ function doRevealStep() {
   U.revealIdx++;
   if (isTruth) {
     play("truthReveal");
-    if (G.gmStole) { setTimeout(() => play("gmSting"), 500); playCelebration("gm_steal_sting"); }
+    if (G.gmStole) {
+      setTimeout(() => play("gmSting"), 500);
+      playCelebration("gm_steal_sting");
+      if (!reduceMotion()) {                       // the villain veil pulses gmViolet once
+        const tint = document.createElement("div");
+        tint.className = "gm-tint"; document.body.appendChild(tint);
+        setTimeout(() => tint.remove(), 700);
+      }
+    }
   }
   else {
     const o = seq[U.revealIdx - 1];
@@ -572,7 +662,7 @@ SCREENS.BOARD = () => {
   }
   shell(`
    <h2>${t("board")}</h2><p class="sub">${t("boardSub", T)}</p>
-   <div class="boardwrap"><div class="board">${cells}</div><div id="pawns"></div></div>
+   <div class="boardwrap"><svg class="track-path" id="trackpath" preserveAspectRatio="none"></svg><div class="board">${cells}</div><div id="pawns"></div></div>
    <div style="margin-top:10px">
      ${G.players.map((p, i) => `<div class="scoreline">
         <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
@@ -607,7 +697,25 @@ function moveTo(i, space, offset) {
   el.style.top = (r.top - wrap.top + r.height / 2 - 15 - offset * 5) + "px";
 }
 
-function placePawns() { G.players.forEach((p, i) => moveTo(i, p.score, i)); markLeader(); }
+function placePawns() { G.players.forEach((p, i) => moveTo(i, p.score, i)); markLeader(); drawTrack(); }
+
+// Draw the winding route through the cell centers — reframes the board from a
+// score list into a physical track. Stroke color is themed (themes.css).
+function drawTrack() {
+  const svg = document.getElementById("trackpath");
+  const wrap = document.querySelector(".boardwrap");
+  if (!svg || !wrap) return;
+  const wr = wrap.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${wr.width} ${wr.height}`);
+  const pts = [];
+  for (let i = 0; i <= G.target; i++) {
+    const cell = document.querySelector(`.space[data-i="${i}"]`);
+    if (!cell) continue;
+    const r = cell.getBoundingClientRect();
+    pts.push(`${(r.left - wr.left + r.width / 2).toFixed(1)},${(r.top - wr.top + r.height / 2).toFixed(1)}`);
+  }
+  svg.innerHTML = `<polyline points="${pts.join(" ")}" />`;
+}
 
 function markLeader() {
   const max = Math.max(...G.players.map((p) => p.score));
@@ -623,17 +731,37 @@ function animateBoard() {
     let steps = G.deltas[i];
     const hop = () => {
       if (steps-- <= 0) { markLeader(); return setTimeout(nextEarner, 250); }
+      const before = G.players[i].score;
       G.players[i].score++;
+      const after = G.players[i].score;
       play("pawnHop");
       if (navigator.vibrate) navigator.vibrate(10);
       // Mål landmark: first pawn to reach the goal triggers the themed celebration.
-      if (G.players[i].score >= G.target && !G.goalCelebrated) {
+      if (after >= G.target && !G.goalCelebrated) {
         G.goalCelebrated = true;
         playCelebration(LANDMARK_FOR[U.theme] ?? "celebration_salongen");
       }
-      moveTo(i, G.players[i].score, i);
+      moveTo(i, after, i);
+      const el = pawnEl(i);
+      if (!reduceMotion() && el.animate) {         // squash-stretch arc — the piece HOPS, not glides
+        el.classList.add("hopping");               // rocket exhaust puff (rom theme)
+        el.animate([
+          { transform: "translateY(0) scale(1,1)" },
+          { transform: "translateY(-16px) scale(.92,1.12)", offset: .5 },
+          { transform: "translateY(0) scale(1.08,.92)", offset: .82 },
+          { transform: "translateY(0) scale(1,1)" },
+        ], { duration: 330, easing: "cubic-bezier(0.34,1.405,0.64,1)" });
+        setTimeout(() => el.classList.remove("hopping"), 350);
+        // Overtake: any stationary pawn this hop just passed does an indignant wobble.
+        G.players.forEach((p, j) => {
+          if (j !== i && before <= p.score && after > p.score) {
+            const pj = pawnEl(j); pj.classList.remove("wobble"); void pj.offsetWidth; pj.classList.add("wobble");
+            setTimeout(() => pj.classList.remove("wobble"), 420);
+          }
+        });
+      }
       const sc = document.getElementById("sc" + i);
-      if (sc) sc.textContent = G.players[i].score + " " + t("pts");
+      if (sc) sc.textContent = after + " " + t("pts");
       setTimeout(hop, 330); // pawn-hop cadence (tokens: motion-dur-pawn-hop-cadence)
     };
     hop();

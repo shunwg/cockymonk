@@ -1,40 +1,94 @@
-/* themes.css — the three boards. Background layers, space styling and pawn
- * flavor ONLY (DESIGN.md §3: themes change clothes, never rules). Lane B.
+/* themes.css — the three boards. Background layers, space skin, pawn flavor ONLY
+ * (DESIGN.md §3: themes change clothes, never rules). Lane B. Geometry + pawn
+ * physics are shared (screens.css) and never touched here.
  * Adding a theme: one entry in js/themes.js + one block here. */
 
-/* Salongen — warm wooden parlor */
+/* ============================================================
+   Salongen — warm wooden parlor: grain + plank seams + lamp pool
+   ============================================================ */
 .theme-salongen .boardwrap {
-  background: repeating-linear-gradient(90deg,
-    var(--color-theme-salongen-board-base) 0 26px,
-    var(--color-theme-salongen-board-alt) 26px 52px);
+  --board-rail: var(--color-theme-salongen-rail);
+  background:
+    radial-gradient(130% 90% at 50% -12%, #b3823f66 0%, transparent 55%),          /* overhead lamp pool */
+    repeating-linear-gradient(93deg,                                                /* fine grain (3° skew) */
+      #00000016 0 2px, transparent 2px 5px, #ffffff0c 5px 6px, transparent 6px 24px),
+    repeating-linear-gradient(90deg,                                                /* plank seams */
+      var(--color-theme-salongen-board-base) 0 47px, #0000002e 47px 50px,
+      var(--color-theme-salongen-board-alt)  50px 97px, #0000002e 97px 100px),
+    var(--color-theme-salongen-board-base);
 }
 .theme-salongen .space {
-  background: radial-gradient(circle at 35% 30%, #d4b284, #8a6a44);
+  background: radial-gradient(circle at 38% 30%, #e6c79a 0%, #c49a63 46%, #9a7038 100%);
   border: 2.5px solid #4d341f; color: #3a2614;
+  box-shadow:
+    inset 0 2px 2px #ffffff55, inset 0 -3px 4px #00000066,
+    inset 0 0 0 3px #ffffff22,        /* concentric inlay ring — turned wood */
+    0 2px 0 #00000055;
 }
 
-/* Fjellet — layered paper-cut mountain: sky / forest / snow */
+/* ============================================================
+   Fjellet — layered paper-cut ridges (sky→forest→snow) + cairn discs
+   ============================================================ */
 .theme-fjellet .boardwrap {
-  background: linear-gradient(180deg,
-    var(--color-theme-fjellet-sky) 0%,
-    var(--color-theme-fjellet-sky-low) 33%,
-    var(--color-theme-fjellet-forest) 33%,
-    var(--color-theme-fjellet-forest-low) 66%,
-    var(--color-theme-fjellet-snow) 66%,
-    var(--color-theme-fjellet-snow-peak) 100%);
+  --board-rail: var(--color-theme-fjellet-rail);
+  background:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" preserveAspectRatio="none" viewBox="0 0 480 300"><polygon points="0,150 90,96 190,150 300,104 400,150 480,120 480,300 0,300" fill="%235e7f74"/><polyline points="0,150 90,96 190,150 300,104 400,150 480,120" fill="none" stroke="%23000" stroke-opacity="0.18" stroke-width="2"/><polygon points="0,205 120,168 240,205 360,172 480,205 480,300 0,300" fill="%236f8f6f"/><polygon points="0,255 90,232 200,258 320,236 420,258 480,244 480,300 0,300" fill="%23e8edf2"/></svg>')
+      center/cover no-repeat,
+    linear-gradient(180deg,
+      var(--color-theme-fjellet-sky)        0%,
+      var(--color-theme-fjellet-sky-low)    38%,
+      var(--color-theme-fjellet-forest)     60%,
+      var(--color-theme-fjellet-forest-low) 80%,
+      var(--color-theme-fjellet-snow)       100%);
 }
-.theme-fjellet .space { background: #e2ddd2; border: 2.5px dashed #6b6558; color: #4a463c; }
+.theme-fjellet .space {
+  background:
+    radial-gradient(circle at 50% 20%, #f2efe9 0 16%, transparent 17%),   /* crown-stone glint */
+    radial-gradient(circle at 36% 34%, #d9d3c7, #a9a294 68%, #837c6e 100%);
+  border: 2.5px solid #5a544a; color: #3f3b32;
+  box-shadow: inset 0 2px 2px #ffffff66, inset 0 -3px 5px #00000044, 0 2px 0 #00000044;
+}
 
-/* Verdensrommet — deep space, drifting stars (static under Reduced Motion) */
+/* ============================================================
+   Verdensrommet — deep space: nebula + two star layers + drift + orbit-ring discs
+   ============================================================ */
 .theme-rom .boardwrap {
-  background: var(--color-theme-verdensrommet-space);
+  --board-rail: var(--color-theme-verdensrommet-rail);
+  background:
+    radial-gradient(90% 60% at 18% 8%,  #3a2a6a66, transparent 60%),   /* nebula 1 */
+    radial-gradient(80% 60% at 88% 92%, #6d3a9a4d, transparent 60%),   /* nebula 2 */
+    var(--color-theme-verdensrommet-space);
   background-image:
     radial-gradient(var(--color-theme-verdensrommet-star-bright) 1.2px, transparent 1.2px),
-    radial-gradient(var(--color-theme-verdensrommet-star-dim) 1px, transparent 1px);
+    radial-gradient(var(--color-theme-verdensrommet-star-dim)    1px,   transparent 1px);
   background-size: 64px 64px, 92px 92px;
   background-position: 0 0, 30px 40px;
 }
-.theme-rom .space {
-  background: #141430; border: 2.5px solid var(--color-accent-gm);
-  box-shadow: 0 0 10px #9b6dff55 inset; color: #b9a8ff;
+.theme-rom .boardwrap::before {          /* parallax near-stars, drifts slowly (transform → RM-safe) */
+  content: ""; position: absolute; inset: -20%; pointer-events: none;
+  background-image:
+    radial-gradient(1.6px 1.6px at 40px 60px,   #ffffff, transparent),
+    radial-gradient(1.3px 1.3px at 150px 120px, #cfe3ff, transparent),
+    radial-gradient(1px 1px     at 240px 200px, #ffffffcc, transparent);
+  background-size: 260px 260px;
+  animation: starDrift 42s linear infinite; will-change: transform;
 }
+@keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
+.theme-rom .space {
+  background: radial-gradient(circle at 50% 50%, #1c1c46 0 54%, #141430 55%);
+  border: 2.5px solid var(--color-accent-gm); color: #d6c8ff;
+  box-shadow: 0 0 0 2px #9b6dff22, 0 0 12px #9b6dff66 inset, 0 0 10px #9b6dff33;   /* orbit-ring halo */
+}
+
+/* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
+.theme-salongen .track-path polyline { stroke: #caa15a; }   /* inlaid brass groove */
+.theme-fjellet  .track-path polyline { stroke: #ffffffaa; }  /* dotted snow trail */
+.theme-rom      .track-path polyline { stroke: #b79bffcc; }  /* faint orbit dashes */
+
+/* ---------- per-theme pawn flavor (shared physics live in screens.css) ---------- */
+.theme-fjellet .pawn { box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25), 0 0 0 2px #ffffff33; }
+.theme-rom .pawn::after {                /* exhaust puff on hop (ui.js adds .hopping ~350 ms) */
+  content: ""; position: absolute; bottom: -6px; width: 8px; height: 8px; border-radius: 50%; background: #ffd18a; opacity: 0;
+}
+.theme-rom .pawn.hopping::after { animation: puff .35s ease-out; }
+@keyframes puff { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: translateY(8px) scale(1.3); } }

@@ -34,6 +34,7 @@ enum Theme {
         static let turnYellow = Color(hex: 0xFFC53D)  // #FFC53D
         static let gmViolet = Color(hex: 0x9B6DFF)  // #9B6DFF
         static let mutedViolet = Color(hex: 0x8A87B8)  // #8A87B8
+        static let mutedVioletText = Color(hex: 0xA6A2D4)  // #A6A2D4
 
         /// 8 fixed saturated avatar colors (demo AVA[]) — used as fills with ink borders.
         static let avatarPalette: [Color] = [
@@ -61,7 +62,7 @@ enum Theme {
         static let surface = paper  // #FFF6E8
         static let textOnSurface = inkText  // #23233B
         static let textOnBg = paperText  // #F4EFE4
-        static let textSecondary = mutedViolet  // #8A87B8
+        static let textSecondary = mutedVioletText  // #A6A2D4
         static let border = inkText  // #23233B
         static let accentTruth = truthGreen  // #3BD489
         static let accentBluff = bluffPink  // #FF5C97
@@ -81,6 +82,7 @@ enum Theme {
         enum Salongen {
             static let boardBase = Color(hex: 0x6B4A2F)  // #6B4A2F
             static let boardAlt = Color(hex: 0x7A5636)  // #7A5636
+            static let rail = Color(hex: 0x3C2817)  // #3C2817
         }
         enum Fjellet {
             static let sky = Color(hex: 0x39507A)  // #39507A
@@ -89,11 +91,13 @@ enum Theme {
             static let forestLow = Color(hex: 0x6F8F6F)  // #6F8F6F
             static let snow = Color(hex: 0xE8EDF2)  // #E8EDF2
             static let snowPeak = Color(hex: 0xFFFFFF)  // #FFFFFF
+            static let rail = Color(hex: 0x6B6558)  // #6B6558
         }
         enum Verdensrommet {
             static let space = Color(hex: 0x0D0D1F)  // #0D0D1F
             static let starBright = Color(hex: 0xFFFFFF, opacity: 0.4)  // #FFFFFF66
             static let starDim = Color(hex: 0xFFFFFF, opacity: 0.2)  // #FFFFFF33
+            static let rail = Color(hex: 0x241A4A)  // #241A4A
         }
     }
 
@@ -153,6 +157,9 @@ enum Theme {
         static let gmChuckleMax: TimeInterval = 0.8
         static let oneShotMax: TimeInterval = 1.5
         static let boardPhaseCap: TimeInterval = 20
+        static let overtakeWobble: TimeInterval = 0.42
+        static let countUp: TimeInterval = 0.28
+        static let screenIn: TimeInterval = 0.24
     }
 
     /// Apple springs (duration, bounce). Reduced Motion: fall back per DESIGN.md §9.
@@ -177,6 +184,8 @@ enum Theme {
         static let bobIdle = Animation.spring(duration: 2.4, bounce: 0)
         /// Goal space pulses a slow gold ring, 2 s, until claimed — all themes inherit (demo @keyframes goalglow)
         static let goalPulse = Animation.spring(duration: 2, bounce: 0)
+        /// Vote tally dot lands with a soft pop (DESIGN §7 'anonymous dots land per option with soft pops')
+        static let tallyPop = Animation.spring(duration: 0.28, bounce: 0.35)
 
         // Companion constants for spring choreography
         static let optionStaggerGapSeconds: TimeInterval = 0.07

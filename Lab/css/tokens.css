@@ -19,6 +19,7 @@
   --color-turn-yellow: #FFC53D;
   --color-gm-violet: #9B6DFF;
   --color-muted-violet: #8A87B8;
+  --color-muted-violet-text: #A6A2D4;
   --color-avatar-1: #FFB020;
   --color-avatar-2: #4FC3F7;
   --color-avatar-3: #FF7043;
@@ -38,7 +39,7 @@
   --color-surface: #FFF6E8;
   --color-text-on-surface: #23233B;
   --color-text-on-bg: #F4EFE4;
-  --color-text-secondary: #8A87B8;
+  --color-text-secondary: #A6A2D4;
   --color-border: #23233B;
   --color-accent-truth: #3BD489;
   --color-accent-bluff: #FF5C97;
@@ -55,15 +56,18 @@
   /* ---- color.themes — background-layer overrides only (DESIGN.md §3) ---- */
   --color-theme-salongen-board-base: #6B4A2F;
   --color-theme-salongen-board-alt: #7A5636;
+  --color-theme-salongen-rail: #3C2817;
   --color-theme-fjellet-sky: #39507A;
   --color-theme-fjellet-sky-low: #4C6A8F;
   --color-theme-fjellet-forest: #5E7F74;
   --color-theme-fjellet-forest-low: #6F8F6F;
   --color-theme-fjellet-snow: #E8EDF2;
   --color-theme-fjellet-snow-peak: #FFFFFF;
+  --color-theme-fjellet-rail: #6B6558;
   --color-theme-verdensrommet-space: #0D0D1F;
   --color-theme-verdensrommet-star-bright: #FFFFFF66;
   --color-theme-verdensrommet-star-dim: #FFFFFF33;
+  --color-theme-verdensrommet-rail: #241A4A;
 
   /* ---- radius ---- */
   --radius-card: 22px;
@@ -118,6 +122,9 @@
   --motion-dur-gm-chuckle-max: 800ms;
   --motion-dur-one-shot-max: 1500ms;
   --motion-dur-board-phase-cap: 20000ms;
+  --motion-dur-overtake-wobble: 420ms;
+  --motion-dur-count-up: 280ms;
+  --motion-dur-screen-in: 240ms;
 
   /* ---- motion.springs (duration in s + cubic-bezier approximation) ---- */
   --spring-button-press-duration: 0.08s;
@@ -140,6 +147,8 @@
   --spring-bob-idle-ease: cubic-bezier(0.34, 1, 0.64, 1);
   --spring-goal-pulse-duration: 2s;
   --spring-goal-pulse-ease: cubic-bezier(0.34, 1, 0.64, 1);
+  --spring-tally-pop-duration: 0.28s;
+  --spring-tally-pop-ease: cubic-bezier(0.34, 1.525, 0.64, 1);
 }
 
 /* Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfades,
@@ -156,5 +165,6 @@
     --spring-gm-steal-pulse-ease: ease-out;
     --spring-bob-idle-ease: ease-out;
     --spring-goal-pulse-ease: ease-out;
+    --spring-tally-pop-ease: ease-out;
   }
 }

@@ -22,12 +22,16 @@
 .pchip {
   display: flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: var(--radius-chip);
   font-weight: 600; font-size: 14px; background: #ffffff14; border: 2px solid #ffffff2a;
-  transition: transform var(--motion-dur-chip-flip), background var(--motion-dur-chip-flip);
-  color: var(--color-text-on-bg);
+  transition: transform var(--spring-chip-flip-duration) var(--spring-chip-flip-ease),
+              background var(--spring-chip-flip-duration), box-shadow var(--spring-chip-flip-duration);
+  color: var(--color-text-on-bg); box-shadow: 0 2px 0 rgba(0,0,0,.28);
 }
 .card .pchip { color: var(--color-text-on-surface); background: #00000010; border-color: #00000022; }
 .pchip .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(0,0,0,.25); }
-.pchip.done { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth); transform: rotateX(360deg); }
+.pchip.done {
+  background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth);
+  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #1d8f5b;   /* mechanical snap + truthGreen under-shadow */
+}
 
 .seg { display: flex; gap: 8px; margin: 8px 0; }
 .seg button {
@@ -45,22 +49,37 @@
   cursor: pointer; box-shadow: var(--shadow-hard);
   transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
 }
-.opt:active { transform: translateY(3px); box-shadow: 1px 2px 0 rgba(10,10,24,.45); }
+.opt:active { transform: translateY(3px); box-shadow: var(--shadow-hard-pressed); }
 .opt .letter {
   flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--color-border); color: var(--color-surface);
   font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family: var(--type-display-family);
 }
+/* tinted hard shadows → each option reads as a colored physical tile (color means something) */
 .opt.truth { border-color: var(--color-accent-truth); background: #e7fff3; box-shadow: 4px 5px 0 #1d8f5b88, 0 0 22px #3bd48944; }
-.opt.bluff { border-color: var(--color-accent-bluff); }
-.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; }
+.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #c23a6a88; }
+.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #6b4bb888; }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
 @keyframes pop { 0% { opacity: 0; transform: scale(.85) rotate(-1.5deg); } 100% { opacity: 1; transform: none; } }
-.stagger { opacity: 0; animation: rise var(--motion-dur-option-rise) ease forwards; }
+.stagger { opacity: 0; animation: rise var(--motion-dur-option-rise) var(--spring-option-stagger-ease) forwards; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Truth's dramatic entrance: dim + blur the losers, then the truth settles 1.06→1.0 (DESIGN §7) */
+.reveal.truth-shown .opt:not(.truth) { opacity: .45; filter: blur(1.5px); transition: opacity .3s ease, filter .3s ease; }
+.opt.truth-enter { animation: truthSettle var(--spring-truth-reveal-duration) var(--spring-truth-reveal-ease) both; }
+@keyframes truthSettle { 0% { transform: scale(1.06); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+
+/* GM steal — the villain veil pulses gmViolet once (DESIGN §7); auto-removed on next render */
+.gm-tint {
+  position: fixed; inset: 0; z-index: 80; pointer-events: none; background: var(--color-accent-gm);
+  animation: gmTint var(--spring-gm-steal-pulse-duration) var(--spring-gm-steal-pulse-ease) both;
+}
+@keyframes gmTint { 0% { opacity: 0; } 45% { opacity: .5; } 100% { opacity: 0; } }
 
 .votedots { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; align-items: center; }
 .votedots .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #00000033; }
+.votedots .dot.land { animation: dotPop var(--spring-tally-pop-duration) var(--spring-tally-pop-ease) both; }
+@keyframes dotPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .author { display: flex; align-items: center; gap: 9px; margin-top: 9px; font-weight: 600; font-size: 14px; }
 
 /* The face + Nesen — the signature (DESIGN.md §4) */
@@ -75,7 +94,14 @@
   position: absolute; left: 96%; top: 13px; height: 9px; width: 6px; border-radius: 0 7px 7px 0;
   background: var(--color-accent-bluff); border: 2.5px solid var(--color-border); border-left: none;
   transform-origin: left center;
-  transition: width var(--spring-nose-grow-duration) var(--spring-nose-grow-ease);
+  box-shadow: inset 0 1px 0 #ffffff66, inset 0 -1px 0 #00000022;   /* inked-on-paper */
+}
+/* The Nesen boings out per vote — mount keyframe (the element is rebuilt at final width each
+   reveal beat, so a transition can't fire; a stronger vote count boings harder). DESIGN §4. */
+.nose.grow { animation: noseBoing var(--spring-nose-grow-duration) var(--spring-nose-grow-ease) both; }
+@keyframes noseBoing {
+  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--votes, 1))); }
+  100% { transform: scaleX(1); }
 }
 .nose.violet { background: var(--color-accent-gm); }
 .nose.gold { background: gold; }
@@ -126,3 +152,8 @@
 .lottie-overlay > svg { width: 100%; height: 100%; }
 .gullnese-fx { position: absolute; inset: 0; pointer-events: none; }
 .gullnese-fx > svg { width: 100%; height: 100%; }
+
+/* Keyboard / Switch-Control focus on every interactive tile (DESIGN §9) */
+.opt:focus-visible, .seg button:focus-visible, .modebtn:focus-visible {
+  outline: 3px solid var(--color-accent-turn); outline-offset: 2px;
+}
