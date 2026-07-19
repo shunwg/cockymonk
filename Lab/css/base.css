@@ -55,9 +55,12 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000006 3px 4px); /* paper grain */
 }
 .card.secret {
+  /* The lavender gradient IS the background-image; it also overrides .card's paper
+     grain, so no separate grain-suppression is needed. (A stray `background-image:
+     none` here previously erased the gradient → transparent card → unreadable truth.) */
   background: linear-gradient(145deg, #efe6ff, #ddccff);
-  border-color: var(--color-accent-gm); border-style: dashed; background-image: none; /* "classified" */
-  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;   /* faint dossier glow */
+  border-color: var(--color-accent-gm); border-style: dashed;   /* "classified" */
+  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;     /* faint dossier glow */
 }
 
 .word {
@@ -104,4 +107,7 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+  /* Elements whose ONLY path to visibility is an animation must be shown outright,
+     or Reduced-Motion players never see them (e.g. the vote options). */
+  .stagger, .opt.stagger { opacity: 1 !important; }
 }

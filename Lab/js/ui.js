@@ -264,13 +264,14 @@ function startGame() {
     card: null, bluffs: {}, decoys: ["", ""], gmDecoyDone: false,
     options: null, doubles: [], votes: {}, deltas: null, gmStole: false,
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
-    goalCelebrated: false, celebrated: false,
+    goalCelebrated: false, celebrated: false, awaitingNext: false,
   };
   newRound();
 }
 
 function newRound() {
   clearTimers();
+  G.awaitingNext = false;                // this round's board starts locked until its ceremony ends
   G.round++;
   if (!U.deck.length) U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   G.card = U.deck.pop();
@@ -318,7 +319,8 @@ function scheduleBotBluffs() {
 
 function botTickUI(i) {
   const chip = document.getElementById("chip" + i);
-  if (chip) { chip.classList.add("done"); chip.innerHTML = chip.innerHTML.replace("…", "✓").replace(t("thinkingDots"), "✓"); }
+  // Replace the whole "tenker…" token FIRST, else "…"→"✓" strands the word "tenker".
+  if (chip) { chip.classList.add("done"); chip.innerHTML = chip.innerHTML.replace(t("thinkingDots"), "✓").replace("…", "✓"); }
   if (U.screen === "WAIT") render();          // waiting room has no inputs → full render is safe
   if (U.screen === "GM_DASH") refreshGmAction(); // dash has inputs → surgical update only
 }
@@ -500,6 +502,7 @@ function scheduleBotVotes() {
 function maybeAllVotesIn() {
   if (voteOrder().some((i) => G.votes[i] === undefined)) return;
   clearTimers();
+  play("drumroll");                      // tension roll as the votes close and the reveal opens
   later(() => {
     computeRound(); U.revealIdx = 0; U.screen = "REVEAL"; render();
     if (party() && !userIsGm()) later(autoReveal, 1400);
@@ -674,8 +677,12 @@ SCREENS.BOARD = () => {
         <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
    </div>
    <div style="flex:1"></div>
-   <button class="btn" id="nextbtn" disabled>${t("nextRound")}</button>`);
+   <button class="btn" id="nextbtn" ${G.awaitingNext ? "" : "disabled"}>${t("nextRound")}</button>`);
   placePawns();
+  if (G.awaitingNext) {                  // re-render after the round already finished → keep it live
+    const btn = document.getElementById("nextbtn");
+    if (btn) btn.onclick = advanceRound;
+  }
 };
 
 function pawnEl(i) {
@@ -803,11 +810,14 @@ function finishRound() {
     U.screen = "OMKAMP"; play("gmSting"); render();
     return;
   }
+  G.awaitingNext = true;                 // survives topbar re-renders (mute/theme) — no soft-lock
   const btn = document.getElementById("nextbtn");
   if (!btn) return;
   btn.disabled = false;
-  btn.onclick = () => { G.gm = (G.gm + 1) % G.players.length; newRound(); };
+  btn.onclick = advanceRound;
 }
+
+function advanceRound() { G.gm = (G.gm + 1) % G.players.length; newRound(); }
 
 /* ---------- omkamp intro (PRD §5.4 — not in the frozen demo) ---------- */
 SCREENS.OMKAMP = () => {
