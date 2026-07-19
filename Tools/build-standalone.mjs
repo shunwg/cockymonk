@@ -120,6 +120,30 @@ ${gameJs}
   await writeFile(p("dist/CockyMonk.html"), html, "utf8");
   const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
   console.log(`dist/CockyMonk.html  (${kb} KB)  · ${cardCount} cards · ${LOTTIE.length} Lottie · self-contained`);
+
+  // Artifact variant: body content only (claude.ai wraps it in <!doctype>/<head>/<body>).
+  // Same inlined game, no external hosts → CSP-clean. Fonts/lottie/decks all embedded.
+  const artifact = `<style>
+${css}
+</style>
+<div id="app"></div>
+<script>window.__COCKY__ = ${scriptSafe(bundle)};</script>
+<script>${lottieLib}</script>
+<script>
+(function () {
+"use strict";
+try {
+${gameJs}
+} catch (e) {
+  document.getElementById("app").innerHTML =
+    '<p style="color:#fff;padding:24px;font-family:system-ui">Kunne ikke starte spillet / could not start: ' + e + "</p>";
+  throw e;
+}
+})();
+</script>
+`;
+  await writeFile(p("dist/CockyMonk.artifact.html"), artifact, "utf8");
+  console.log(`dist/CockyMonk.artifact.html  (${(Buffer.byteLength(artifact) / 1024).toFixed(0)} KB)  · for claude.ai Artifact`);
 }
 
 main().catch((e) => { console.error("build failed:", e); process.exit(1); });

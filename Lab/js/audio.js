@@ -1,10 +1,16 @@
 // audio.js — sound grammar for the Lab. Lane B may restyle voices; event NAMES
 // are the contract (LANES.md seam #4) and mirror tokens.json → sound.grammar.
-// The Lab uses a procedural WebAudio synth (like the frozen demo) so it works
-// offline; the iOS app plays the promoted Kenney/.caf files for the same events.
+// A procedural WebAudio "sound designer" (no files) so it works offline; the iOS
+// app plays the promoted Kenney/.caf files for the same events.
+//
+// Design intent (emil-design-eng: "match the motion to the mood"): this is a
+// playful quiz-show, so voices lean theatrical — a gong when the vote opens, a
+// rising boing per liar's-nose notch, a comedic wah-wah when the GM steals, a
+// triumphant chord for the truth. Everything ducks quiet; nothing screeches.
 
 let ctx = null;
 let muted = false;
+let noiseBuf = null;
 
 export function setMuted(m) { muted = m; }
 export function isMuted() { return muted; }
@@ -13,35 +19,85 @@ function ac() {
   if (!ctx) ctx = new (window.AudioContext ?? window.webkitAudioContext)();
   return ctx;
 }
+function now() { return ac().currentTime; }
 
-function beep(freq, dur = 0.08, type = "square", gain = 0.04, when = 0) {
+// A short white-noise buffer, reused for whooshes/riffles.
+function noise() {
+  if (!noiseBuf) {
+    const a = ac();
+    noiseBuf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
+
+// One tone with an ADSR-ish gain envelope. freq may be [from, to] to glide.
+function tone(freq, { dur = 0.12, type = "triangle", gain = 0.05, when = 0, attack = 0.006 } = {}) {
   if (muted) return;
   const a = ac();
+  const t = a.currentTime + when;
   const o = a.createOscillator();
   const g = a.createGain();
   o.type = type;
-  o.frequency.value = freq;
-  g.gain.setValueAtTime(gain, a.currentTime + when);
-  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + when + dur);
+  if (Array.isArray(freq)) { o.frequency.setValueAtTime(freq[0], t); o.frequency.exponentialRampToValueAtTime(Math.max(1, freq[1]), t + dur); }
+  else o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination);
-  o.start(a.currentTime + when);
-  o.stop(a.currentTime + when + dur + 0.02);
+  o.start(t); o.stop(t + dur + 0.03);
 }
+
+// Filtered noise burst — card whoosh / riffle / shuffle.
+function whoosh({ dur = 0.18, when = 0, gain = 0.05, from = 1200, to = 400, q = 0.7 } = {}) {
+  if (muted) return;
+  const a = ac();
+  const t = a.currentTime + when;
+  const src = a.createBufferSource(); src.buffer = noise();
+  const f = a.createBiquadFilter(); f.type = "bandpass"; f.Q.value = q;
+  f.frequency.setValueAtTime(from, t); f.frequency.exponentialRampToValueAtTime(to, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(a.destination);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+
+const CHORD = [523.25, 659.25, 783.99]; // C major, the "truth" chord
 
 // Event grammar — names match tokens.json sound.grammar keys.
 const VOICES = {
-  voteCast:   () => beep(660, 0.06, "square", 0.05),
-  confirm:    () => beep(520, 0.09, "triangle", 0.05),
-  cardDraw:   () => { beep(420, 0.07, "triangle"); beep(560, 0.07, "triangle", 0.04, 0.07); },
-  cardShuffle:() => { for (let i = 0; i < 6; i++) beep(240 + Math.random() * 500, 0.05, "square", 0.03, i * 0.045); },
-  tickIn:     () => beep(760, 0.05, "triangle", 0.05),
-  pawnHop:    () => beep(340, 0.06, "sine", 0.06),
-  truthReveal:() => { beep(523, 0.12, "triangle", 0.05); beep(659, 0.12, "triangle", 0.05, 0.12); beep(784, 0.2, "triangle", 0.05, 0.24); },
-  gmSting:    () => { beep(196, 0.3, "sawtooth", 0.05); beep(185, 0.35, "sawtooth", 0.05, 0.18); },
-  noseGrow:   (notch = 1) => beep(300 + notch * 90, 0.07, "square", 0.05),
-  error:      () => { beep(220, 0.09, "sawtooth", 0.04); beep(180, 0.12, "sawtooth", 0.04, 0.09); },
-  toggle:     () => beep(480, 0.05, "square", 0.04),
-  back:       () => beep(360, 0.06, "triangle", 0.04),
+  // — UI —
+  confirm:  () => { tone(560, { type: "triangle", dur: 0.09, gain: 0.05 }); tone(760, { type: "triangle", dur: 0.09, gain: 0.04, when: 0.05 }); },
+  toggle:   () => tone(500, { type: "square", dur: 0.05, gain: 0.035 }),
+  back:     () => tone(360, { type: "triangle", dur: 0.07, gain: 0.035 }),
+  error:    () => { tone([320, 180], { type: "sawtooth", dur: 0.18, gain: 0.045 }); },
+
+  // — round —
+  cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
+  tickIn:   () => { tone(880, { type: "triangle", dur: 0.05, gain: 0.05 }); tone(1180, { type: "sine", dur: 0.06, gain: 0.035, when: 0.03 }); },
+  cardShuffle: () => { for (let i = 0; i < 7; i++) whoosh({ from: 900 + Math.random() * 700, to: 300, dur: 0.06, gain: 0.03, when: i * 0.05, q: 1.2 }); },
+
+  // — the showstopper: GM opens the vote (PRD §11 "reaction every round") —
+  voteOpen: () => {
+    whoosh({ from: 300, to: 1400, dur: 0.22, gain: 0.05 });            // riser
+    [523, 659, 784, 1046].forEach((f, i) => tone(f, { type: "triangle", dur: 0.5, gain: 0.05, when: 0.18 + i * 0.02 })); // gong-ish bloom
+    tone(1046, { type: "sine", dur: 0.4, gain: 0.03, when: 0.2 });
+  },
+  voteCast: () => { tone(700, { type: "square", dur: 0.05, gain: 0.05 }); tone(520, { type: "triangle", dur: 0.06, gain: 0.03, when: 0.03 }); },
+
+  // — reveal —
+  drumroll: () => { for (let i = 0; i < 10; i++) tone(150, { type: "square", dur: 0.03, gain: 0.03, when: i * 0.045 }); },
+  noseGrow: (notch = 1) => tone([260 + notch * 60, 340 + notch * 120], { type: "square", dur: 0.16, gain: 0.05 }), // rising boing
+  doubleHit: () => { [784, 988, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.18, gain: 0.05, when: i * 0.06 })); },
+  truthReveal: () => { CHORD.forEach((f, i) => tone(f, { type: "triangle", dur: 0.5, gain: 0.055, when: i * 0.11 })); tone(1046, { type: "sine", dur: 0.6, gain: 0.03, when: 0.34 }); },
+  gmSting:  () => { tone([300, 150], { type: "sawtooth", dur: 0.5, gain: 0.06 }); tone([260, 130], { type: "sawtooth", dur: 0.55, gain: 0.05, when: 0.28 }); }, // wah-wah
+
+  // — board —
+  pawnHop:  () => tone([300, 520], { type: "sine", dur: 0.09, gain: 0.055 }),
+  overtake: () => tone([700, 300], { type: "triangle", dur: 0.14, gain: 0.05 }),
+  win:      () => { [523, 659, 784, 1046, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.4, gain: 0.05, when: i * 0.08 })); },
 };
 
 export function play(event, arg) {

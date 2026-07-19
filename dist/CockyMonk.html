@@ -379,14 +379,31 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
 @keyframes dotPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .author { display: flex; align-items: center; gap: 9px; margin-top: 9px; font-weight: 600; font-size: 14px; }
 
-/* The face + Nesen — the signature (DESIGN.md §4) */
+/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods. */
 .face { width: 34px; height: 34px; border-radius: 50%; position: relative; flex: none; border: 2.5px solid var(--color-border); }
-.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); }
-.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); }
+.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
+.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
 .face .smile {
   position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); width: 12px; height: 6px;
-  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px;
+  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px; transition: all .18s ease;
 }
+/* suspicious — narrowed eyes, flat mouth (shown while others are bluffing) */
+.face.suspicious::before, .face.suspicious::after { height: 2px; border-radius: 2px; top: 12px; }
+.face.suspicious .smile { height: 0; width: 10px; border-radius: 0; border-bottom-width: 2.5px; }
+/* smug — a sly smirk (the GM who just stole the round) */
+.face.smug .smile { width: 14px; height: 5px; transform: translateX(-40%) rotate(-12deg); }
+.face.smug::after { transform: scaleY(1.4); }
+/* shocked — wide eyes, round mouth (a double-hit) */
+.face.shocked::before, .face.shocked::after { transform: scale(1.5); }
+.face.shocked .smile { width: 9px; height: 9px; border: 2.5px solid var(--color-border); border-radius: 50%; bottom: 4px; }
+/* delighted — big grin (the winner) */
+.face.delighted .smile { width: 16px; height: 9px; border-radius: 0 0 16px 16px; }
+
+/* Vote-open flash + GM-steal screen shake — showmanship, RM-guarded in JS */
+.flash { position: fixed; inset: 0; z-index: 85; pointer-events: none; background: var(--color-accent-turn); animation: flashFade .5s ease-out both; }
+@keyframes flashFade { 0% { opacity: .55; } 100% { opacity: 0; } }
+.shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake { 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)} }
 .nose {
   position: absolute; left: 96%; top: 13px; height: 9px; width: 6px; border-radius: 0 7px 7px 0;
   background: var(--color-accent-bluff); border: 2.5px solid var(--color-border); border-left: none;
@@ -1169,11 +1186,17 @@ function takeFake(pool, used, rng) {
 /* ===== audio.js ===== */
 // audio.js — sound grammar for the Lab. Lane B may restyle voices; event NAMES
 // are the contract (LANES.md seam #4) and mirror tokens.json → sound.grammar.
-// The Lab uses a procedural WebAudio synth (like the frozen demo) so it works
-// offline; the iOS app plays the promoted Kenney/.caf files for the same events.
+// A procedural WebAudio "sound designer" (no files) so it works offline; the iOS
+// app plays the promoted Kenney/.caf files for the same events.
+//
+// Design intent (emil-design-eng: "match the motion to the mood"): this is a
+// playful quiz-show, so voices lean theatrical — a gong when the vote opens, a
+// rising boing per liar's-nose notch, a comedic wah-wah when the GM steals, a
+// triumphant chord for the truth. Everything ducks quiet; nothing screeches.
 
 let ctx = null;
 let muted = false;
+let noiseBuf = null;
 
 function setMuted(m) { muted = m; }
 function isMuted() { return muted; }
@@ -1182,35 +1205,85 @@ function ac() {
   if (!ctx) ctx = new (window.AudioContext ?? window.webkitAudioContext)();
   return ctx;
 }
+function now() { return ac().currentTime; }
 
-function beep(freq, dur = 0.08, type = "square", gain = 0.04, when = 0) {
+// A short white-noise buffer, reused for whooshes/riffles.
+function noise() {
+  if (!noiseBuf) {
+    const a = ac();
+    noiseBuf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
+
+// One tone with an ADSR-ish gain envelope. freq may be [from, to] to glide.
+function tone(freq, { dur = 0.12, type = "triangle", gain = 0.05, when = 0, attack = 0.006 } = {}) {
   if (muted) return;
   const a = ac();
+  const t = a.currentTime + when;
   const o = a.createOscillator();
   const g = a.createGain();
   o.type = type;
-  o.frequency.value = freq;
-  g.gain.setValueAtTime(gain, a.currentTime + when);
-  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + when + dur);
+  if (Array.isArray(freq)) { o.frequency.setValueAtTime(freq[0], t); o.frequency.exponentialRampToValueAtTime(Math.max(1, freq[1]), t + dur); }
+  else o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination);
-  o.start(a.currentTime + when);
-  o.stop(a.currentTime + when + dur + 0.02);
+  o.start(t); o.stop(t + dur + 0.03);
 }
+
+// Filtered noise burst — card whoosh / riffle / shuffle.
+function whoosh({ dur = 0.18, when = 0, gain = 0.05, from = 1200, to = 400, q = 0.7 } = {}) {
+  if (muted) return;
+  const a = ac();
+  const t = a.currentTime + when;
+  const src = a.createBufferSource(); src.buffer = noise();
+  const f = a.createBiquadFilter(); f.type = "bandpass"; f.Q.value = q;
+  f.frequency.setValueAtTime(from, t); f.frequency.exponentialRampToValueAtTime(to, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(a.destination);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+
+const CHORD = [523.25, 659.25, 783.99]; // C major, the "truth" chord
 
 // Event grammar — names match tokens.json sound.grammar keys.
 const VOICES = {
-  voteCast:   () => beep(660, 0.06, "square", 0.05),
-  confirm:    () => beep(520, 0.09, "triangle", 0.05),
-  cardDraw:   () => { beep(420, 0.07, "triangle"); beep(560, 0.07, "triangle", 0.04, 0.07); },
-  cardShuffle:() => { for (let i = 0; i < 6; i++) beep(240 + Math.random() * 500, 0.05, "square", 0.03, i * 0.045); },
-  tickIn:     () => beep(760, 0.05, "triangle", 0.05),
-  pawnHop:    () => beep(340, 0.06, "sine", 0.06),
-  truthReveal:() => { beep(523, 0.12, "triangle", 0.05); beep(659, 0.12, "triangle", 0.05, 0.12); beep(784, 0.2, "triangle", 0.05, 0.24); },
-  gmSting:    () => { beep(196, 0.3, "sawtooth", 0.05); beep(185, 0.35, "sawtooth", 0.05, 0.18); },
-  noseGrow:   (notch = 1) => beep(300 + notch * 90, 0.07, "square", 0.05),
-  error:      () => { beep(220, 0.09, "sawtooth", 0.04); beep(180, 0.12, "sawtooth", 0.04, 0.09); },
-  toggle:     () => beep(480, 0.05, "square", 0.04),
-  back:       () => beep(360, 0.06, "triangle", 0.04),
+  // — UI —
+  confirm:  () => { tone(560, { type: "triangle", dur: 0.09, gain: 0.05 }); tone(760, { type: "triangle", dur: 0.09, gain: 0.04, when: 0.05 }); },
+  toggle:   () => tone(500, { type: "square", dur: 0.05, gain: 0.035 }),
+  back:     () => tone(360, { type: "triangle", dur: 0.07, gain: 0.035 }),
+  error:    () => { tone([320, 180], { type: "sawtooth", dur: 0.18, gain: 0.045 }); },
+
+  // — round —
+  cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
+  tickIn:   () => { tone(880, { type: "triangle", dur: 0.05, gain: 0.05 }); tone(1180, { type: "sine", dur: 0.06, gain: 0.035, when: 0.03 }); },
+  cardShuffle: () => { for (let i = 0; i < 7; i++) whoosh({ from: 900 + Math.random() * 700, to: 300, dur: 0.06, gain: 0.03, when: i * 0.05, q: 1.2 }); },
+
+  // — the showstopper: GM opens the vote (PRD §11 "reaction every round") —
+  voteOpen: () => {
+    whoosh({ from: 300, to: 1400, dur: 0.22, gain: 0.05 });            // riser
+    [523, 659, 784, 1046].forEach((f, i) => tone(f, { type: "triangle", dur: 0.5, gain: 0.05, when: 0.18 + i * 0.02 })); // gong-ish bloom
+    tone(1046, { type: "sine", dur: 0.4, gain: 0.03, when: 0.2 });
+  },
+  voteCast: () => { tone(700, { type: "square", dur: 0.05, gain: 0.05 }); tone(520, { type: "triangle", dur: 0.06, gain: 0.03, when: 0.03 }); },
+
+  // — reveal —
+  drumroll: () => { for (let i = 0; i < 10; i++) tone(150, { type: "square", dur: 0.03, gain: 0.03, when: i * 0.045 }); },
+  noseGrow: (notch = 1) => tone([260 + notch * 60, 340 + notch * 120], { type: "square", dur: 0.16, gain: 0.05 }), // rising boing
+  doubleHit: () => { [784, 988, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.18, gain: 0.05, when: i * 0.06 })); },
+  truthReveal: () => { CHORD.forEach((f, i) => tone(f, { type: "triangle", dur: 0.5, gain: 0.055, when: i * 0.11 })); tone(1046, { type: "sine", dur: 0.6, gain: 0.03, when: 0.34 }); },
+  gmSting:  () => { tone([300, 150], { type: "sawtooth", dur: 0.5, gain: 0.06 }); tone([260, 130], { type: "sawtooth", dur: 0.55, gain: 0.05, when: 0.28 }); }, // wah-wah
+
+  // — board —
+  pawnHop:  () => tone([300, 520], { type: "sine", dur: 0.09, gain: 0.055 }),
+  overtake: () => tone([700, 300], { type: "triangle", dur: 0.14, gain: 0.05 }),
+  win:      () => { [523, 659, 784, 1046, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.4, gain: 0.05, when: i * 0.08 })); },
 };
 
 function play(event, arg) {
@@ -1668,7 +1741,7 @@ function allBluffsSubmitted() {
 function maybeAllBluffsIn() {
   if (!allBluffsSubmitted() || !G.gmDecoyDone) return; // decoy gating (PRD §5.5)
   if (U.screen === "WAIT") {
-    later(() => { play("cardShuffle"); openVote(); U.screen = "VOTE"; render(); scheduleBotVotes(); }, TUNING.GM_SHUFFLE_MS);
+    later(() => { play("cardShuffle"); play("voteOpen"); flashScreen(); openVote(); U.screen = "VOTE"; render(); scheduleBotVotes(); }, TUNING.GM_SHUFFLE_MS);
   }
 }
 
@@ -1727,7 +1800,8 @@ SCREENS.GM_DASH = () => {
 };
 
 function gmOpensVote() {
-  clearTimers(); play("cardShuffle");
+  clearTimers();
+  play("cardShuffle"); play("voteOpen"); flashScreen();   // the showstopper (PRD §11)
   G.gmDecoyDone = true;
   openVote();
   if (party()) { U.screen = "VOTEWAIT"; render(); scheduleBotVotes(); }
@@ -1814,7 +1888,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob" style="background:${G.players[0].color};width:60px;height:60px;">
+     <div class="face bob suspicious" style="background:${G.players[0].color};width:60px;height:60px;">
        <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
        <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
    </div>`);
@@ -1893,6 +1967,7 @@ function computeRound() {
   G.deltas = result.deltas;
   G.gmStole = result.gmStole;
   result.bluffVotes.forEach((n, i) => { G.players[i].bluffVotes += n; });
+  if (G.doubles.length) setTimeout(() => play("doubleHit"), 400);   // surprise sparkle as the reveal opens
 }
 
 /* ---------- reveal ceremony ---------- */
@@ -1955,10 +2030,11 @@ function doRevealStep() {
     if (G.gmStole) {
       setTimeout(() => play("gmSting"), 500);
       playCelebration("gm_steal_sting");
-      if (!reduceMotion()) {                       // the villain veil pulses gmViolet once
+      if (!reduceMotion()) {                       // the villain veil pulses gmViolet + the room shakes
         const tint = document.createElement("div");
         tint.className = "gm-tint"; document.body.appendChild(tint);
         setTimeout(() => tint.remove(), 700);
+        shakeScreen();
       }
     }
   }
@@ -2095,6 +2171,7 @@ function animateBoard() {
           if (j !== i && before <= p.score && after > p.score) {
             const pj = pawnEl(j); pj.classList.remove("wobble"); void pj.offsetWidth; pj.classList.add("wobble");
             setTimeout(() => pj.classList.remove("wobble"), 420);
+            play("overtake");
           }
         });
       }
@@ -2167,8 +2244,8 @@ SCREENS.WINNER = () => {
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
-       <span class="face" style="background:${liar.color};width:48px;height:48px;">
-         <span class="nose gold" style="top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
+       <span class="face delighted" style="background:${liar.color};width:48px;height:48px;">
+         <span class="nose gold grow" style="--votes:${liar.bluffVotes};top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
        <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
@@ -2178,6 +2255,7 @@ SCREENS.WINNER = () => {
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
+    play("win");                                   // triumphant fanfare
     if (window.lottie && !reduceMotion()) {
       playCelebration("confetti_win");
       mountLottie(document.getElementById("gullnesefx"), "gullnese_shimmer");
@@ -2192,6 +2270,18 @@ SCREENS.WINNER = () => {
     render();
   };
 };
+
+/* ---------- showmanship helpers (RM-guarded) ---------- */
+function flashScreen() {
+  if (reduceMotion()) return;
+  const f = document.createElement("div"); f.className = "flash"; document.body.appendChild(f);
+  setTimeout(() => f.remove(), 500);
+}
+function shakeScreen() {
+  if (reduceMotion()) return;
+  app.classList.remove("shake"); void app.offsetWidth; app.classList.add("shake");
+  setTimeout(() => app.classList.remove("shake"), 520);
+}
 
 function confetti() {
   const cols = ["var(--color-confetti-1)", "var(--color-confetti-2)", "var(--color-confetti-3)", "var(--color-confetti-4)", "var(--color-confetti-5)"];

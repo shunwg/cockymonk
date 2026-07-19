@@ -330,7 +330,7 @@ function allBluffsSubmitted() {
 function maybeAllBluffsIn() {
   if (!allBluffsSubmitted() || !G.gmDecoyDone) return; // decoy gating (PRD §5.5)
   if (U.screen === "WAIT") {
-    later(() => { play("cardShuffle"); openVote(); U.screen = "VOTE"; render(); scheduleBotVotes(); }, TUNING.GM_SHUFFLE_MS);
+    later(() => { play("cardShuffle"); play("voteOpen"); flashScreen(); openVote(); U.screen = "VOTE"; render(); scheduleBotVotes(); }, TUNING.GM_SHUFFLE_MS);
   }
 }
 
@@ -389,7 +389,8 @@ SCREENS.GM_DASH = () => {
 };
 
 function gmOpensVote() {
-  clearTimers(); play("cardShuffle");
+  clearTimers();
+  play("cardShuffle"); play("voteOpen"); flashScreen();   // the showstopper (PRD §11)
   G.gmDecoyDone = true;
   openVote();
   if (party()) { U.screen = "VOTEWAIT"; render(); scheduleBotVotes(); }
@@ -476,7 +477,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob" style="background:${G.players[0].color};width:60px;height:60px;">
+     <div class="face bob suspicious" style="background:${G.players[0].color};width:60px;height:60px;">
        <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
        <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
    </div>`);
@@ -555,6 +556,7 @@ function computeRound() {
   G.deltas = result.deltas;
   G.gmStole = result.gmStole;
   result.bluffVotes.forEach((n, i) => { G.players[i].bluffVotes += n; });
+  if (G.doubles.length) setTimeout(() => play("doubleHit"), 400);   // surprise sparkle as the reveal opens
 }
 
 /* ---------- reveal ceremony ---------- */
@@ -617,10 +619,11 @@ function doRevealStep() {
     if (G.gmStole) {
       setTimeout(() => play("gmSting"), 500);
       playCelebration("gm_steal_sting");
-      if (!reduceMotion()) {                       // the villain veil pulses gmViolet once
+      if (!reduceMotion()) {                       // the villain veil pulses gmViolet + the room shakes
         const tint = document.createElement("div");
         tint.className = "gm-tint"; document.body.appendChild(tint);
         setTimeout(() => tint.remove(), 700);
+        shakeScreen();
       }
     }
   }
@@ -757,6 +760,7 @@ function animateBoard() {
           if (j !== i && before <= p.score && after > p.score) {
             const pj = pawnEl(j); pj.classList.remove("wobble"); void pj.offsetWidth; pj.classList.add("wobble");
             setTimeout(() => pj.classList.remove("wobble"), 420);
+            play("overtake");
           }
         });
       }
@@ -829,8 +833,8 @@ SCREENS.WINNER = () => {
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
-       <span class="face" style="background:${liar.color};width:48px;height:48px;">
-         <span class="nose gold" style="top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
+       <span class="face delighted" style="background:${liar.color};width:48px;height:48px;">
+         <span class="nose gold grow" style="--votes:${liar.bluffVotes};top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
        <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
@@ -840,6 +844,7 @@ SCREENS.WINNER = () => {
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
+    play("win");                                   // triumphant fanfare
     if (window.lottie && !reduceMotion()) {
       playCelebration("confetti_win");
       mountLottie(document.getElementById("gullnesefx"), "gullnese_shimmer");
@@ -854,6 +859,18 @@ SCREENS.WINNER = () => {
     render();
   };
 };
+
+/* ---------- showmanship helpers (RM-guarded) ---------- */
+function flashScreen() {
+  if (reduceMotion()) return;
+  const f = document.createElement("div"); f.className = "flash"; document.body.appendChild(f);
+  setTimeout(() => f.remove(), 500);
+}
+function shakeScreen() {
+  if (reduceMotion()) return;
+  app.classList.remove("shake"); void app.offsetWidth; app.classList.add("shake");
+  setTimeout(() => app.classList.remove("shake"), 520);
+}
 
 function confetti() {
   const cols = ["var(--color-confetti-1)", "var(--color-confetti-2)", "var(--color-confetti-3)", "var(--color-confetti-4)", "var(--color-confetti-5)"];

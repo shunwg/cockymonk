@@ -82,14 +82,31 @@
 @keyframes dotPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .author { display: flex; align-items: center; gap: 9px; margin-top: 9px; font-weight: 600; font-size: 14px; }
 
-/* The face + Nesen — the signature (DESIGN.md §4) */
+/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods. */
 .face { width: 34px; height: 34px; border-radius: 50%; position: relative; flex: none; border: 2.5px solid var(--color-border); }
-.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); }
-.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); }
+.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
+.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
 .face .smile {
   position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); width: 12px; height: 6px;
-  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px;
+  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px; transition: all .18s ease;
 }
+/* suspicious — narrowed eyes, flat mouth (shown while others are bluffing) */
+.face.suspicious::before, .face.suspicious::after { height: 2px; border-radius: 2px; top: 12px; }
+.face.suspicious .smile { height: 0; width: 10px; border-radius: 0; border-bottom-width: 2.5px; }
+/* smug — a sly smirk (the GM who just stole the round) */
+.face.smug .smile { width: 14px; height: 5px; transform: translateX(-40%) rotate(-12deg); }
+.face.smug::after { transform: scaleY(1.4); }
+/* shocked — wide eyes, round mouth (a double-hit) */
+.face.shocked::before, .face.shocked::after { transform: scale(1.5); }
+.face.shocked .smile { width: 9px; height: 9px; border: 2.5px solid var(--color-border); border-radius: 50%; bottom: 4px; }
+/* delighted — big grin (the winner) */
+.face.delighted .smile { width: 16px; height: 9px; border-radius: 0 0 16px 16px; }
+
+/* Vote-open flash + GM-steal screen shake — showmanship, RM-guarded in JS */
+.flash { position: fixed; inset: 0; z-index: 85; pointer-events: none; background: var(--color-accent-turn); animation: flashFade .5s ease-out both; }
+@keyframes flashFade { 0% { opacity: .55; } 100% { opacity: 0; } }
+.shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake { 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)} }
 .nose {
   position: absolute; left: 96%; top: 13px; height: 9px; width: 6px; border-radius: 0 7px 7px 0;
   background: var(--color-accent-bluff); border: 2.5px solid var(--color-border); border-left: none;
