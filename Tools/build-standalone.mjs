@@ -3,10 +3,15 @@
 // plays with zero install: no Node, no server, no network. Double-click on any
 // OS. Zero dependencies.
 //
-// It inlines: all CSS, all JS modules (as an ESM blob-bootstrap that preserves
-// import/export semantics), the full deck_nb/deck_en + fakes, the six Lottie
+// It inlines: all CSS, all JS modules (concatenated into ONE classic script —
+// no ES-module/blob machinery, so it loads from file:// on every browser with
+// zero origin caveats), the full deck_nb/deck_en + fakes, the six Lottie
 // celebration JSONs, and vendored lottie-web. Fonts use the Google Fonts <link>
 // when online and the rounded system fallback (DESIGN.md §2) offline.
+//
+// Safe to concatenate because the 7 modules share no top-level name (checked) and
+// each only reads others' names at call time, after all declarations evaluate in
+// dependency order.
 //
 // Usage:  node Tools/build-standalone.mjs   →   dist/CockyMonk.html
 // The frozen demo and the componentized Lab remain the sources of truth; this is
@@ -26,8 +31,18 @@ const readJson = async (rel) => JSON.parse(await read(rel));
 const scriptSafe = (obj) => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 const CSS_FILES = ["tokens.css", "base.css", "components.css", "screens.css", "themes.css"];
-// Leaves first, entry (ui.js) last — the bootstrap builds blob URLs in this order.
+// Dependency order: leaves first, entry (ui.js, which runs render() at its foot) last.
 const JS_MODULES = ["state.js", "engine.js", "bots.js", "audio.js", "themes.js", "lottie.js", "ui.js"];
+
+// Turn one ES module into plain top-level code: drop import lines, drop the
+// `export` keyword. All modules then share the single IIFE scope in the bundle.
+function stripModule(src) {
+  return src
+    .replace(/^\s*import\b[\s\S]*?from\s*['"][^'"]+['"];?[ \t]*$/gm, "") // import { … } from "./x.js";
+    .replace(/^\s*import\s*['"][^'"]+['"];?[ \t]*$/gm, "")               // bare side-effect import
+    .replace(/^(\s*)export\s+(async\s+)?(const|let|var|function|class)\b/gm, "$1$2$3")
+    .replace(/^\s*export\s*\{[^}]*\}\s*;?[ \t]*$/gm, "");               // export { … };
+}
 const LOTTIE = ["confetti_win", "gullnese_shimmer", "gm_steal_sting",
                 "celebration_salongen", "celebration_fjellet", "celebration_verdensrommet"];
 
@@ -60,6 +75,10 @@ async function main() {
   const lottieLib = await read("Lab/vendor/lottie.min.js");
   if (/<\/script/i.test(lottieLib)) throw new Error("lottie.min.js contains </script — needs escaping");
 
+  // ---- one classic script: strip module syntax, concat in dependency order ----
+  const gameJs = JS_MODULES.map((m) => `/* ===== ${m} ===== */\n${stripModule(sources[m])}`).join("\n\n");
+  if (/<\/script/i.test(gameJs)) throw new Error("module source contains </script — needs escaping");
+
   const cardCount = bundle.decks.nb.length + bundle.decks.en.length;
   const html = `<!DOCTYPE html>
 <html lang="nb">
@@ -81,20 +100,16 @@ window.__COCKY__ = ${scriptSafe(bundle)};</script>
 <script>/* lottie-web 5.12.2 — MIT (see ASSETS.md) */
 ${lottieLib}
 </script>
-<script>/* ESM blob-bootstrap: inline modules keep their import/export semantics */
+<script>/* the game — 7 Lab modules concatenated into one classic script (file://-safe) */
 (function () {
-  var SRC = ${scriptSafe(sources)};
-  var order = ${JSON.stringify(JS_MODULES)};
-  var urls = {};
-  for (var i = 0; i < order.length; i++) {
-    var name = order[i];
-    var src = SRC[name].replace(/(["'])\\.\\/([\\w.-]+\\.js)\\1/g, function (m, q, dep) { return q + urls[dep] + q; });
-    urls[name] = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
-  }
-  import(urls["ui.js"]).catch(function (e) {
-    document.getElementById("app").innerHTML =
-      '<p style="color:#fff;padding:24px;font-family:system-ui">Kunne ikke starte spillet / could not start: ' + e + "</p>";
-  });
+"use strict";
+try {
+${gameJs}
+} catch (e) {
+  document.getElementById("app").innerHTML =
+    '<p style="color:#fff;padding:24px;font-family:system-ui">Kunne ikke starte spillet / could not start: ' + e + "</p>";
+  throw e;
+}
 })();
 </script>
 </body>
