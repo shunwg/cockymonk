@@ -17,8 +17,10 @@ Run every check below, in order, and report **one** verdict table. Never report 
 | 4 | Trademark sweep | Grep the repo for the pattern `kokkelimonk[e]` (case-insensitive). Permitted files: `CLAUDE.md`, `PRD.md` only. Any other hit is a fail. |
 | 5 | Asset ledger | ASSETS.md audit, **bidirectional**: every file in `Resources/Lottie/`, `Resources/Audio/`, and promoted assets has a ledger row; every ledger row's file exists on disk. |
 | 6 | Lab divergence | `Lab/DIVERGENCE.md` is empty or every row has graduated (PRD/DESIGN amended). Ungraduated rows = fail. |
-| 7 | Design review | design-review checklist against screenshots of the served Lab (`node Tools/serve-lab.mjs`, browser tools). No browser on this machine → row reads `SKIPPED (no browser)`. |
+| 7 | Design review | design-review checklist against the numbered screens: `Lab/gallery.html` live (`node Tools/serve-lab.mjs`) and/or fresh `node Tools/snap-screens.mjs` PNGs in `Screens/png/`. No browser at all → row reads `SKIPPED (no browser)`. |
 | 8 | Repo hygiene | `git status` clean, or every dirty file explained by the current task. |
+| 9 | Rules-sheet drift | `node Tools/rules-sheet.mjs --check` — `Specs/SCORING.md` is generated; hand-edits or vectors missing a bokmål label fail. |
+| 10 | Screen fixtures | `node --test Lab/js/fixtures.test.mjs` — the numbered-screen registry (Screens/SCREENS.md) must stay renderable and engine-shaped. |
 
 ## Verdict table format
 
