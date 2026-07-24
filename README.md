@@ -8,7 +8,7 @@ Rebuild it after changing anything in `Lab/`, `Resources/`, or `DesignSystem/`:
 ```bash
 node Tools/build-standalone.mjs      # → dist/CockyMonk.html
 ```
-To iterate on the game with live reload instead, run the Lab dev server: `node Tools/serve-lab.mjs` → http://localhost:8787/Lab/.
+To iterate on the game with live reload instead, run the Lab dev server: `node Tools/serve-lab.mjs` → http://localhost:8787/Lab/. Every screen is also viewable in isolation, by number: the gallery at http://localhost:8787/Lab/gallery.html (or double-click `Open Screen Gallery.cmd`).
 
 ## What's in the box
 | File | What it is | Edit how often |
@@ -18,7 +18,10 @@ To iterate on the game with live reload instead, run the Lab dev server: `node T
 | `DESIGN.md` | Playful design system: tokens, the Nose, motion, sound, voice | When the look evolves |
 | `TOOLBELT.md` | Invited external plugins/MCPs/skills, tiered Core → Situational | When you add/drop tools |
 | `ASSETS.md` + `AssetsIncoming/` | License ledger + 1,540 bundled CC0 assets (Kenney: pieces, icons, card/UI audio) | When assets are promoted |
-| `LANES.md` | 3-person ownership matrix + interface contracts (Lane A engine · B UI/motion · C content/assets) | When the team changes |
+| `TEAM.md` | The team memo (bokmål): 7 segments anyone can enter, each with its own gate test; how the 4 of us collaborate | When the team changes |
+| `LANES.md` | The segment matrix + interface contracts (technical, English) — gates replace fixed owners | When the team changes |
+| `Screens/` | Permanent screen registry 01–18 ("endre 07") + reference PNGs; live gallery at `/Lab/gallery.html`, snap via `node Tools/snap-screens.mjs` | When screens change |
+| `Specs/` | SCORING.md (generated from the engine vectors — bokmål rules sheet) · FLOW.md (GM/player/bot beat map) · ONLINE-PLAY.md (future, gated) | With rules/flow changes |
 | `MAC_RUNBOOK.md` | Every macOS-only step (Xcode, lottie-ios, M1–M10, TestFlight, App Store checklist), staged for Mac day | Mac day |
 | `DesignSystem/tokens.json` | **Single source of truth** for all design tokens → generates `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, `DESIGN-TOKENS.md` | Via `/director` |
 | `Lab/` | Componentized browser port of the demo — play, iterate and test the game on Windows (`node Tools/serve-lab.mjs`) | Daily (Lane B) |
@@ -46,7 +49,7 @@ To iterate on the game with live reload instead, run the Lab dev server: `node T
 Everything Xcode-shaped (build, simulator, TestFlight) needs macOS — see `MAC_RUNBOOK.md` when a Mac is available.
 Until then, the whole studio system runs on Windows: the browser Lab (`node Tools/serve-lab.mjs`), engine rule tests
 (`node --test Lab/js/engine.test.mjs`), deck authoring + validation (`node Tools/validate_deck.mjs --all`), the design-token
-pipeline (`node Tools/tokens-build.mjs`), and the Lottie preview page. Team lanes live in `LANES.md`.
+pipeline (`node Tools/tokens-build.mjs`), and the Lottie preview page. How the team splits the work: `TEAM.md` (bokmål) + `LANES.md`.
 
 ## First run
 ```bash

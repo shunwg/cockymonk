@@ -1,6 +1,6 @@
-# Lab/ — lane rules (auto-loaded when working here)
+# Lab/ — segment rules (auto-loaded when working here)
 
-The Lab is the **Windows-testable browser playground**: a componentized port of the frozen demo. Lane B owns it, except `js/engine.js` + `js/engine.test.mjs` (Lane A).
+The Lab is the **Windows-testable browser playground**: a componentized port of the frozen demo. Segment map (LANES.md): `js/engine.js` + `js/engine.test.mjs` = segment 3 (rules) · `js/ui.js`, `js/fixtures.js` + css = segment 2 (screens, gate: `node --test Lab/js/fixtures.test.mjs`) · `js/themes.js` + `css/themes.css` = segment 6 · `js/bots.js`/`audio.js`/`lottie.js` = segment 7. Screens are referenced by number (`Screens/SCREENS.md`); the live gallery is `gallery.html`.
 
 - `Reference/cocky-monk-demo.html` is FROZEN — never edit it. The Lab iterates; the demo + PRD adjudicate.
 - Rules authority is `Tools/engine-vectors.json`, not this folder. `js/engine.js` must pass `node --test Lab/js/engine.test.mjs` before any commit.
