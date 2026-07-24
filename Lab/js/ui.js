@@ -13,6 +13,7 @@ import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi 
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
+import { getFixture } from "./fixtures.js";
 
 /* ---------- state ---------- */
 let U = freshUi();       // screen flow (Lane B)
@@ -256,6 +257,7 @@ SCREENS.SETUP = () => {
 function startGame() {
   preloadCelebrations();       // warm the Lottie cache before the first Mål/win
   U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
+  // This G literal is mirrored by fxMakeG() in fixtures.js — keep the two in sync.
   G = {
     players: U.names.map((name, i) => ({ name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false })),
     target: U.target,
@@ -673,7 +675,7 @@ SCREENS.BOARD = () => {
      ${G.players.map((p, i) => `<div class="scoreline">
         <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
         ${esc(p.name)} ${i === G.gm ? "👑" : ""} <span class="small">👃${p.bluffVotes}</span>
-        ${G.deltas?.[i] ? `<b style="color:var(--color-accent-turn)">+${G.deltas[i]}</b>` : ""}</span>
+        ${G.deltas?.[i] ? `<b>+${G.deltas[i]}</b>` : ""}</span>
         <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
    </div>
    <div style="flex:1"></div>
@@ -897,4 +899,12 @@ function confetti() {
 }
 
 /* ---------- boot ---------- */
+// ?fixture=NN (or #fixture=NN) boots straight into a posed screen from
+// fixtures.js — the numbered-registry hook behind Lab/gallery.html and
+// Tools/snap-screens.mjs (see Screens/SCREENS.md). No param → normal game.
+const bootFx = getFixture(
+  new URLSearchParams(location.search).get("fixture")
+  ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
+);
+if (bootFx) { U = bootFx.u; G = bootFx.g; }
 render();

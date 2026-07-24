@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Cocky Monk — skjermgalleri</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  /* Tool page (like lottie/player.html) — not part of the game or the standalone build. */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px; background: var(--color-bg, #17172B);
+    color: var(--color-text-on-bg, #FFF6E8); font-family: system-ui, sans-serif;
+  }
+  header { max-width: 1200px; margin: 0 auto 18px; }
+  h1 { margin: 0 0 6px; font-size: 22px; }
+  p { margin: 0; color: var(--color-text-secondary, #A6A2D4); font-size: 14px; line-height: 1.5; }
+  code { background: #ffffff14; padding: 1px 6px; border-radius: 6px; }
+  .grid {
+    max-width: 1200px; margin: 0 auto; display: grid; gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  .cell { scroll-margin-top: 16px; }
+  .label {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
+    font-size: 14px; font-weight: 600;
+  }
+  .label .nr {
+    background: var(--color-accent-turn, #FFC53D); color: #23233B;
+    border-radius: 8px; padding: 1px 8px; font-variant-numeric: tabular-nums;
+  }
+  .label a { color: var(--color-text-secondary, #A6A2D4); font-weight: 400; font-size: 12px; margin-left: auto; }
+  .phone {
+    width: 100%; aspect-ratio: 430 / 932; overflow: hidden;
+    border: 2px solid #ffffff2e; border-radius: 14px; background: #17172B;
+  }
+  .phone iframe {
+    width: 430px; height: 932px; border: 0;
+    transform-origin: top left; /* scale set per-cell by script */
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Skjermgalleri</h1>
+  <p>Alle 18 skjermer som poserte, <em>levende</em> rammer — alltid i takt med koden.
+     Referer til dem med nummer («endre 07»). Register: <code>Screens/SCREENS.md</code> ·
+     dyplenke: <code>gallery.html#s07</code> · full størrelse: klikk «åpne» ·
+     stillbilder: <code>node Tools/snap-screens.mjs</code>.</p>
+</header>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { FIXTURES } from "./js/fixtures.js";
+  const grid = document.getElementById("grid");
+  for (const f of FIXTURES) {
+    const cell = document.createElement("div");
+    cell.className = "cell"; cell.id = "s" + f.id;
+    cell.innerHTML = `
+      <div class="label"><span class="nr">${f.id}</span> ${f.name}
+        <a href="index.html?fixture=${f.id}" target="_blank" rel="noopener">åpne ↗</a></div>
+      <div class="phone"><iframe loading="lazy" src="index.html?fixture=${f.id}" title="${f.id} ${f.name}"></iframe></div>`;
+    grid.appendChild(cell);
+  }
+  // Scale each 430×932 frame to its cell width (kept in sync on resize).
+  const fit = () => document.querySelectorAll(".phone").forEach((ph) => {
+    ph.firstElementChild.style.transform = `scale(${ph.clientWidth / 430})`;
+  });
+  new ResizeObserver(fit).observe(grid);
+  fit();
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+</script>
+</body>
+</html>

@@ -9,9 +9,9 @@
 // celebration JSONs, and vendored lottie-web. Fonts use the Google Fonts <link>
 // when online and the rounded system fallback (DESIGN.md §2) offline.
 //
-// Safe to concatenate because the 7 modules share no top-level name (checked) and
-// each only reads others' names at call time, after all declarations evaluate in
-// dependency order.
+// Safe to concatenate because the 8 modules share no top-level name (checked;
+// fixtures.js keeps to fx*/FIXTURES/getFixture) and each only reads others'
+// names at call time, after all declarations evaluate in dependency order.
 //
 // Usage:  node Tools/build-standalone.mjs   →   dist/CockyMonk.html
 // The frozen demo and the componentized Lab remain the sources of truth; this is
@@ -32,7 +32,7 @@ const scriptSafe = (obj) => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 const CSS_FILES = ["tokens.css", "base.css", "components.css", "screens.css", "themes.css"];
 // Dependency order: leaves first, entry (ui.js, which runs render() at its foot) last.
-const JS_MODULES = ["state.js", "engine.js", "bots.js", "audio.js", "themes.js", "lottie.js", "ui.js"];
+const JS_MODULES = ["state.js", "engine.js", "bots.js", "audio.js", "themes.js", "lottie.js", "fixtures.js", "ui.js"];
 
 // Turn one ES module into plain top-level code: drop import lines, drop the
 // `export` keyword. All modules then share the single IIFE scope in the bundle.
@@ -100,7 +100,7 @@ window.__COCKY__ = ${scriptSafe(bundle)};</script>
 <script>/* lottie-web 5.12.2 — MIT (see ASSETS.md) */
 ${lottieLib}
 </script>
-<script>/* the game — 7 Lab modules concatenated into one classic script (file://-safe) */
+<script>/* the game — 8 Lab modules concatenated into one classic script (file://-safe) */
 (function () {
 "use strict";
 try {
