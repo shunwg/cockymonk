@@ -1,6 +1,8 @@
 # Cocky Monk starter kit
 Everything Claude Code needs to build a game-master-led bluffing party game for iOS — spec, constitution, design system, house skills, and scripts. Unzip into an empty folder, do the 5-minute edit, run setup, start building.
 
+**Lost in the folder?** Open **[00-START-HER.md](00-START-HER.md)** — the one-page map (bokmål): three doors in, plus one line on every folder and root file.
+
 ## ▶ Play the full game right now (Windows, no install)
 Double-click **`Play Cocky Monk.cmd`** — or open **`dist/CockyMonk.html`** in any browser. It's the complete game in one self-contained file: a branded Home screen with a 30-second illustrated how-to, hotseat (pass-one-phone) and practice-vs-bots modes, all 3 richly-themed boards (parlor wood / paper-cut mountains / deep space) with a routed race track, the reveal ceremony with the boinging Nose, board race, Gullnese award, sound, and the six Lottie celebrations. Fredoka is embedded, so the brand looks right even offline. No Node, no server.
 
