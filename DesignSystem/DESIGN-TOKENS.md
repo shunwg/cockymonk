@@ -62,6 +62,9 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 | `status.warning` | `{color.core.turnYellow}` | `#FFC53D` |
 | `status.error` | `{color.core.bluffPink}` | `#FF5C97` |
 | `status.info` | `{color.core.gmViolet}` | `#9B6DFF` |
+| `timer.calm` | `{color.core.mutedViolet}` | `#8A87B8` |
+| `timer.warn` | `{color.core.turnYellow}` | `#FFC53D` |
+| `timer.urgent` | `{color.core.bluffPink}` | `#FF5C97` |
 | `bgLayers.glowViolet` | *(literal)* | `#9B6DFF26` |
 | `bgLayers.glowPink` | *(literal)* | `#FF5C9722` |
 | `bgLayers.dotGrid` | *(literal)* | `#FFFFFF09` |
@@ -79,6 +82,9 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 | `accent.bluff (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
 | `accent.gm (gmViolet)` `#9B6DFF` | `bg (inkNight)` `#1B1B2E` | 4.85 | ✓ |
 | `accent.turn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
+| `timer.calm (mutedViolet)` `#8A87B8` | `bg (inkNight)` `#1B1B2E` | 5.02 | ✓ |
+| `timer.warn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
+| `timer.urgent (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
 
 DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapshot-test all three.
 
@@ -149,6 +155,9 @@ Unit: ms. Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfa
 | `revealToBoard` | 1600 |
 | `armedPulse` | 1400 |
 | `thinkPulse` | 1200 |
+| `timerTick` | 250 |
+| `timerRingSweep` | 1000 |
+| `timerUrgentPulse` | 700 |
 | `bobLoop` | 2400 |
 | `goalPulse` | 2000 |
 | `confettiFallMin` | 2000 |

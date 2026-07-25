@@ -72,6 +72,9 @@ enum Theme {
         static let statusWarning = turnYellow  // #FFC53D
         static let statusError = bluffPink  // #FF5C97
         static let statusInfo = gmViolet  // #9B6DFF
+        static let timerCalm = mutedViolet  // #8A87B8
+        static let timerWarn = turnYellow  // #FFC53D
+        static let timerUrgent = bluffPink  // #FF5C97
         static let bgLayersGlowViolet = Color(hex: 0x9B6DFF, opacity: 0.149)  // #9B6DFF26
         static let bgLayersGlowPink = Color(hex: 0xFF5C97, opacity: 0.133)  // #FF5C9722
         static let bgLayersDotGrid = Color(hex: 0xFFFFFF, opacity: 0.035)  // #FFFFFF09
@@ -150,6 +153,9 @@ enum Theme {
         static let revealToBoard: TimeInterval = 1.6
         static let armedPulse: TimeInterval = 1.4
         static let thinkPulse: TimeInterval = 1.2
+        static let timerTick: TimeInterval = 0.25
+        static let timerRingSweep: TimeInterval = 1
+        static let timerUrgentPulse: TimeInterval = 0.7
         static let bobLoop: TimeInterval = 2.4
         static let goalPulse: TimeInterval = 2
         static let confettiFallMin: TimeInterval = 2

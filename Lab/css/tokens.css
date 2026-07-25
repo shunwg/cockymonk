@@ -49,6 +49,9 @@
   --color-status-warning: #FFC53D;
   --color-status-error: #FF5C97;
   --color-status-info: #9B6DFF;
+  --color-timer-calm: #8A87B8;
+  --color-timer-warn: #FFC53D;
+  --color-timer-urgent: #FF5C97;
   --color-bg-layers-glow-violet: #9B6DFF26;
   --color-bg-layers-glow-pink: #FF5C9722;
   --color-bg-layers-dot-grid: #FFFFFF09;
@@ -115,6 +118,9 @@
   --motion-dur-reveal-to-board: 1600ms;
   --motion-dur-armed-pulse: 1400ms;
   --motion-dur-think-pulse: 1200ms;
+  --motion-dur-timer-tick: 250ms;
+  --motion-dur-timer-ring-sweep: 1000ms;
+  --motion-dur-timer-urgent-pulse: 700ms;
   --motion-dur-bob-loop: 2400ms;
   --motion-dur-goal-pulse: 2000ms;
   --motion-dur-confetti-fall-min: 2000ms;
