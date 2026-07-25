@@ -58,6 +58,45 @@ export function visibleOptionsFor(options, voter) {
   return options.filter((o) => !o.authors.includes(voter));
 }
 
+// -- who is expected to act (PRD §5.2a, §5.5) ---------------------------------
+//
+// These three are the single source of truth for "is this round waiting on
+// anyone?". ui.js imports them for the live game; dispatch() calls them for the
+// reducer. Written once on purpose: when the rule lived in two places, a vector
+// could pass while the shipped game did something else.
+//
+// A timed-out player is skipped for THIS ROUND ONLY (D4). They are not dropped:
+// they keep their score, still count toward playerCount and the win check, and
+// are expected again after the next drawCard.
+
+const egTimedOut = (t) => ({ bluff: t?.bluff ?? [], vote: t?.vote ?? [] });
+const egUnion = (a, b) => [...new Set([...a, ...b])].sort((x, y) => x - y);
+
+// Seats that still owe a bluff. In omkamp only the tied players write (PRD §5.4).
+export function bluffersExpected({ players, gm, inOmkamp = false, omkampParticipants = [], timedOut = null }) {
+  const skipped = egTimedOut(timedOut).bluff;
+  const base = inOmkamp
+    ? omkampParticipants
+    : players.map((_, i) => i).filter((i) => i !== gm && !players[i].dropped);
+  return base.filter((i) => !skipped.includes(i));
+}
+
+// Seats that still owe a vote. In omkamp everyone but the GM votes, including
+// players who aren't bluffing this round — mirrors voteOrder() in ui.js.
+export function votersExpected({ players, gm, inOmkamp = false, timedOut = null }) {
+  const skipped = egTimedOut(timedOut).vote;
+  const base = players
+    .map((_, i) => i)
+    .filter((i) => i !== gm && (inOmkamp || !players[i].dropped));
+  return base.filter((i) => !skipped.includes(i));
+}
+
+// The shuffle may never fire before every expected bluff is in AND the GM's
+// decoy state is settled (PRD §5.5 decoy gating).
+export function readyToOpenVote({ expected, bluffs, gmDecoyDone }) {
+  return Boolean(gmDecoyDone) && expected.every((i) => i in bluffs);
+}
+
 // -- scoring (PRD §5.3) -------------------------------------------------------
 
 // votes: {voterIndex: optionId}. Returns per-player deltas, the Gullnese
@@ -137,6 +176,7 @@ export function createGame({ players, target, rng }) {
     options: null,
     doubles: [],
     votes: {},
+    timedOut: { bluff: [], vote: [] }, // per-round, cleared on drawCard (D4)
     lastResult: null,
     omkamp: null,
     winners: null,
@@ -146,10 +186,7 @@ export function createGame({ players, target, rng }) {
 }
 
 export function activeBluffers(state) {
-  return state.players
-    .map((p, i) => ({ p, i }))
-    .filter(({ p, i }) => i !== state.gm && !p.dropped)
-    .map(({ i }) => i);
+  return bluffersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut });
 }
 
 export function allBluffsIn(state) {
@@ -158,11 +195,14 @@ export function allBluffsIn(state) {
 
 // The shuffle may never fire before the GM decoy state is settled (PRD §5.5).
 export function canOpenVote(state) {
-  return allBluffsIn(state) && state.gmDecoyDone;
+  return readyToOpenVote({
+    expected: activeBluffers(state), bluffs: state.bluffs, gmDecoyDone: state.gmDecoyDone,
+  });
 }
 
 export function allVotesIn(state) {
-  return activeBluffers(state).every((i) => i in state.votes);
+  return votersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+    .every((i) => i in state.votes);
 }
 
 export function gmForRound(round, playerCount, firstGm = 0) {
@@ -172,12 +212,48 @@ export function gmForRound(round, playerCount, firstGm = 0) {
 export function dispatch(state, action) {
   switch (action.type) {
     case "drawCard":
-      return { ...state, phase: "bluffing", card: action.card, bluffs: {}, decoys: [], gmDecoyDone: false, votes: {}, options: null, doubles: [] };
+      return { ...state, phase: "bluffing", card: action.card, bluffs: {}, decoys: [], gmDecoyDone: false, votes: {}, options: null, doubles: [], timedOut: { bluff: [], vote: [] } };
 
     case "submitBluff": {
       if (action.player === state.gm) return { ...state, rejected: true };
+      if (egTimedOut(state.timedOut).bluff.includes(action.player)) return { ...state, rejected: true }; // window closed
       if (!isValidBluff(action.text)) return { ...state, rejected: true }; // "Selv en dårlig løgn er bedre enn ingen."
       return { ...state, rejected: false, bluffs: { ...state.bluffs, [action.player]: action.text } };
+    }
+
+    // -- timeouts (PRD §5.2a). The clock lives outside the engine; expiry
+    // arrives as an ordinary action, so every rule below is provable by a
+    // vector with no timing in it. Only the host dispatches these.
+
+    case "timeoutBluffs": {
+      // Bluff window closed. Whoever hasn't submitted is skipped for this round:
+      // their answer never reaches the option pool, so scoreRound sees exactly
+      // what it sees for a dropped player — no scoring change needed (R8).
+      const pending = action.players
+        ?? bluffersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+             .filter((i) => !(i in state.bluffs));
+      const bluffs = { ...state.bluffs };
+      for (const i of pending) delete bluffs[i];
+      const t = egTimedOut(state.timedOut);
+      return { ...state, rejected: false, bluffs, timedOut: { ...t, bluff: egUnion(t.bluff, pending) } };
+    }
+
+    case "timeoutDecoys":
+      // GM ran out of time composing. Whatever they typed stands; the gate opens
+      // regardless, which is the same settled state a manual "done" produces (E8).
+      return { ...state, rejected: false, decoys: action.decoys ?? state.decoys ?? [], gmDecoyDone: true };
+
+    case "timeoutVotes": {
+      // Vote window closed. A missing vote is simply absent from `votes`, which
+      // scoreRound already handles — including flipping gmStole if the only
+      // truth-voter was the one who timed out (R9).
+      const pending = action.players
+        ?? votersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+             .filter((i) => !(i in state.votes));
+      const votes = { ...state.votes };
+      for (const i of pending) delete votes[i];
+      const t = egTimedOut(state.timedOut);
+      return { ...state, rejected: false, votes, timedOut: { ...t, vote: egUnion(t.vote, pending) } };
     }
 
     case "gmDecoysDone":
@@ -194,6 +270,7 @@ export function dispatch(state, action) {
     case "castVote": {
       if (action.player === state.gm) return { ...state, rejected: true }; // the GM never votes
       if (state.players[action.player]?.dropped) return { ...state, rejected: true };
+      if (egTimedOut(state.timedOut).vote.includes(action.player)) return { ...state, rejected: true }; // window closed
       const visible = visibleOptionsFor(state.options ?? [], action.player);
       if (!visible.some((o) => o.id === action.option)) return { ...state, rejected: true };
       return { ...state, rejected: false, votes: { ...state.votes, [action.player]: action.option } };
@@ -240,4 +317,7 @@ export function dispatch(state, action) {
   }
 }
 
-export const selectors = { activeBluffers, allBluffsIn, canOpenVote, allVotesIn, visibleOptionsFor };
+export const selectors = {
+  activeBluffers, allBluffsIn, canOpenVote, allVotesIn, visibleOptionsFor,
+  bluffersExpected, votersExpected, readyToOpenVote,
+};

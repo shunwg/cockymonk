@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 import {
   scoreRound, winCheck, omkampResolve, buildOptions, visibleOptionsFor,
   createGame, dispatch, canOpenVote, gmForRound, normalize,
+  bluffersExpected, votersExpected, readyToOpenVote,
 } from "./engine.js";
 
 const vectors = JSON.parse(
@@ -142,6 +143,60 @@ test("E6-gm-rotation-order", () => {
   const v = vectors.behaviors.find((x) => x.id === "E6-gm-rotation-order");
   const got = v.expected.gmByRound.map((_, r) => gmForRound(r + 1, v.given.players));
   assert.deepEqual(got, v.expected.gmByRound);
+});
+
+// -- phase timeouts (PRD §5.2a) ----------------------------------------------
+
+test("E7-late-bluff-rejected", () => {
+  const v = vectors.behaviors.find((x) => x.id === "E7-late-bluff-rejected");
+  let s = baseGame();
+  s = dispatch(s, { type: "submitBluff", player: 1, text: "en slags fiskesuppe" });
+  s = dispatch(s, { type: "submitBluff", player: 2, text: "gammelt mål for ved" });
+  s = dispatch(s, { type: "timeoutBluffs" });                 // Cam (3) never submitted
+  assert.deepEqual(s.timedOut.bluff, [3], "only the pending seat is timed out");
+  const after = dispatch(s, v.action);
+  assert.equal(after.rejected, v.expected.rejected);
+  assert.deepEqual(after.bluffs, s.bluffs, "state unchanged — the pool is settled");
+});
+
+test("E8-decoy-timeout-opens-vote", () => {
+  const v = vectors.behaviors.find((x) => x.id === "E8-decoy-timeout-opens-vote");
+  let s = baseGame();
+  for (const [i, t] of [[1, "aaa"], [2, "bbb"], [3, "ccc"]]) s = dispatch(s, { type: "submitBluff", player: i, text: t });
+  assert.equal(canOpenVote(s), false, "all bluffs in but the GM's decoy state is unsettled");
+  s = dispatch(s, v.action);
+  assert.equal(s.gmDecoyDone, v.expected.gmDecoyDone);
+  assert.equal(s.decoys.length, v.expected.decoysKept, "a partial draft survives the timeout");
+  assert.equal(canOpenVote(s), v.expected.canOpenVote);
+  assert.equal(dispatch(s, { type: "openVote" }).phase, v.expected.phaseAfterOpen);
+});
+
+test("E9-timeout-is-not-dropped", () => {
+  const v = vectors.behaviors.find((x) => x.id === "E9-timeout-is-not-dropped");
+  const seat = v.given.player;
+  let s = baseGame();
+  s = dispatch(s, { type: "timeoutBluffs", players: [seat] });
+  assert.equal(s.players[seat].dropped, v.expected.dropped, "timeout must never set dropped");
+  assert.equal(s.players.length, 4, "still counted in playerCount");
+  assert.ok(!bluffersExpected(s).includes(seat), "not waited on for the rest of this round");
+  assert.ok(votersExpected(s).includes(seat), "a missed bluff does not forfeit the vote (D4)");
+
+  // The next card clears the slate — this is what makes it per-round, not a drop.
+  const next = dispatch(s, { type: "drawCard", card: { prompt: "x", truth: "y" } });
+  assert.deepEqual(next.timedOut, { bluff: [], vote: [] });
+  assert.ok(bluffersExpected(next).includes(seat), "expected again next round");
+});
+
+test("timeout gates: readyToOpenVote ignores seats that timed out", () => {
+  let s = baseGame();
+  s = dispatch(s, { type: "submitBluff", player: 1, text: "aaa" });
+  s = dispatch(s, { type: "submitBluff", player: 2, text: "bbb" });
+  s = dispatch(s, { type: "gmDecoysDone", decoys: [] });
+  assert.equal(canOpenVote(s), false, "still waiting on Cam");
+  s = dispatch(s, { type: "timeoutBluffs" });
+  assert.equal(canOpenVote(s), true, "the window closing unblocks the shuffle");
+  // The same rule, called the way ui.js calls it.
+  assert.equal(readyToOpenVote({ expected: bluffersExpected(s), bluffs: s.bluffs, gmDecoyDone: s.gmDecoyDone }), true);
 });
 
 // -- structural sanity: dobbeltreff + merge via buildOptions ------------------
