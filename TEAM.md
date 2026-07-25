@@ -53,7 +53,7 @@ Alle 18 skjermer har permanent nummer. «Nesen overlapper navnet på 13» er en 
 
 ## Kom i gang som lagmedlem (engangs)
 
-1. Én av oss lager privat GitHub-repo og pusher: `git remote add origin <url>` + `git push -u origin master`. *(Repoet har ingen remote i dag.)*
+1. Én av oss lager privat GitHub-repo og pusher — hele oppskriften står i `GITHUB_RUNBOOK.md` (også grener, pull requests og konflikthåndtering). *(Repoet har ingen remote i dag.)*
 2. Du kloner, installerer [Node ≥ 18](https://nodejs.org) — **eneste** verktøykrav på Windows.
 3. Åpne Claude Code i repo-mappa — skills (`/director`, `/qa`, `/newcards`, kort-forfatteren, panelet) følger med repoet i `.claude/`.
 4. Kjør alle portene én gang så du vet hvordan grønt ser ut. Les så `Screens/SCREENS.md` (5 min) og ditt favorittsegments filer.

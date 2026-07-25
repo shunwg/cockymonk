@@ -38,6 +38,7 @@ Ny i mappa? Det er tre dører inn:
 | `LANES.md` | Teknisk segmentmatrise + grensesnittkontraktene (engelsk) |
 | `ASSETS.md` | Lisensboka — hver ressurs i spillet har en rad her |
 | `TOOLBELT.md` | Hvilke eksterne verktøy/plugins som er invitert inn |
+| `GITHUB_RUNBOOK.md` | Alt om GitHub: første push, grener, pull requests, versjoner, konflikter |
 | `MAC_RUNBOOK.md` | Alt som venter på en Mac: Xcode → TestFlight → App Store |
 | `project.yml` | XcodeGen-oppskriften (Mac-dagen) |
 | `.gitignore` / `.gitattributes` | Git-rørlegging — la stå |
