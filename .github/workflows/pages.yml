@@ -3,9 +3,6 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
-    paths:
-      - "dist/CockyMonk.html"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Build standalone bundle from source
+        run: node Tools/build-standalone.mjs
       - name: Stage site
         run: |
           mkdir site
