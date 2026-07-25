@@ -9,7 +9,8 @@ import {
 import { TUNING, BOT_NAMES, botPick, bluffOffsets, voteOffsets } from "./bots.js";
 import { play, setMuted, isMuted } from "./audio.js";
 import { THEMES, nextTheme } from "./themes.js";
-import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi } from "./state.js";
+import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
+import { defaultTimers } from "./clock.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
@@ -23,8 +24,18 @@ let lastScreen = null;   // gate the entrance animation to REAL screen changes (
 
 const t = (k, ...a) => { const v = STR[U.lang][k]; return typeof v === "function" ? v(...a) : v; };
 const party = () => U.mode === "party";
-const userIsGm = () => G.gm === 0;
-const isBot = (i) => party() && i !== 0;
+
+// Seats stay the wire format — G.bluffs, G.votes, deltas and the engine's
+// Array(playerCount) returns are all seat-keyed, and every vector assumes it.
+// `pid` rides along as an ATTRIBUTE of a seat, so online can say "which seat am
+// I?" without re-keying the rules. No stored map: n <= 8 and a second source of
+// truth would be one more thing to keep in sync.
+const seatOfPid = (pid) => (G ? G.players.findIndex((p) => p.pid === pid) : -1);
+// Hotseat and practice put this device in seat 0, so this returns 0 and every
+// call site below behaves exactly as it did before pids existed.
+const mySeat = () => { const i = seatOfPid(U.myPid); return i === -1 ? 0 : i; };
+const userIsGm = () => G.gm === mySeat();
+const isBot = (i) => G?.players[i]?.kind === "bot";
 const order = () => G.players.map((_, i) => i).filter((i) => i !== G.gm && !G.players[i].dropped);
 const voteOrder = () => (G.inOmkamp ? G.players.map((_, i) => i).filter((i) => i !== G.gm) : order());
 const bluffOrder = () => (G.inOmkamp ? G.omkampParticipants : order());
@@ -259,14 +270,29 @@ function startGame() {
   U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   // This G literal is mirrored by fxMakeG() in fixtures.js — keep the two in sync.
   G = {
-    players: U.names.map((name, i) => ({ name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false })),
+    players: U.names.map((name, i) => {
+      const bot = party() && i > 0;
+      return {
+        name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false,
+        // Seat 0 is this device. Online (C11) fills these from the lobby; until
+        // then the other seats are bots or another pair of hands on the same
+        // phone, and neither needs an identity that outlives the game.
+        pid: i === 0 ? U.myPid : (bot ? `bot:${i}` : `local:${i}`),
+        kind: i === 0 || !bot ? "human" : "bot",
+      };
+    }),
     target: U.target,
     round: 0,
-    gm: 0,                       // the user (index 0) is always the first GM
+    gm: 0,                       // the host/user (seat 0) is always the first GM
+    phase: "card",               // engine.js PHASES — what the ROOM is doing, vs U.screen (what THIS device shows)
     card: null, bluffs: {}, decoys: ["", ""], gmDecoyDone: false,
     options: null, doubles: [], votes: {}, deltas: null, gmStole: false,
+    revealIdx: 0,                // lives in G, not U: the whole room watches the same beat (PRD §10)
+    timedOut: { bluff: [], vote: [] },   // per round, cleared by newRound (D4)
+    deadline: null,              // { at, phase, round, totalMs } — an absolute time, never "seconds left"
+    timers: defaultTimers(),     // off until C7 turns it on for party/practice
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
-    goalCelebrated: false, celebrated: false, awaitingNext: false,
+    goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
   };
   newRound();
 }
@@ -280,8 +306,11 @@ function newRound() {
   U.fakePool = shuffled(CONTENT.fakes ?? MINI_FAKES[U.lang]);
   G.bluffs = {}; G.votes = {}; G.decoys = ["", ""]; G.doubles = []; G.deltas = null; G.gmStole = false;
   G.options = null;
-  G.gmDecoyDone = !(party() && G.gm !== 0); // human GM settles decoys by pressing "open vote"
-  U.voteIdx = 0; U.revealIdx = 0;
+  G.timedOut = { bluff: [], vote: [] };     // a missed deadline never outlives its round (D4)
+  G.deadline = null;
+  G.phase = "card";
+  G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
+  U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
   U.screen = "GM_INTRO"; play("cardDraw"); render();
   if (party() && !userIsGm()) later(() => { if (U.screen === "GM_INTRO") enterBluffing(); }, TUNING.GM_INTRO_AUTO_MS);
 }
@@ -303,7 +332,7 @@ SCREENS.GM_INTRO = () => {
     ? `<p class="small" style="text-align:center">…</p>`
     : `<button class="btn gm" id="togm">${t("next")}</button>`}`);
   const b = document.getElementById("togm");
-  if (b) b.onclick = () => { play("confirm"); U.screen = "GM_DASH"; render(); if (party()) scheduleBotBluffs(); };
+  if (b) b.onclick = () => { play("confirm"); G.phase = "bluffing"; U.screen = "GM_DASH"; render(); if (party()) scheduleBotBluffs(); };
 };
 
 function scheduleBotBluffs() {
@@ -397,6 +426,7 @@ function gmOpensVote() {
   play("cardShuffle"); play("voteOpen"); flashScreen();   // the showstopper (PRD §11)
   G.gmDecoyDone = true;
   openVote();
+  G.phase = "voting";
   if (party()) { U.screen = "VOTEWAIT"; render(); scheduleBotVotes(); }
   else { const first = G.players[voteOrder()[0]].name; hand(first, () => { U.screen = "VOTE"; render(); }); }
 }
@@ -435,7 +465,8 @@ function hand(name, after) {
 
 /* ---------- bluff entry ---------- */
 function enterBluffing() {
-  U.cur = 0; U.screen = "BLUFF"; render();
+  G.phase = "bluffing";
+  U.cur = mySeat(); U.screen = "BLUFF"; render();
   scheduleBotBluffs();
   later(() => {
     if (!G.gmDecoyDone) { G.decoys[0] = takeFakeText(); G.gmDecoyDone = true; maybeAllBluffsIn(); }
@@ -481,7 +512,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob suspicious" style="background:${G.players[0].color};width:60px;height:60px;">
+     <div class="face bob suspicious" style="background:${G.players[mySeat()].color};width:60px;height:60px;">
        <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
        <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
    </div>`);
@@ -506,13 +537,13 @@ function maybeAllVotesIn() {
   clearTimers();
   play("drumroll");                      // tension roll as the votes close and the reveal opens
   later(() => {
-    computeRound(); U.revealIdx = 0; U.screen = "REVEAL"; render();
+    computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render();
     if (party() && !userIsGm()) later(autoReveal, 1400);
   }, 600);
 }
 
 SCREENS.VOTE = () => {
-  const voter = party() ? 0 : voteOrder()[U.voteIdx];
+  const voter = party() ? mySeat() : voteOrder()[U.voteIdx];
   const p = G.players[voter];
   const visible = visibleOptionsFor(G.options, voter);
   shell(`
@@ -533,7 +564,7 @@ function castVote(voter, optionId) {
     U.voteIdx++;
     const vo = voteOrder();
     if (U.voteIdx < vo.length) hand(G.players[vo[U.voteIdx]].name, () => render());
-    else hand(G.players[G.gm].name, () => { computeRound(); U.revealIdx = 0; U.screen = "REVEAL"; render(); });
+    else hand(G.players[G.gm].name, () => { computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render(); });
   }
 }
 
@@ -560,6 +591,7 @@ function computeRound() {
   });
   G.deltas = result.deltas;
   G.gmStole = result.gmStole;
+  G.phase = "reveal";            // the truth may now travel (netProject, C9)
   result.bluffVotes.forEach((n, i) => { G.players[i].bluffVotes += n; });
   if (G.doubles.length) setTimeout(() => play("doubleHit"), 400);   // surprise sparkle as the reveal opens
 }
@@ -569,8 +601,8 @@ const revealSeq = () => [...G.options.filter((o) => o.kind !== "truth"), G.optio
 
 SCREENS.REVEAL = () => {
   const seq = revealSeq();
-  const shown = seq.slice(0, U.revealIdx);
-  const done = U.revealIdx >= seq.length;
+  const shown = seq.slice(0, G.revealIdx);
+  const done = G.revealIdx >= seq.length;
   const hostIsBot = party() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
@@ -593,7 +625,7 @@ SCREENS.REVEAL = () => {
               const pl = G.players[a]; const gmA = a === G.gm;
               return `<span class="face" style="background:${pl.color}">
                         <span class="nose grow ${gmA ? "violet" : ""}" style="--votes:${voters.length};width:${6 + voters.length * 14}px"></span></span>
-                      <span>${t("by")} ${a === 0 && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
+                      <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
        </div></div>`;
@@ -610,15 +642,15 @@ SCREENS.REVEAL = () => {
   const rn = document.getElementById("revealnext");
   if (rn) rn.onclick = () => {
     clearTimers(); doRevealStep();
-    if (party() && !userIsGm() && U.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
+    if (party() && !userIsGm() && G.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
   };
 };
 
 function doRevealStep() {
   const seq = revealSeq();
-  if (U.revealIdx >= seq.length) return;
-  const isTruth = U.revealIdx === seq.length - 1;
-  U.revealIdx++;
+  if (G.revealIdx >= seq.length) return;
+  const isTruth = G.revealIdx === seq.length - 1;
+  G.revealIdx++;
   if (isTruth) {
     play("truthReveal");
     if (G.gmStole) {
@@ -633,7 +665,7 @@ function doRevealStep() {
     }
   }
   else {
-    const o = seq[U.revealIdx - 1];
+    const o = seq[G.revealIdx - 1];
     const v = Object.values(G.votes).filter((id) => id === o.id).length;
     play("noseGrow", v);
   }
@@ -643,13 +675,14 @@ function doRevealStep() {
 function autoReveal() {
   if (U.screen !== "REVEAL") return;
   doRevealStep();
-  if (U.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
+  if (G.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
   else later(goBoard, TUNING.REVEAL_TO_BOARD_MS);
 }
 
 function goBoard() {
   if (U.screen === "BOARD") return;
   clearTimers(); play("confirm");
+  G.phase = "board";
   U.screen = "BOARD"; render();
   setTimeout(animateBoard, 400);
 }
@@ -793,6 +826,7 @@ function finishRound() {
       deltas: Object.fromEntries(G.players.map((p, i) => [i, p.score - G.preOmkampScores[i]])),
     });
     G.winnersIdx = result.winners; G.shared = result.shared;
+    G.phase = "winner";
     U.screen = "WINNER"; play("truthReveal"); render();
     return;
   }
@@ -801,6 +835,7 @@ function finishRound() {
   const check = winCheck({ scores, round: G.round, playerCount: G.players.length, target: G.target });
   if (check.winners) {
     G.winnersIdx = check.winners; G.shared = check.winners.length > 1;
+    G.phase = "winner";
     U.screen = "WINNER"; play("truthReveal"); render();
     return;
   }
@@ -809,6 +844,7 @@ function finishRound() {
     G.omkampParticipants = check.omkamp.participants;
     G.preOmkampScores = scores.slice();
     G.gm = check.omkamp.gm;
+    G.phase = "omkamp";
     U.screen = "OMKAMP"; play("gmSting"); render();
     return;
   }
@@ -866,7 +902,7 @@ SCREENS.WINNER = () => {
   }
   document.getElementById("replay").onclick = () => {
     clearTimers();
-    const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount };
+    const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
     U = Object.assign(freshUi(), keep, { screen: "SETUP" });
     render();
   };
@@ -907,4 +943,8 @@ const bootFx = getFixture(
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
 if (bootFx) { U = bootFx.u; G = bootFx.g; }
+// One id for this device, minted before the first render. C8 replaces this with
+// the persisted profile's pid so a rating survives a reload; until then it just
+// has to be stable for the session, and identify seat 0 so mySeat() returns 0.
+U.myPid ??= newPid();
 render();

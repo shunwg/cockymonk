@@ -12,9 +12,10 @@ const SCREEN_IDS = [
 ];
 // Keys of the G literal in ui.js startGame() — fxMakeG must mirror it.
 const G_KEYS = [
-  "players", "target", "round", "gm", "card", "bluffs", "decoys", "gmDecoyDone",
-  "options", "doubles", "votes", "deltas", "gmStole", "inOmkamp", "omkampParticipants",
-  "preOmkampScores", "goalCelebrated", "celebrated", "awaitingNext",
+  "players", "target", "round", "gm", "phase", "card", "bluffs", "decoys", "gmDecoyDone",
+  "options", "doubles", "votes", "deltas", "gmStole", "revealIdx", "timedOut", "deadline",
+  "timers", "inOmkamp", "omkampParticipants",
+  "preOmkampScores", "goalCelebrated", "celebrated", "awaitingNext", "ratingDone",
 ];
 const NEEDS_G = SCREEN_IDS.slice(SCREEN_IDS.indexOf("GM_INTRO"), SCREEN_IDS.indexOf("WINNER") + 1);
 
@@ -47,7 +48,7 @@ test("game screens carry a startGame-shaped G; setup screens carry none", () => 
     for (const k of G_KEYS) assert.ok(k in g, `${f.id}: G missing key "${k}" (drifted from startGame?)`);
     assert.ok(g.players.length >= 3 && g.players.length <= 8, `${f.id}: player count`);
     for (const p of g.players) {
-      for (const k of ["name", "color", "score", "bluffVotes", "dropped"]) assert.ok(k in p, `${f.id}: player.${k}`);
+      for (const k of ["name", "color", "score", "bluffVotes", "dropped", "pid", "kind"]) assert.ok(k in p, `${f.id}: player.${k}`);
     }
     assert.ok(g.gm >= 0 && g.gm < g.players.length, `${f.id}: gm in range`);
     assert.ok(g.card?.prompt && g.card?.truth, `${f.id}: card`);
@@ -74,7 +75,7 @@ test("vote-pool screens: engine-shaped options, letters, legal votes", () => {
 
 test("13 REVEAL is mid-ceremony with full votes; 12 VOTEWAIT is partial", () => {
   const reveal = getFixture("13");
-  assert.equal(reveal.u.revealIdx, 2);
+  assert.equal(reveal.g.revealIdx, 2, "revealIdx lives in G — the room shares the beat");
   assert.equal(Object.keys(reveal.g.votes).length, reveal.g.players.length - 1, "all non-GM voted");
   const wait = getFixture("12");
   const voters = reveal.g.players.length - 1;

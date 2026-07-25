@@ -153,6 +153,11 @@ export const esc = (s) =>
 
 export const rnd = (a, b) => a + Math.random() * (b - a);
 
+// Stable-ish id for one device/player. Deliberately NOT crypto.randomUUID():
+// that is undefined on non-secure origins, and the standalone bundle has to run
+// from file://. Collision risk across a room of eight is not worth a thought.
+export const newPid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
 // One timer registry so phase changes can cancel everything pending.
 const timers = [];
 export const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
@@ -176,7 +181,8 @@ export function freshUi() {
     usedFakes: new Set(),
     cur: 0,                 // whose hotseat turn (bluff entry / vote)
     voteIdx: 0,
-    revealIdx: 0,
     afterHand: null,
+    myPid: null,            // this device's player id; set once at boot
+    draftBluff: "",         // mirrors the bluff textarea so a re-render can't eat it
   };
 }

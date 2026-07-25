@@ -26,17 +26,28 @@ function fxMakeG(overrides = {}) {
       score: [6, 8, 5, 3][i],
       bluffVotes: [2, 4, 1, 5][i],
       dropped: false,
+      pid: `fx:${i}`,          // fixtures are posed, never networked
+      kind: "human",
     })),
     target: 15,
     round: 2,
     gm: 0,
+    phase: "bluffing",
     card: fxCard, bluffs: {}, decoys: ["", ""], gmDecoyDone: true,
     options: null, doubles: [], votes: {}, deltas: null, gmStole: false,
+    revealIdx: 0,
+    timedOut: { bluff: [], vote: [] },
+    deadline: null,            // null keeps every posed screen static for snap-screens
+    timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
-    goalCelebrated: false, celebrated: false, awaitingNext: false,
+    goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     ...overrides,
   };
 }
+
+// Inlined rather than imported from clock.js: fixtures.js deliberately imports
+// only DOM-free, side-effect-free modules, and clock.js owns a live interval.
+const fxTimers = () => ({ on: false, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
 
 // A full vote pool the way openVote() builds it: three bluffs + one GM decoy +
 // the truth, shuffled by the engine with a FIXED rng so letters (and therefore
@@ -134,8 +145,11 @@ export const FIXTURES = [
     make: () => {
       const pool = fxPool(0);
       return {
-        u: { mode: "hotseat", revealIdx: 2 },
+        u: { mode: "hotseat" },
         g: fxMakeG({
+          // revealIdx moved U → G: the whole room watches the same beat, so it
+          // has to travel with the game state (PRD §10 synced spectacle).
+          phase: "reveal", revealIdx: 2,
           bluffs: pool.bluffs, options: pool.options, doubles: pool.doubles,
           votes: {
             1: fxTruthId(pool.options),
