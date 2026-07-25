@@ -24,7 +24,7 @@ Skjermene er *poserte*: faste spillere (Åse, Markus, Ingrid, Jonas), faste poen
 | 03 | `MODE` | Spillmodus | Én telefon (hotseat) vs hver sin telefon (party) | [03](png/03-mode.png) |
 | 04 | `PLAYERS` | Spillere | Navneliste 3–8, legg til/fjern | [04](png/04-players.png) |
 | 05 | `PARTYSETUP` | Party-oppsett | Ditt navn + antall roboter (Lab) | [05](png/05-partysetup.png) |
-| 06 | `SETUP` | Spilloppsett | Spillengde (8/15/25) + brettvalg + start | [06](png/06-setup.png) |
+| 06 | `SETUP` | Spilloppsett | Spillengde (8/15/25) + brettvalg + **frister** (PRD §5.2a: på/av + lengder) + start. Fixturen poserer party-modus, siden fristene kun finnes der | [06](png/06-setup.png) |
 | 07 | `GM_INTRO` | Ny spillmester | «X er spillmester» + runde-banner | [07](png/07-gm_intro.png) |
 | 08 | `GM_DASH` | Spillmester-pulten | Ordet, hemmelig sannhet (hold for å se), lokkemat-felter, innsjekk-chips, «Åpne avstemning» | [08](png/08-gm_dash.png) |
 | 09 | `BLUFF` | Dikt en løgn | Spillerbanner, ordet, løgn-tekstfelt | [09](png/09-bluff.png) |

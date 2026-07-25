@@ -93,7 +93,10 @@ export const FIXTURES = [
     make: () => ({ u: { mode: "party", uname: "Åse", botCount: 3 }, g: null }) },
 
   { id: "06", screen: "SETUP", name: "Spilloppsett",
-    make: () => ({ u: { mode: "hotseat", names: fxNames.slice() }, g: null }) },
+    // Party rather than hotseat, so the registry actually shows the phase-timer
+    // controls (PRD §5.2a) — they only exist in the modes that use them, and a
+    // screen nobody can review is a screen that rots.
+    make: () => ({ u: { mode: "party", names: fxNames.slice() }, g: null }) },
 
   { id: "07", screen: "GM_INTRO", name: "Ny spillmester",
     make: () => ({ u: { mode: "hotseat" }, g: fxMakeG() }) },

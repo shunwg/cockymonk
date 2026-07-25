@@ -5,12 +5,16 @@
 
 import {
   buildOptions, scoreRound, winCheck, omkampResolve, visibleOptionsFor, isValidBluff,
+  bluffersExpected, votersExpected, readyToOpenVote,
 } from "./engine.js";
 import { TUNING, BOT_NAMES, botPick, bluffOffsets, voteOffsets } from "./bots.js";
 import { play, setMuted, isMuted } from "./audio.js";
 import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
-import { defaultTimers } from "./clock.js";
+import {
+  TIMERS, defaultTimers, clockDeadline, clockArm, clockClear, clockLeft, clockSeconds,
+  clockLevel, clockFraction,
+} from "./clock.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
@@ -37,8 +41,14 @@ const mySeat = () => { const i = seatOfPid(U.myPid); return i === -1 ? 0 : i; };
 const userIsGm = () => G.gm === mySeat();
 const isBot = (i) => G?.players[i]?.kind === "bot";
 const order = () => G.players.map((_, i) => i).filter((i) => i !== G.gm && !G.players[i].dropped);
-const voteOrder = () => (G.inOmkamp ? G.players.map((_, i) => i).filter((i) => i !== G.gm) : order());
-const bluffOrder = () => (G.inOmkamp ? G.omkampParticipants : order());
+// Both now come from engine.js so the timeout rule exists in exactly one place —
+// the same predicates the reducer and the vectors use (LANES.md contract 1).
+// G already carries every field they destructure.
+const voteOrder = () => votersExpected(G);
+const bluffOrder = () => bluffersExpected(G);
+// Only the authority advances the game and fires a deadline. Until net.js lands
+// this device is always it; C9 swaps in NET.isHost and nothing else changes.
+const isHost = () => true;
 const app = document.getElementById("app");
 
 const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
@@ -75,6 +85,129 @@ async function loadContent(lang) {
   if (!CONTENT.deck) CONTENT.deck = MINI_DECK[lang];
   if (!CONTENT.fakes) CONTENT.fakes = MINI_FAKES[lang];
 }
+
+/* ---------- phase clock (PRD §5.2a) ----------
+   Every phase change goes through resetTimers(), which kills the bot schedule
+   AND the countdown together. The countdown then re-arms itself for the phase
+   it just entered, if timers are on at all. */
+
+const resetTimers = () => { clearTimers(); clockClear(); };
+const timersOn = () => Boolean(G?.timers?.on);
+
+// The countdown's markup. Rendered inside a normal screen render; from then on
+// only ckPaint() touches it (see below).
+function clockHtml(labelKey) {
+  if (!timersOn() || !G.deadline) return "";
+  const left = clockLeft(G.deadline);
+  return `<div class="clockwrap">
+    <div class="clock ${clockLevel(left)}" id="clockring" role="timer" aria-live="off"
+         style="--p:${clockFraction(G.deadline)}"><span class="clocknum">${clockSeconds(left)}</span></div>
+    <span class="clocklabel">${t(labelKey)}</span>
+    <span class="sr-live" id="clocksr" aria-live="assertive"></span>
+  </div>`;
+}
+
+// THE surgical repaint. Writes one custom property, one text node and two
+// classes — and NEVER calls render(), because shell() replaces app.innerHTML
+// wholesale and would destroy the bluff textarea and the GM's half-typed
+// decoys once a second. Same discipline as refreshGmAction()/botTickUI().
+let ckSaid = null;
+function ckPaint(leftMs, level) {
+  const el = document.getElementById("clockring");
+  if (!el) return;
+  el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
+  el.classList.toggle("warn", level === "warn");
+  el.classList.toggle("urgent", level === "urgent");
+  const num = el.querySelector(".clocknum");
+  const secs = clockSeconds(leftMs);
+  if (num) num.textContent = secs;
+  // A silent countdown strands VoiceOver users (DESIGN.md §9). Two announcements
+  // per phase, not sixty: one warning, one at zero.
+  const sr = document.getElementById("clocksr");
+  if (sr && (secs === 10 || secs === 0) && ckSaid !== secs) {
+    ckSaid = secs;
+    sr.textContent = secs === 0 ? t("timeUp") : t("tenLeft");
+  }
+}
+
+// Swap just the countdown block when a NEW deadline is armed while the screen
+// stays put (all bluffs in → the GM grace takes over). A full render here would
+// wipe the GM's half-typed decoys, which is exactly what we're avoiding.
+function refreshClock(labelKey) {
+  const wrap = document.querySelector(".clockwrap");
+  const html = clockHtml(labelKey);
+  if (!wrap) return;
+  if (!html) { wrap.remove(); return; }
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  wrap.replaceWith(tmp.firstElementChild);
+}
+
+// Arm the clock for the phase we just entered. `onExpire` is passed ONLY when
+// this device is the authority — clients get null and merely paint, which is
+// what makes a double-advance impossible rather than a race.
+function armClock(phase, ms, onExpire) {
+  clockClear();
+  ckSaid = null;
+  if (!timersOn()) { G.deadline = null; return; }
+  G.deadline = clockDeadline(phase, ms, G.round);
+  clockArm({ ...G.deadline, onTick: ckPaint, onExpire: isHost() ? onExpire : null });
+}
+
+// -- expiry handlers (host only) --
+
+// Bluff window closed: whoever hasn't answered is skipped for THIS ROUND (D4),
+// the GM's decoys settle as typed, and the vote opens. One deadline, both of
+// the things the player was promised would happen at 0:00.
+function onBluffDeadline() {
+  if (U.screen === "REVEAL" || U.screen === "BOARD") return;
+  const pending = bluffOrder().filter((i) => G.bluffs[i] === undefined);
+  for (const i of pending) delete G.bluffs[i];
+  G.timedOut.bluff = [...new Set([...G.timedOut.bluff, ...pending])];
+  if (pending.length) play("error");
+  autoOpenVote();
+}
+
+// Everyone answered early and the room is now only waiting on the GM to press
+// the button. That wait gets its own, shorter grace.
+function onDecoyDeadline() { autoOpenVote(); }
+
+function autoOpenVote() {
+  if (G.options) return;                       // already open — nothing to force
+  resetTimers();
+  G.gmDecoyDone = true;                        // whatever the GM typed stands (E8)
+  play("cardShuffle"); play("voteOpen"); flashScreen();
+  openVote();
+  G.phase = "voting";
+  U.screen = party() ? (userIsGm() ? "VOTEWAIT" : "VOTE") : "VOTE";
+  armClock("voting", G.timers.voteMs, onVoteDeadline);
+  render();
+  scheduleBotVotes();
+}
+
+// Vote window closed: a missing vote is simply absent, which scoreRound already
+// handles — including flipping gmStole if the only truth-voter ran out of time.
+function onVoteDeadline() {
+  const pending = voteOrder().filter((i) => G.votes[i] === undefined);
+  G.timedOut.vote = [...new Set([...G.timedOut.vote, ...pending])];
+  if (pending.length) play("error");
+  resetTimers();
+  play("drumroll");
+  later(() => { computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; armRevealClock(); render(); }, 600);
+}
+
+// The reveal paces itself if the GM stops tapping — the same courtesy a bot GM
+// already extends, so this is only for a HUMAN GM. Re-armed per beat by
+// doRevealStep, which arms before it renders (see the note there).
+function armRevealClock() {
+  const botPaced = party() && !userIsGm();
+  if (botPaced || G.revealIdx >= revealSeq().length) { clockClear(); G.deadline = null; return; }
+  armClock("reveal", G.timers.revealMs, doRevealStep);
+}
+
+// ORDERING RULE for every armClock caller: arm BEFORE render(). clockHtml reads
+// G.deadline while building the markup, so arming afterwards paints a clock
+// that isn't there yet — the countdown silently never appears.
 
 const shuffled = (a) => {
   a = a.slice();
@@ -255,11 +388,34 @@ SCREENS.SETUP = () => {
    <h2>${t("theme")}</h2>
    <div class="seg">${Object.keys(THEMES).map((th) => `
      <button class="${U.theme === th ? "on" : ""}" data-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
+   ${party() ? `
+   <h2>${t("timerTitle")}</h2>
+   <div class="seg">
+     <button class="${U.timers.on ? "on" : ""}" data-timer="on">${t("timerOn")}</button>
+     <button class="${U.timers.on ? "" : "on"}" data-timer="off">${t("timerOff")}</button>
+   </div>
+   ${U.timers.on ? `
+   <p class="small" style="margin:10px 0 4px">${t("timerBluffLabel")}</p>
+   <div class="seg">${TIMERS.BLUFF.choices.map((ms) => `
+     <button class="${U.timers.bluffMs === ms ? "on" : ""}" data-bluffms="${ms}">${ms / 1000} s</button>`).join("")}</div>
+   <p class="small" style="margin:10px 0 4px">${t("timerVoteLabel")}</p>
+   <div class="seg">${TIMERS.VOTE.choices.map((ms) => `
+     <button class="${U.timers.voteMs === ms ? "on" : ""}" data-votems="${ms}">${ms / 1000} s</button>`).join("")}</div>
+   <p class="small">${t("timerHint")}</p>` : ""}` : ""}
    <div style="flex:1"></div><p class="small">${t("rules")}</p>
    <button class="btn" id="begin">${t("begin")}</button>
    <button class="linkbtn" id="setuprules">${t("homeHowTo")}</button>`);
   app.querySelectorAll("[data-target]").forEach((b) => b.onclick = () => { U.target = Number(b.dataset.target); play("toggle"); render(); });
   app.querySelectorAll("[data-theme]").forEach((b) => b.onclick = () => { U.theme = b.dataset.theme; play("toggle"); render(); });
+  app.querySelectorAll("[data-timer]").forEach((b) => b.onclick = () => { U.timers.on = b.dataset.timer === "on"; play("toggle"); render(); });
+  app.querySelectorAll("[data-bluffms]").forEach((b) => b.onclick = () => {
+    // The decoy grace scales with the bluff window so the GM isn't squeezed
+    // when the host picks a fast game.
+    U.timers.bluffMs = Number(b.dataset.bluffms);
+    U.timers.decoyMs = Math.min(U.timers.bluffMs, TIMERS.DECOY.default);
+    play("toggle"); render();
+  });
+  app.querySelectorAll("[data-votems]").forEach((b) => b.onclick = () => { U.timers.voteMs = Number(b.dataset.votems); play("toggle"); render(); });
   document.getElementById("begin").onclick = startGame;
   document.getElementById("setuprules").onclick = () => { U.rulesReturn = "SETUP"; play("confirm"); U.screen = "RULES"; render(); };
 };
@@ -290,7 +446,10 @@ function startGame() {
     revealIdx: 0,                // lives in G, not U: the whole room watches the same beat (PRD §10)
     timedOut: { bluff: [], vote: [] },   // per round, cleared by newRound (D4)
     deadline: null,              // { at, phase, round, totalMs } — an absolute time, never "seconds left"
-    timers: defaultTimers(),     // off until C7 turns it on for party/practice
+    // On for party/practice, off for hotseat: passing one phone round a table
+    // paces itself, and a clock there just adds stress to the couch mode that
+    // never needed it (PRD §5.2a). U.timers holds the host's setup choices.
+    timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
   };
@@ -298,7 +457,7 @@ function startGame() {
 }
 
 function newRound() {
-  clearTimers();
+  resetTimers();
   G.awaitingNext = false;                // this round's board starts locked until its ceremony ends
   G.round++;
   if (!U.deck.length) U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
@@ -332,7 +491,15 @@ SCREENS.GM_INTRO = () => {
     ? `<p class="small" style="text-align:center">…</p>`
     : `<button class="btn gm" id="togm">${t("next")}</button>`}`);
   const b = document.getElementById("togm");
-  if (b) b.onclick = () => { play("confirm"); G.phase = "bluffing"; U.screen = "GM_DASH"; render(); if (party()) scheduleBotBluffs(); };
+  if (b) b.onclick = () => {
+    play("confirm"); G.phase = "bluffing"; U.screen = "GM_DASH";
+    // The GM sees the same clock the bluffers do. FLOW.md's original proposal
+    // said "not on the dashboard" — that held while only bluffers were on a
+    // deadline. Now the GM has one too, and an unseen deadline is a trap.
+    armClock("bluff", G.timers.bluffMs, onBluffDeadline);
+    render();
+    if (party()) scheduleBotBluffs();
+  };
 };
 
 function scheduleBotBluffs() {
@@ -361,9 +528,15 @@ function allBluffsSubmitted() {
 }
 
 function maybeAllBluffsIn() {
-  if (!allBluffsSubmitted() || !G.gmDecoyDone) return; // decoy gating (PRD §5.5)
+  if (!allBluffsSubmitted()) return;
+  // Everyone has answered, so the room is now waiting on the GM alone — the
+  // clock switches to the shorter GM grace. This is the case PRD §5.2a means
+  // by "GM doesn't add a decoy in time": a slow bot GM, or a human GM who
+  // hasn't pressed the button yet.
+  if (timersOn() && !G.options) { armClock("decoy", G.timers.decoyMs, onDecoyDeadline); refreshClock("clockDecoy"); }
+  if (!G.gmDecoyDone) return;                          // decoy gating (PRD §5.5)
   if (U.screen === "WAIT") {
-    later(() => { play("cardShuffle"); play("voteOpen"); flashScreen(); openVote(); U.screen = "VOTE"; render(); scheduleBotVotes(); }, TUNING.GM_SHUFFLE_MS);
+    later(() => { if (!G.options) autoOpenVote(); }, TUNING.GM_SHUFFLE_MS);
   }
 }
 
@@ -403,6 +576,7 @@ SCREENS.GM_DASH = () => {
      <b style="color:var(--color-accent-gm)">🔒 ${t("secret")}</b>
      <div id="truthtxt" style="margin-top:6px;filter:blur(7px);transition:filter .2s;">${esc(G.card.truth)}</div>
      <div class="small">${t("peek")}</div></div>
+   ${clockHtml("clockDecoy")}
    <b>${t("decoys")}</b>
    ${[0, 1].map((i) => `<input type="text" style="margin-top:8px" maxlength="140" data-decoy="${i}"
       placeholder="${t("decoyPh", i + 1)}" value="${esc(G.decoys[i])}">`).join("")}
@@ -422,13 +596,16 @@ SCREENS.GM_DASH = () => {
 };
 
 function gmOpensVote() {
-  clearTimers();
+  resetTimers();
   play("cardShuffle"); play("voteOpen"); flashScreen();   // the showstopper (PRD §11)
   G.gmDecoyDone = true;
   openVote();
   G.phase = "voting";
-  if (party()) { U.screen = "VOTEWAIT"; render(); scheduleBotVotes(); }
-  else { const first = G.players[voteOrder()[0]].name; hand(first, () => { U.screen = "VOTE"; render(); }); }
+  if (party()) { U.screen = "VOTEWAIT"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); scheduleBotVotes(); }
+  // Hotseat: the vote clock starts when the phone actually reaches the first
+  // voter, not while it is still being passed. (Timers are off in hotseat by
+  // default anyway — but if a host turns them on, this is the fair reading.)
+  else { const first = G.players[voteOrder()[0]].name; hand(first, () => { U.screen = "VOTE"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); }); }
 }
 
 /* ---------- hotseat plumbing ---------- */
@@ -466,7 +643,9 @@ function hand(name, after) {
 /* ---------- bluff entry ---------- */
 function enterBluffing() {
   G.phase = "bluffing";
-  U.cur = mySeat(); U.screen = "BLUFF"; render();
+  U.cur = mySeat(); U.screen = "BLUFF";
+  armClock("bluff", G.timers.bluffMs, onBluffDeadline);
+  render();
   scheduleBotBluffs();
   later(() => {
     if (!G.gmDecoyDone) { G.decoys[0] = takeFakeText(); G.gmDecoyDone = true; maybeAllBluffsIn(); }
@@ -479,15 +658,23 @@ SCREENS.BLUFF = () => {
    <div class="banner" style="background:${p.color};color:var(--color-text-on-surface)">${esc(p.name)}</div>
    <div class="card"><div class="word" style="font-size:36px">${esc(G.card.prompt)}</div></div>
    <p>${t("yourBluff", esc(G.card.prompt))}</p>
-   <textarea id="btxt" maxlength="140" placeholder="${t("bluffPh")}"></textarea>
+   ${clockHtml("clockBluff")}
+   <textarea id="btxt" maxlength="140" placeholder="${t("bluffPh")}">${esc(U.draftBluff)}</textarea>
    <p class="small" id="berr"></p>
    <div style="flex:1"></div>
    <button class="btn" id="lock">${t("lockIn")}</button>`);
-  document.getElementById("btxt").focus();
+  const ta = document.getElementById("btxt");
+  ta.focus();
+  // Mirror every keystroke into U so a re-render can never eat a half-written
+  // lie. ckPaint deliberately avoids render(), but a bot tick-in or an arriving
+  // broadcast still can — and losing a sentence you were mid-way through is the
+  // kind of bug that ends a game night. Same trick the decoy inputs already use.
+  ta.oninput = () => { U.draftBluff = ta.value; };
   document.getElementById("lock").onclick = () => {
     const v = document.getElementById("btxt").value;
     if (!isValidBluff(v)) { document.getElementById("berr").textContent = t("emptyBluff"); play("error"); return; }
-    G.bluffs[U.cur] = v.trim(); play("tickIn");
+    if (G.timedOut.bluff.includes(U.cur)) { document.getElementById("berr").textContent = t("tooLate"); play("error"); return; }
+    G.bluffs[U.cur] = v.trim(); U.draftBluff = ""; play("tickIn");
     if (party()) { U.screen = "WAIT"; render(); maybeAllBluffsIn(); }
     else if (bluffOrder().some((i) => G.bluffs[i] === undefined)) nextBluffer();
     else hand(G.players[G.gm].name, () => { U.screen = "GM_DASH"; render(); });
@@ -501,6 +688,7 @@ SCREENS.WAIT = () => {
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
      <div class="banner green" style="margin:10px 0 0">✓</div></div>
+   ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
        ${bluffOrder().map((i) => {
@@ -534,11 +722,12 @@ function scheduleBotVotes() {
 
 function maybeAllVotesIn() {
   if (voteOrder().some((i) => G.votes[i] === undefined)) return;
-  clearTimers();
+  resetTimers();
   play("drumroll");                      // tension roll as the votes close and the reveal opens
   later(() => {
     computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render();
     if (party() && !userIsGm()) later(autoReveal, 1400);
+    else armRevealClock();     // a human GM gets a clock; a bot GM already self-paces
   }, 600);
 }
 
@@ -550,6 +739,7 @@ SCREENS.VOTE = () => {
    <div class="banner" style="background:${p.color};color:var(--color-text-on-surface)">
      ${party() ? t("yourVote") : t("votingTime", esc(p.name))}</div>
    <p class="small">${t("cantOwn")}</p>
+   ${clockHtml("clockVote")}
    ${G.options.map((o, i) => !visible.includes(o) ? "" : `
      <div class="opt stagger" style="animation-delay:${i * 70}ms" data-opt="${o.id}">
        <div class="letter">${o.letter}</div><div>${esc(o.text)}</div></div>`).join("")}`);
@@ -573,6 +763,7 @@ SCREENS.VOTEWAIT = () => {
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${userIsGm() ? "" : `<div class="banner green">${t("youVoted")}</div>`}
+   ${clockHtml("clockVote")}
    ${G.options.map((o) => {
      const c = Object.values(G.votes).filter((id) => id === o.id).length;
      return `<div class="opt" style="cursor:default">
@@ -606,6 +797,7 @@ SCREENS.REVEAL = () => {
   const hostIsBot = party() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
+   ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
    ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
    ${shown.map((o, si) => {
@@ -641,7 +833,7 @@ SCREENS.REVEAL = () => {
   if (tb) tb.onclick = goBoard;
   const rn = document.getElementById("revealnext");
   if (rn) rn.onclick = () => {
-    clearTimers(); doRevealStep();
+    resetTimers(); doRevealStep();   // re-arms the beat clock itself
     if (party() && !userIsGm() && G.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
   };
 };
@@ -669,6 +861,7 @@ function doRevealStep() {
     const v = Object.values(G.votes).filter((id) => id === o.id).length;
     play("noseGrow", v);
   }
+  armRevealClock();   // next beat's deadline must exist BEFORE we paint it
   render();
 }
 
@@ -681,7 +874,7 @@ function autoReveal() {
 
 function goBoard() {
   if (U.screen === "BOARD") return;
-  clearTimers(); play("confirm");
+  resetTimers(); play("confirm");
   G.phase = "board";
   U.screen = "BOARD"; render();
   setTimeout(animateBoard, 400);
@@ -901,7 +1094,7 @@ SCREENS.WINNER = () => {
     }
   }
   document.getElementById("replay").onclick = () => {
-    clearTimers();
+    resetTimers();
     const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
     U = Object.assign(freshUi(), keep, { screen: "SETUP" });
     render();

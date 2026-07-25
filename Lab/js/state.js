@@ -17,6 +17,14 @@ export const STR = {
     passOn: "Send telefonen videre", giveTo: (n) => `Gi telefonen til ${n}`, noPeek: "Ikke titt.", hold: "Hold",
     yourBluff: (w) => `Din tur til å dikte. Hva betyr «${w}»?`, bluffPh: "Skriv en troverdig løgn…",
     emptyBluff: "Selv en dårlig løgn er bedre enn ingen.", lockIn: "Lever løgnen",
+    // Fasefrister (PRD §5.2a)
+    tooLate: "For sent — runden gikk videre uten deg.",
+    timeUp: "Tiden er ute.", tenLeft: "Ti sekunder igjen.",
+    clockBluff: "til å dikte", clockWait: "til alle er inne", clockDecoy: "til avstemningen åpner",
+    clockVote: "til å stemme", clockReveal: "til neste avsløring",
+    timerTitle: "Frister", timerOn: "På", timerOff: "Av",
+    timerBluffLabel: "Tid til å dikte en løgn", timerVoteLabel: "Tid til å stemme",
+    timerHint: "Rekker du ikke fristen, går runden videre uten svaret ditt — men du er med igjen neste runde.",
     allIn: "Alle løgnene er inne.", waitingFor: "Venter på", thinkingDots: "tenker…", openVote: "Åpne avstemning",
     gmComposing: (n) => `${n} dikter lokkemat`, shuffling: "Spillmesteren blander kortene…",
     votingTime: (n) => `${n}, hva er sannheten?`, yourVote: "Hva er sannheten?", cantOwn: "(ditt eget svar er skjult)",
@@ -67,6 +75,14 @@ export const STR = {
     passOn: "Pass the phone on", giveTo: (n) => `Give the phone to ${n}`, noPeek: "No peeking.", hold: "Hold",
     yourBluff: (w) => `Your turn to invent. What does “${w}” mean?`, bluffPh: "Write a credible lie…",
     emptyBluff: "Even a bad lie beats no lie.", lockIn: "Submit the lie",
+    // Phase timers (PRD §5.2a)
+    tooLate: "Too late — the round moved on without you.",
+    timeUp: "Time's up.", tenLeft: "Ten seconds left.",
+    clockBluff: "to make one up", clockWait: "until everyone's in", clockDecoy: "until voting opens",
+    clockVote: "to vote", clockReveal: "to the next reveal",
+    timerTitle: "Timers", timerOn: "On", timerOff: "Off",
+    timerBluffLabel: "Time to write a lie", timerVoteLabel: "Time to vote",
+    timerHint: "Miss the deadline and the round moves on without your answer — but you're back in next round.",
     allIn: "All lies accounted for.", waitingFor: "Waiting for", thinkingDots: "thinking…", openVote: "Open the vote",
     gmComposing: (n) => `${n} is composing decoys`, shuffling: "The game master shuffles the cards…",
     votingTime: (n) => `${n}, what's the truth?`, yourVote: "What's the truth?", cantOwn: "(your own answer is hidden)",
@@ -184,5 +200,9 @@ export function freshUi() {
     afterHand: null,
     myPid: null,            // this device's player id; set once at boot
     draftBluff: "",         // mirrors the bluff textarea so a re-render can't eat it
+    // Host's phase-timer choices, made on screen 06 and copied into G at start.
+    // ON by default because the modes that use it (party/online) are the ones
+    // where one person walking away can freeze everyone else.
+    timers: { on: true, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 },
   };
 }
