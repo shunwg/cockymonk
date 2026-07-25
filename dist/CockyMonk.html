@@ -65,6 +65,9 @@
   --color-status-warning: #FFC53D;
   --color-status-error: #FF5C97;
   --color-status-info: #9B6DFF;
+  --color-timer-calm: #8A87B8;
+  --color-timer-warn: #FFC53D;
+  --color-timer-urgent: #FF5C97;
   --color-bg-layers-glow-violet: #9B6DFF26;
   --color-bg-layers-glow-pink: #FF5C9722;
   --color-bg-layers-dot-grid: #FFFFFF09;
@@ -131,6 +134,9 @@
   --motion-dur-reveal-to-board: 1600ms;
   --motion-dur-armed-pulse: 1400ms;
   --motion-dur-think-pulse: 1200ms;
+  --motion-dur-timer-tick: 250ms;
+  --motion-dur-timer-ring-sweep: 1000ms;
+  --motion-dur-timer-urgent-pulse: 700ms;
   --motion-dur-bob-loop: 2400ms;
   --motion-dur-goal-pulse: 2000ms;
   --motion-dur-confetti-fall-min: 2000ms;
@@ -946,6 +952,45 @@ function visibleOptionsFor(options, voter) {
   return options.filter((o) => !o.authors.includes(voter));
 }
 
+// -- who is expected to act (PRD §5.2a, §5.5) ---------------------------------
+//
+// These three are the single source of truth for "is this round waiting on
+// anyone?". ui.js imports them for the live game; dispatch() calls them for the
+// reducer. Written once on purpose: when the rule lived in two places, a vector
+// could pass while the shipped game did something else.
+//
+// A timed-out player is skipped for THIS ROUND ONLY (D4). They are not dropped:
+// they keep their score, still count toward playerCount and the win check, and
+// are expected again after the next drawCard.
+
+const egTimedOut = (t) => ({ bluff: t?.bluff ?? [], vote: t?.vote ?? [] });
+const egUnion = (a, b) => [...new Set([...a, ...b])].sort((x, y) => x - y);
+
+// Seats that still owe a bluff. In omkamp only the tied players write (PRD §5.4).
+function bluffersExpected({ players, gm, inOmkamp = false, omkampParticipants = [], timedOut = null }) {
+  const skipped = egTimedOut(timedOut).bluff;
+  const base = inOmkamp
+    ? omkampParticipants
+    : players.map((_, i) => i).filter((i) => i !== gm && !players[i].dropped);
+  return base.filter((i) => !skipped.includes(i));
+}
+
+// Seats that still owe a vote. In omkamp everyone but the GM votes, including
+// players who aren't bluffing this round — mirrors voteOrder() in ui.js.
+function votersExpected({ players, gm, inOmkamp = false, timedOut = null }) {
+  const skipped = egTimedOut(timedOut).vote;
+  const base = players
+    .map((_, i) => i)
+    .filter((i) => i !== gm && (inOmkamp || !players[i].dropped));
+  return base.filter((i) => !skipped.includes(i));
+}
+
+// The shuffle may never fire before every expected bluff is in AND the GM's
+// decoy state is settled (PRD §5.5 decoy gating).
+function readyToOpenVote({ expected, bluffs, gmDecoyDone }) {
+  return Boolean(gmDecoyDone) && expected.every((i) => i in bluffs);
+}
+
 // -- scoring (PRD §5.3) -------------------------------------------------------
 
 // votes: {voterIndex: optionId}. Returns per-player deltas, the Gullnese
@@ -1025,6 +1070,7 @@ function createGame({ players, target, rng }) {
     options: null,
     doubles: [],
     votes: {},
+    timedOut: { bluff: [], vote: [] }, // per-round, cleared on drawCard (D4)
     lastResult: null,
     omkamp: null,
     winners: null,
@@ -1034,10 +1080,7 @@ function createGame({ players, target, rng }) {
 }
 
 function activeBluffers(state) {
-  return state.players
-    .map((p, i) => ({ p, i }))
-    .filter(({ p, i }) => i !== state.gm && !p.dropped)
-    .map(({ i }) => i);
+  return bluffersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut });
 }
 
 function allBluffsIn(state) {
@@ -1046,11 +1089,14 @@ function allBluffsIn(state) {
 
 // The shuffle may never fire before the GM decoy state is settled (PRD §5.5).
 function canOpenVote(state) {
-  return allBluffsIn(state) && state.gmDecoyDone;
+  return readyToOpenVote({
+    expected: activeBluffers(state), bluffs: state.bluffs, gmDecoyDone: state.gmDecoyDone,
+  });
 }
 
 function allVotesIn(state) {
-  return activeBluffers(state).every((i) => i in state.votes);
+  return votersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+    .every((i) => i in state.votes);
 }
 
 function gmForRound(round, playerCount, firstGm = 0) {
@@ -1060,12 +1106,48 @@ function gmForRound(round, playerCount, firstGm = 0) {
 function dispatch(state, action) {
   switch (action.type) {
     case "drawCard":
-      return { ...state, phase: "bluffing", card: action.card, bluffs: {}, decoys: [], gmDecoyDone: false, votes: {}, options: null, doubles: [] };
+      return { ...state, phase: "bluffing", card: action.card, bluffs: {}, decoys: [], gmDecoyDone: false, votes: {}, options: null, doubles: [], timedOut: { bluff: [], vote: [] } };
 
     case "submitBluff": {
       if (action.player === state.gm) return { ...state, rejected: true };
+      if (egTimedOut(state.timedOut).bluff.includes(action.player)) return { ...state, rejected: true }; // window closed
       if (!isValidBluff(action.text)) return { ...state, rejected: true }; // "Selv en dårlig løgn er bedre enn ingen."
       return { ...state, rejected: false, bluffs: { ...state.bluffs, [action.player]: action.text } };
+    }
+
+    // -- timeouts (PRD §5.2a). The clock lives outside the engine; expiry
+    // arrives as an ordinary action, so every rule below is provable by a
+    // vector with no timing in it. Only the host dispatches these.
+
+    case "timeoutBluffs": {
+      // Bluff window closed. Whoever hasn't submitted is skipped for this round:
+      // their answer never reaches the option pool, so scoreRound sees exactly
+      // what it sees for a dropped player — no scoring change needed (R8).
+      const pending = action.players
+        ?? bluffersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+             .filter((i) => !(i in state.bluffs));
+      const bluffs = { ...state.bluffs };
+      for (const i of pending) delete bluffs[i];
+      const t = egTimedOut(state.timedOut);
+      return { ...state, rejected: false, bluffs, timedOut: { ...t, bluff: egUnion(t.bluff, pending) } };
+    }
+
+    case "timeoutDecoys":
+      // GM ran out of time composing. Whatever they typed stands; the gate opens
+      // regardless, which is the same settled state a manual "done" produces (E8).
+      return { ...state, rejected: false, decoys: action.decoys ?? state.decoys ?? [], gmDecoyDone: true };
+
+    case "timeoutVotes": {
+      // Vote window closed. A missing vote is simply absent from `votes`, which
+      // scoreRound already handles — including flipping gmStole if the only
+      // truth-voter was the one who timed out (R9).
+      const pending = action.players
+        ?? votersExpected({ players: state.players, gm: state.gm, timedOut: state.timedOut })
+             .filter((i) => !(i in state.votes));
+      const votes = { ...state.votes };
+      for (const i of pending) delete votes[i];
+      const t = egTimedOut(state.timedOut);
+      return { ...state, rejected: false, votes, timedOut: { ...t, vote: egUnion(t.vote, pending) } };
     }
 
     case "gmDecoysDone":
@@ -1082,6 +1164,7 @@ function dispatch(state, action) {
     case "castVote": {
       if (action.player === state.gm) return { ...state, rejected: true }; // the GM never votes
       if (state.players[action.player]?.dropped) return { ...state, rejected: true };
+      if (egTimedOut(state.timedOut).vote.includes(action.player)) return { ...state, rejected: true }; // window closed
       const visible = visibleOptionsFor(state.options ?? [], action.player);
       if (!visible.some((o) => o.id === action.option)) return { ...state, rejected: true };
       return { ...state, rejected: false, votes: { ...state.votes, [action.player]: action.option } };
@@ -1128,7 +1211,163 @@ function dispatch(state, action) {
   }
 }
 
-const selectors = { activeBluffers, allBluffsIn, canOpenVote, allVotesIn, visibleOptionsFor };
+const selectors = {
+  activeBluffers, allBluffsIn, canOpenVote, allVotesIn, visibleOptionsFor,
+  bluffersExpected, votersExpected, readyToOpenVote,
+};
+
+
+/* ===== clock.js ===== */
+// clock.js — phase deadlines for the browser build (PRD §5.2a). Segment 5.
+//
+// The engine has no clock and never will (LANES.md contract 1). This module
+// decides WHEN; the engine then receives an ordinary action it cannot tell
+// apart from a player acting. That split is why every timeout rule is provable
+// by a vector with no timing in it.
+//
+// Everything here is built around ONE number: an absolute epoch-ms deadline.
+// "45 seconds left" cannot survive a network hop — by the time it arrives it is
+// a lie. "Expires at 1774400045000" is still true on every device, so the host
+// broadcasts the deadline and each client derives its own display from it.
+//
+// NO DOM in this file. The per-second repaint is a callback the caller supplies,
+// because ui.js must update surgically — a full render() would wipe the bluff
+// textarea 60 times a minute. Keeping the DOM out also means the whole module
+// runs under `node --test` with no browser.
+//
+// BUNDLE NOTE: Tools/build-standalone.mjs concatenates every Lab module into
+// ONE IIFE, so module-private names here become top-level names shared with
+// every other module. state.js already owns `timers`, `later` and `clearTimers`
+// — this file must never declare those. Private names are prefixed `ck`.
+// (Lab/js/online.test.mjs asserts this, so the rule cannot rot silently.)
+
+const TIMERS = Object.freeze({
+  // Phase lengths in ms. The host picks one per phase at game setup; three
+  // choices each so screen 06 reuses the existing `.seg` control rather than
+  // inventing a slider. Defaults are PRD §5.2a.
+  BLUFF: Object.freeze({ choices: [30000, 60000, 120000], default: 60000 }),
+  DECOY: Object.freeze({ choices: [30000, 45000, 90000], default: 45000 }),
+  VOTE: Object.freeze({ choices: [30000, 45000, 90000], default: 45000 }),
+  REVEAL: Object.freeze({ choices: [15000, 25000, 45000], default: 25000 }),
+
+  TICK_MS: 250,        // 4 Hz so the last second never visibly stutters — but the
+                       // DOM is only touched when the displayed integer changes.
+  WARN_MS: 10000,      // ring → turnYellow, and one VoiceOver announcement
+  URGENT_MS: 5000,     // ring → bluffPink and goes hollow (never colour alone)
+  SKEW_CLAMP_MS: 5000, // a peer whose clock is wilder than this gets no say
+  GRACE_MS: 400,       // someone who tapped at 0:00.1 experienced making it
+});
+
+// Bot pacing lives in bots.js TUNING; phase deadlines live here. Two blocks
+// because they answer to different masters — see LANES.md contract 5.
+
+// The `timers` slice of G. Defaults OFF: hotseat passes one phone and paces
+// itself, and C6 wires the clock in before C7 turns it on anywhere.
+const defaultTimers = () => ({
+  on: false,
+  bluffMs: TIMERS.BLUFF.default,
+  decoyMs: TIMERS.DECOY.default,
+  voteMs: TIMERS.VOTE.default,
+  revealMs: TIMERS.REVEAL.default,
+});
+
+// A deadline is a fact about the round, not a countdown. It rides the host's
+// broadcast unchanged; `round` and `phase` let a late-arriving expiry prove it
+// still refers to the situation it was armed for.
+function clockDeadline(phase, ms, round, now = Date.now()) {
+  return { at: now + ms, phase, round, totalMs: ms };
+}
+
+// ms remaining, clamped at 0. Pure.
+function clockLeft(deadline, skewMs = 0, now = Date.now()) {
+  if (!deadline?.at) return null;
+  return Math.max(0, deadline.at - (now + skewMs));
+}
+
+// What the player is shown. Ceil, so "1" means "you still have time".
+const clockSeconds = (leftMs) => (leftMs === null ? null : Math.ceil(leftMs / 1000));
+
+function clockLevel(leftMs) {
+  if (leftMs === null) return null;
+  if (leftMs <= TIMERS.URGENT_MS) return "urgent";
+  if (leftMs <= TIMERS.WARN_MS) return "warn";
+  return "calm";
+}
+
+// Fraction still to run, 1 → 0. Drives the conic-gradient ring.
+function clockFraction(deadline, skewMs = 0, now = Date.now()) {
+  const left = clockLeft(deadline, skewMs, now);
+  if (left === null || !deadline.totalMs) return null;
+  return Math.max(0, Math.min(1, left / deadline.totalMs));
+}
+
+// Is an arriving submission late? The grace window exists because a player who
+// tapped as the ring emptied experienced sending it in time, and a party game
+// should resolve that in the player's favour.
+function clockExpired(deadline, skewMs = 0, now = Date.now()) {
+  if (!deadline?.at) return false;
+  return now + skewMs > deadline.at + TIMERS.GRACE_MS;
+}
+
+// Offset between this device's clock and the host's, from the timestamp on
+// every broadcast. Clamped, and cosmetic by construction: clients never fire
+// expiry, so a bad clock can skew a display but never a rule.
+function clockSkew(hostNowMs, localNowMs = Date.now(), halfRttMs = 0) {
+  const raw = hostNowMs + halfRttMs - localNowMs;
+  return Math.max(-TIMERS.SKEW_CLAMP_MS, Math.min(TIMERS.SKEW_CLAMP_MS, raw));
+}
+
+// -- the single interval ------------------------------------------------------
+// One timer for the whole app, and it is idempotent: clockArm always clears
+// first, so a double-arm can never leave two intervals racing.
+
+let ckHandle = null;
+let ckArmed = null;
+let ckShown = -1;
+
+const clockArmed = () => ckArmed;
+
+/**
+ * Arm the phase clock.
+ * @param at        absolute epoch ms (from clockDeadline)
+ * @param onTick    (leftMs, level) — called only when the displayed second
+ *                  changes. This is where the caller does its surgical DOM
+ *                  write; it must never trigger a full re-render.
+ * @param onExpire  fired once at 0:00. **Pass null unless you are the host.**
+ *                  Clients paint and nothing else, which is what makes
+ *                  double-advance structurally impossible rather than a race
+ *                  we hope to win.
+ */
+function clockArm({ at, phase, round, totalMs, skewMs = 0, onTick = null, onExpire = null }) {
+  clockClear();
+  ckArmed = { at, phase, round, totalMs, skewMs, onTick, onExpire };
+  ckShown = -1;
+  ckTick();                                   // paint now, don't wait 250 ms
+  if (ckArmed) ckHandle = setInterval(ckTick, TIMERS.TICK_MS);
+  return ckArmed;
+}
+
+function clockClear() {
+  if (ckHandle !== null) { clearInterval(ckHandle); ckHandle = null; }
+  ckArmed = null;
+  ckShown = -1;
+}
+
+function ckTick() {
+  const a = ckArmed;
+  if (!a) return;
+  const left = clockLeft({ at: a.at }, a.skewMs);
+  const secs = clockSeconds(left);
+  if (secs !== ckShown) {
+    ckShown = secs;
+    a.onTick?.(left, clockLevel(left));
+  }
+  if (left <= 0) {
+    const fire = a.onExpire;
+    clockClear();          // clear BEFORE firing — onExpire usually re-arms us
+    fire?.();
+  }
+}
 
 
 /* ===== bots.js ===== */
