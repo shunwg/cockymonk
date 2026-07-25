@@ -1,16 +1,16 @@
 # TEAM.md — fire generalister, ett spill
 
-Kort versjon: **prosjektet er delt i 7 segmenter. Alle kan jobbe med alt — men én gren jobber i ett segment, og hvert segment har sin egen port (test) som må være grønn før merge.** Alt visuelt refereres med skjermnummer 01–18.
+Kort versjon: **prosjektet er delt i 7 segmenter. Alle kan jobbe med alt — men én gren jobber i ett segment, og hvert segment har sin egen port (test) som må være grønn før merge.** Alt visuelt refereres med skjermnummer 01–23.
 
 ## Kartet — de 7 segmentene
 
 | # | Segment | Der bor det | Porten (kjør før merge) | Skjermer |
 |---|---|---|---|---|
 | 1 | **Design-system** — farger, fonter, motion, logo | `DesignSystem/tokens.json` (eneste kilde — css/Swift genereres) | `node Tools/tokens-build.mjs --check` | alle |
-| 2 | **Skjermer** — hver skjerms utseende og oppførsel | `Lab/js/ui.js` + `Lab/css/screens.css`/`components.css` + `Lab/js/fixtures.js` | `node --test Lab/js/fixtures.test.mjs` + sjekk galleriet | 01–18 |
+| 2 | **Skjermer** — hver skjerms utseende og oppførsel | `Lab/js/ui.js` + `Lab/css/screens.css`/`components.css` + `Lab/js/fixtures.js` | `node --test Lab/js/fixtures.test.mjs` + sjekk galleriet | 01–23 |
 | 3 | **Regler & poeng** — motoren | `Lab/js/engine.js` + `Tools/engine-vectors.json` (autoriteten) | `node --test Lab/js/engine.test.mjs` | 13–16 |
 | 4 | **Ordlister** — kort og bot-løgner, nb + en | `Resources/deck_*.json` + `Content/` (kun via `/newcards`) | `node Tools/validate_deck.mjs --all` | 08–11 |
-| 5 | **Online & poengliste** — KUN spesifikasjon i v1 | `Specs/ONLINE-PLAY.md` | les FREMTID-banneret før du drømmer | 10 |
+| 5 | **Nett, frister & rating** — spill med venner over nett | `Lab/js/net.js` + `clock.js` + `rating.js` + `Specs/ONLINE-PLAY.md` | `node --test Lab/js/online.test.mjs` | 19–23 |
 | 6 | **Brettet & temaer** — Salongen/Fjellet/Verdensrommet | `Lab/js/themes.js` + `Lab/css/themes.css` + `Resources/Lottie/` | motor-vektorene + en runde i browseren | 14 |
 | 7 | **Spillflyt & opplevelse** — pacing, lyd, feiringer | `Lab/js/bots.js` (TUNING) + `audio.js` + `lottie.js` + `Specs/FLOW.md` | motor-vektorene + en runde i browseren | 07–16 |
 
@@ -18,7 +18,7 @@ Dybde per segment: poengreglene svart på hvitt i `Specs/SCORING.md` (generert �
 
 ## Skjermspråket — si «endre 07»
 
-Alle 18 skjermer har permanent nummer. «Nesen overlapper navnet på 13» er en komplett feilrapport — alle (og Claude) vet nøyaktig hvor det er.
+Alle 23 skjermer har permanent nummer. «Nesen overlapper navnet på 13» er en komplett feilrapport — alle (og Claude) vet nøyaktig hvor det er.
 
 - **Se alt:** `node Tools/serve-lab.mjs` → <http://localhost:8787/Lab/gallery.html> (eller dobbeltklikk `Open Screen Gallery.cmd`)
 - **Én skjerm:** `…/Lab/index.html?fixture=07` — også `dist/CockyMonk.html?fixture=07` rett fra disk
