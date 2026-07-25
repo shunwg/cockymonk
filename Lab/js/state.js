@@ -58,7 +58,16 @@ export const STR = {
     aboutTitle: "Om Cocky Monk",
     aboutBlurb: "Et selskapsspill om å lyve med stil. Dere lager moroa rundt bordet — appen holder bare i nesen.",
     aboutCredits: "Skrifter og lyder: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "Vi samler ikke inn data. Punktum.",
+    // Honest, not reassuring: the moment a profile is persisted, "vi lagrer
+    // ingenting" is an over-claim. PRD §10 / ONLINE-PLAY.md «den ærlige linja».
+    aboutPrivacy: "Ingen server ser spillet ditt. Profilen din — navn, rating og nesetelling — ligger kun i denne nettleseren, og du kan slette den når som helst.",
+    homeProfile: "Profilen din",
+    profileTitle: "Profilen din", profileGames: "Spill", profileWins: "Seire",
+    profileNose: "Neser sanket", profileLast: "Siste spill",
+    profileBest: (n) => `Toppnotering: ${n}`,
+    profileWipe: "Slett profilen", back: "Tilbake",
+    profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -116,7 +125,15 @@ export const STR = {
     aboutTitle: "About Cocky Monk",
     aboutBlurb: "A party game about lying with style. You make the fun around the table — the app just holds the nose.",
     aboutCredits: "Fonts and audio: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "We collect no data. Full stop.",
+    // Honest, not reassuring — see the nb note above.
+    aboutPrivacy: "No server sees your game. Your profile — name, rating and nose count — lives only in this browser, and you can delete it whenever you like.",
+    homeProfile: "Your profile",
+    profileTitle: "Your profile", profileGames: "Games", profileWins: "Wins",
+    profileNose: "Noses collected", profileLast: "Recent games",
+    profileBest: (n) => `Personal best: ${n}`,
+    profileWipe: "Delete profile", back: "Back",
+    profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
   },
 };
 

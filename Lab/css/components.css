@@ -25,6 +25,15 @@
    DESIGN.md §9, nothing by colour alone: the numeral counts down, and at
    urgent the ring thins to a hollow outline. Both survive Reduced Motion,
    where base.css kills the transition and the ring simply snaps. */
+/* Career rating badge (PRD §2.1) — quiet by design; the Nose and the Board
+   own the drama (DESIGN.md §5 boldness budget). */
+.ratingpill {
+  display: inline-block; margin-left: 6px; padding: 2px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--color-text-secondary);
+  color: var(--color-text-secondary); font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Announced, never drawn — the countdown's VoiceOver channel. */
 .sr-live {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

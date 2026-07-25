@@ -16,6 +16,10 @@ import {
   clockLevel, clockFraction,
 } from "./clock.js";
 import {
+  RATING, ratingDeltas, ratingApply, ratingLoad, ratingSave, ratingReset,
+  ratingNoseCap, ratingTier,
+} from "./rating.js";
+import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
 import { getFixture } from "./fixtures.js";
@@ -24,6 +28,7 @@ import { getFixture } from "./fixtures.js";
 let U = freshUi();       // screen flow (Lane B)
 let G = null;            // game data — mutated ONLY with engine.js results
 let CONTENT = { deck: null, fakes: null }; // fetched real content, if served over http
+let PROFILE = null;      // this device's career (rating.js); loaded once at boot
 let lastScreen = null;   // gate the entrance animation to REAL screen changes (not surgical re-renders)
 
 const t = (k, ...a) => { const v = STR[U.lang][k]; return typeof v === "function" ? v(...a) : v; };
@@ -269,6 +274,7 @@ SCREENS.HOME = () => {
    <div style="flex:1"></div>
    <button class="btn" id="hnew">${t("homeNewGame")}</button>
    <button class="btn secondary" id="hrules">${t("homeHowTo")}</button>
+   <button class="linkbtn" id="hprofile">${t("homeProfile")} ${ratingPill()}</button>
    <button class="linkbtn" id="habout">${t("homeAbout")}</button>`);
   app.querySelectorAll("[data-lang]").forEach((b) => b.onclick = () => {
     if (U.lang === b.dataset.lang) return;
@@ -276,6 +282,7 @@ SCREENS.HOME = () => {
   });
   document.getElementById("hnew").onclick = () => { play("confirm"); loadContent(U.lang); U.screen = "MODE"; render(); };
   document.getElementById("hrules").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "RULES"; render(); };
+  document.getElementById("hprofile").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "PROFILE"; render(); };
   document.getElementById("habout").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "ABOUT"; render(); };
 };
 
@@ -1080,8 +1087,10 @@ SCREENS.WINNER = () => {
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
         <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+     ${G.ratingMine === undefined ? "" : `<p class="small" style="margin-top:10px">${t("ratingDelta", G.ratingMine)} → ${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</p>`}
    </div>
    <button class="btn" id="replay">${t("playAgain")}</button>`);
+  settleRating();
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
@@ -1099,6 +1108,68 @@ SCREENS.WINNER = () => {
     U = Object.assign(freshUi(), keep, { screen: "SETUP" });
     render();
   };
+};
+
+/* ---------- career rating (PRD §2.1) ---------- */
+
+// Once per game, on the winner screen. Guarded by G.ratingDone, the same idempotency
+// pattern G.celebrated already uses — the topbar (mute/theme) re-renders this screen.
+// Online (C13) replaces the local apply with the host's broadcast; the maths and the
+// clamp are identical either way, because the host is just another browser.
+function settleRating() {
+  if (!G || G.ratingDone) return;
+  G.ratingDone = true;
+  const deltas = ratingDeltas(G.players.map((p, i) => ({
+    pid: p.pid,
+    rating: p.pid === U.myPid ? PROFILE.rating : RATING.START,
+    games: p.pid === U.myPid ? PROFILE.games : 0,
+    score: p.score,
+    isBot: p.kind === "bot",
+  })));
+  const mine = deltas[U.myPid];
+  if (mine === undefined) return;      // solo vs bots — nothing to settle
+  G.ratingMine = mine;                 // shown on the winner screen
+  const seat = mySeat();
+  PROFILE = ratingApply(PROFILE, mine, {
+    nose: Math.min(G.players[seat]?.bluffVotes ?? 0, ratingNoseCap(G.players.length, G.round)),
+    won: (G.winnersIdx ?? []).includes(seat),
+  });
+  ratingSave(PROFILE);
+}
+
+const ratingPill = () =>
+  `<span class="ratingpill">${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</span>`;
+
+SCREENS.PROFILE = () => {
+  const p = PROFILE;
+  const last = [...(p.history ?? [])].reverse().slice(0, 10);
+  shell(`
+   <h2>${t("profileTitle")}</h2>
+   <div class="card" style="text-align:center">
+     <div class="word" style="font-size:44px">${p.rating}</div>
+     <p class="sub" style="margin:2px 0 0">${esc(ratingTier(p.rating, U.lang))}</p>
+     <p class="small">${t("profileBest", p.best)}</p>
+   </div>
+   <div class="card">
+     <div class="scoreline"><span>${t("profileGames")}</span><span>${p.games}</span></div>
+     <div class="scoreline"><span>${t("profileWins")}</span><span>${p.wins}</span></div>
+     <div class="scoreline"><span>${t("profileNose")}</span><span>👃 ${p.nose}</span></div>
+   </div>
+   ${last.length ? `<div class="card"><b>${t("profileLast")}</b>
+     <div class="chiprow" style="margin-top:8px">${last.map((h) => `
+       <span class="pchip ${h.d >= 0 ? "done" : ""}">${h.d >= 0 ? "+" : ""}${h.d}</span>`).join("")}</div></div>` : ""}
+   <p class="small">${t("profilePrivacy")}</p>
+   <div style="flex:1"></div>
+   <button class="btn secondary" id="wipeprofile">${t("profileWipe")}</button>
+   <button class="linkbtn" id="profback">${t("back")}</button>`);
+  document.getElementById("wipeprofile").onclick = () => {
+    // Deliberately destructive and deliberately one tap: the moment we persist
+    // an identifier, an easy way to erase it stops being a nicety (PRD §10).
+    PROFILE = ratingReset();
+    U.myPid = PROFILE.pid;
+    play("error"); render();
+  };
+  document.getElementById("profback").onclick = () => { U.screen = U.rulesReturn; play("back"); render(); };
 };
 
 /* ---------- showmanship helpers (RM-guarded) ---------- */
@@ -1136,8 +1207,10 @@ const bootFx = getFixture(
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
 if (bootFx) { U = bootFx.u; G = bootFx.g; }
-// One id for this device, minted before the first render. C8 replaces this with
-// the persisted profile's pid so a rating survives a reload; until then it just
-// has to be stable for the session, and identify seat 0 so mySeat() returns 0.
-U.myPid ??= newPid();
+// The career profile is the source of this device's identity: its pid outlives
+// reloads, which is what lets a rating mean anything. newPid() stays as the
+// fallback for a browser that refuses storage entirely.
+PROFILE = ratingLoad();
+U.myPid = PROFILE.pid ?? newPid();
+if (PROFILE.name) U.uname = PROFILE.name;
 render();

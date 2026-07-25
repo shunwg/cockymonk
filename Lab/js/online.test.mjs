@@ -11,6 +11,10 @@ import {
   TIMERS, defaultTimers, clockDeadline, clockLeft, clockSeconds, clockLevel,
   clockFraction, clockExpired, clockSkew, clockArm, clockClear, clockArmed,
 } from "./clock.js";
+import {
+  RATING, ratingDeltas, ratingExpected, ratingApply, ratingFresh, ratingLoad,
+  ratingSave, ratingReset, ratingNoseCap, ratingTier,
+} from "./rating.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -144,6 +148,126 @@ test("clockClear stops a running clock dead", async () => {
   clockClear();
   await sleep(600);
   assert.equal(expired, 0);
+});
+
+// -- rating (PRD §2.1) --------------------------------------------------------
+
+const rated = (pid, rating, score, games = 50) => ({ pid, rating, score, games, isBot: false });
+
+test("beating a higher-rated player is worth more — the whole point", () => {
+  // Same win, different opponent strength.
+  const vsStrong = ratingDeltas([rated("me", 1000, 20), rated("them", 1600, 10)]);
+  const vsWeak = ratingDeltas([rated("me", 1000, 20), rated("them", 400, 10)]);
+  assert.ok(vsStrong.me > vsWeak.me, `${vsStrong.me} should beat ${vsWeak.me}`);
+  assert.ok(vsWeak.me >= 0, "beating a weaker player is never a penalty");
+});
+
+test("losing to a stronger player costs less than losing to a weaker one", () => {
+  const toStrong = ratingDeltas([rated("me", 1000, 5), rated("them", 1600, 20)]);
+  const toWeak = ratingDeltas([rated("me", 1000, 5), rated("them", 400, 20)]);
+  assert.ok(toStrong.me > toWeak.me, "an upset loss should hurt more");
+  assert.ok(toWeak.me < 0);
+});
+
+test("equal ratings, equal scores → nobody moves", () => {
+  const d = ratingDeltas([rated("a", 1200, 12), rated("b", 1200, 12), rated("c", 1200, 12)]);
+  assert.deepEqual(Object.values(d), [0, 0, 0]);
+});
+
+test("an 8-player swing stays comparable to a 3-player one", () => {
+  const mk = (n) => Array.from({ length: n }, (_, i) => rated(`p${i}`, 1000, n - i));
+  const three = ratingDeltas(mk(3));
+  const eight = ratingDeltas(mk(8));
+  // Winner of each. Without the /(N-1) normalisation the 8-player winner would
+  // gain ~3.5x as much for the same achievement.
+  assert.ok(Math.abs(eight.p0 - three.p0) <= 6, `3p ${three.p0} vs 8p ${eight.p0}`);
+});
+
+test("provisional players move faster than settled ones", () => {
+  const newbie = ratingDeltas([rated("me", 1000, 20, 0), rated("them", 1000, 10, 0)]);
+  const veteran = ratingDeltas([rated("me", 1000, 20, 99), rated("them", 1000, 10, 99)]);
+  assert.ok(newbie.me > veteran.me, `${newbie.me} vs ${veteran.me}`);
+});
+
+test("bots and solo games are worth nothing — practice cannot be farmed", () => {
+  const withBots = ratingDeltas([
+    rated("me", 1000, 20),
+    { pid: "bot:1", rating: 1000, score: 5, games: 0, isBot: true },
+    { pid: "bot:2", rating: 1000, score: 3, games: 0, isBot: true },
+  ]);
+  assert.deepEqual(withBots, {}, "one rated human is not a rated game");
+  assert.deepEqual(ratingDeltas([]), {});
+  assert.deepEqual(ratingDeltas([rated("solo", 1000, 9)]), {});
+});
+
+test("no delta ever exceeds MAX_DELTA, however lopsided", () => {
+  const d = ratingDeltas([rated("me", 100, 99, 0), rated("them", 2800, 0, 0)]);
+  for (const v of Object.values(d)) assert.ok(Math.abs(v) <= RATING.MAX_DELTA, `${v}`);
+});
+
+test("ratingApply clamps a hostile delta and never drops below the floor", () => {
+  const p = ratingFresh("Åse");
+  const cheated = ratingApply(p, 99999, { nose: 3, won: true });
+  assert.equal(cheated.rating, RATING.START + RATING.MAX_DELTA, "clamped on receipt");
+  assert.equal(cheated.games, 1);
+  assert.equal(cheated.wins, 1);
+  assert.equal(cheated.nose, 3);
+  let low = { ...ratingFresh(), rating: RATING.FLOOR + 5 };
+  low = ratingApply(low, -500);
+  assert.equal(low.rating, RATING.FLOOR, "floored, not negative");
+});
+
+test("history is bounded and best is a high-water mark", () => {
+  let p = ratingFresh();
+  for (let i = 0; i < RATING.HISTORY_MAX + 12; i++) p = ratingApply(p, 5);
+  assert.equal(p.history.length, RATING.HISTORY_MAX);
+  const peak = p.best;
+  p = ratingApply(p, -40);
+  assert.equal(p.best, peak, "best does not fall back");
+});
+
+test("nose cap is the most anyone could honestly have collected", () => {
+  assert.equal(ratingNoseCap(4, 6), 18);   // 3 opponents x 6 rounds
+  assert.equal(ratingNoseCap(1, 6), 0);
+  assert.equal(ratingNoseCap(4, 0), 0);
+});
+
+test("a corrupt or absent profile reseeds instead of throwing", () => {
+  const store = {};
+  const orig = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => store[k] ?? null,
+    setItem: (k, v) => { store[k] = v; },
+    removeItem: (k) => { delete store[k]; },
+  };
+  try {
+    assert.equal(ratingLoad().rating, RATING.START, "absent → fresh");
+    store[RATING.KEY] = "{ not json";
+    assert.equal(ratingLoad().rating, RATING.START, "corrupt → fresh");
+    store[RATING.KEY] = JSON.stringify({ v: 99, pid: "x", rating: 9999, name: "Åse" });
+    const migrated = ratingLoad();
+    assert.equal(migrated.rating, RATING.START, "unknown version → reseeded, not half-read");
+    assert.equal(migrated.name, "Åse", "but the name is worth keeping");
+
+    const saved = ratingApply(ratingFresh("Bo"), 12);
+    ratingSave(saved);
+    assert.equal(ratingLoad().rating, saved.rating, "round-trips");
+    assert.equal(ratingReset().games, 0, "reset wipes the career");
+  } finally { globalThis.localStorage = orig; }
+});
+
+test("storage that throws is survivable — never break the boot", () => {
+  const orig = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem() { throw new Error("SecurityError"); },
+    setItem() { throw new Error("QuotaExceeded"); },
+    removeItem() { throw new Error("nope"); },
+  };
+  try {
+    assert.equal(ratingLoad().rating, RATING.START);
+    assert.equal(ratingSave(ratingFresh()), false, "reports failure, doesn't throw");
+    assert.equal(ratingReset().games, 0);
+  } finally { globalThis.localStorage = orig; }
 });
 
 // -- bundle safety ------------------------------------------------------------

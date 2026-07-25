@@ -195,6 +195,12 @@ export const FIXTURES = [
 
   { id: "18", screen: "ABOUT", name: "Om",
     make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
+
+  // 19+ are the numbers added by the v1.1 work (PRD §2.1). PROFILE renders from
+  // the live career profile in ui.js rather than from `u`, because a career
+  // outlives any single game — under snap-screens that is always a fresh 1000.
+  { id: "19", screen: "PROFILE", name: "Profilen din",
+    make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
 ];
 
 // Resolve a fixture id ("07") to boot-ready state, or null for unknown/absent ids.

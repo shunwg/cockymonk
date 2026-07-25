@@ -334,6 +334,15 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
    DESIGN.md §9, nothing by colour alone: the numeral counts down, and at
    urgent the ring thins to a hollow outline. Both survive Reduced Motion,
    where base.css kills the transition and the ring simply snaps. */
+/* Career rating badge (PRD §2.1) — quiet by design; the Nose and the Board
+   own the drama (DESIGN.md §5 boldness budget). */
+.ratingpill {
+  display: inline-block; margin-left: 6px; padding: 2px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--color-text-secondary);
+  color: var(--color-text-secondary); font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Announced, never drawn — the countdown's VoiceOver channel. */
 .sr-live {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -806,7 +815,16 @@ const STR = {
     aboutTitle: "Om Cocky Monk",
     aboutBlurb: "Et selskapsspill om å lyve med stil. Dere lager moroa rundt bordet — appen holder bare i nesen.",
     aboutCredits: "Skrifter og lyder: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "Vi samler ikke inn data. Punktum.",
+    // Honest, not reassuring: the moment a profile is persisted, "vi lagrer
+    // ingenting" is an over-claim. PRD §10 / ONLINE-PLAY.md «den ærlige linja».
+    aboutPrivacy: "Ingen server ser spillet ditt. Profilen din — navn, rating og nesetelling — ligger kun i denne nettleseren, og du kan slette den når som helst.",
+    homeProfile: "Profilen din",
+    profileTitle: "Profilen din", profileGames: "Spill", profileWins: "Seire",
+    profileNose: "Neser sanket", profileLast: "Siste spill",
+    profileBest: (n) => `Toppnotering: ${n}`,
+    profileWipe: "Slett profilen", back: "Tilbake",
+    profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -864,7 +882,15 @@ const STR = {
     aboutTitle: "About Cocky Monk",
     aboutBlurb: "A party game about lying with style. You make the fun around the table — the app just holds the nose.",
     aboutCredits: "Fonts and audio: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "We collect no data. Full stop.",
+    // Honest, not reassuring — see the nb note above.
+    aboutPrivacy: "No server sees your game. Your profile — name, rating and nose count — lives only in this browser, and you can delete it whenever you like.",
+    homeProfile: "Your profile",
+    profileTitle: "Your profile", profileGames: "Games", profileWins: "Wins",
+    profileNose: "Noses collected", profileLast: "Recent games",
+    profileBest: (n) => `Personal best: ${n}`,
+    profileWipe: "Delete profile", back: "Back",
+    profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
   },
 };
 
@@ -1435,6 +1461,171 @@ function ckTick() {
 }
 
 
+/* ===== rating.js ===== */
+// rating.js — the career rating (PRD §2.1). Segment 5.
+//
+// Pairwise-decomposed Elo, the standard adaptation of a two-player system to an
+// N-player free-for-all: score each pair independently, then divide by (N−1) so
+// an eight-player game swings about as much as a three-player one. Beating
+// someone rated above you is worth more, by construction rather than by a bonus
+// rule — that falls straight out of (S − E) per pair.
+//
+// Deliberately NOT TrueSkill or Glicko: both are better models, both need
+// priors or a variance term to explain, and neither is worth it for a party
+// game whose stake is bragging rights. This fits in a paragraph a player will
+// actually read.
+//
+// No DOM, no network, no imports. The only side effect is one localStorage key,
+// and every touch of it is wrapped — Safari in private mode throws on setItem,
+// and a profile must never be able to break the boot.
+//
+// BUNDLE NOTE: concatenated into one IIFE with every other module, so all
+// internals are prefixed `rt` (see Tools/build-standalone.mjs).
+
+const RATING = Object.freeze({
+  START: 1000,
+  FLOOR: 100,          // you can slump, but the number stays a number
+  MAX_DELTA: 64,       // also the clamp applied to anything arriving over the wire
+  SCALE: 400,          // the classic Elo constant: 400 pts ≈ 10:1 odds
+  K_NEW: 40,           // first 10 games — a provisional rating should move fast
+  K_MID: 24,           // to 30 games
+  K_SET: 16,           // settled
+  PROVISIONAL_GAMES: 10,
+  SETTLED_GAMES: 30,
+  KEY: "cockymonk.profile.v1",
+  VERSION: 1,
+  HISTORY_MAX: 20,
+});
+
+// Tiers are flavour, not mechanics — the number is the truth. Named for noses
+// because that is what the game is about (Gullnesen, PRD §5.3).
+const rtTIERS = [
+  { min: 1600, nb: "Mestermøller", en: "Master liar" },
+  { min: 1400, nb: "Storløgner", en: "Grand fibber" },
+  { min: 1200, nb: "Rutinert", en: "Seasoned" },
+  { min: 1000, nb: "Habil", en: "Capable" },
+  { min: 800, nb: "Ærlig sjel", en: "Honest soul" },
+  { min: 0, nb: "Blank nese", en: "Blank nose" },
+];
+const ratingTier = (r, lang = "nb") =>
+  (rtTIERS.find((x) => r >= x.min) ?? rtTIERS[rtTIERS.length - 1])[lang];
+
+function ratingK(games) {
+  if (games < RATING.PROVISIONAL_GAMES) return RATING.K_NEW;
+  if (games < RATING.SETTLED_GAMES) return RATING.K_MID;
+  return RATING.K_SET;
+}
+
+// Expected score for A against B. 0.5 at equal rating, → 1 as A pulls ahead.
+const ratingExpected = (ra, rb) => 1 / (1 + 10 ** ((rb - ra) / RATING.SCALE));
+
+const ratingNewPid = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/**
+ * Rating changes for one finished game.
+ * @param players [{pid, rating, games, score, isBot}] — final scores.
+ * @returns {pid: delta} for RATED players only, or {} if the game doesn't count.
+ *
+ * Two games deliberately count for nothing:
+ *   · fewer than two rated humans — you cannot farm a rating off bots;
+ *   · any game that never reached a winner — a friend whose battery dies
+ *     should not be punished for it, and neither should the room.
+ */
+function ratingDeltas(players) {
+  const rated = players.filter((p) => p && !p.isBot && p.pid);
+  if (rated.length < 2) return {};
+
+  const out = {};
+  for (const a of rated) {
+    let sum = 0;
+    for (const b of rated) {
+      if (a === b) continue;
+      const actual = a.score > b.score ? 1 : a.score === b.score ? 0.5 : 0;
+      sum += actual - ratingExpected(a.rating ?? RATING.START, b.rating ?? RATING.START);
+    }
+    const raw = ratingK(a.games ?? 0) * (sum / (rated.length - 1));
+    out[a.pid] = rtClampDelta(Math.round(raw));
+  }
+  return out;
+}
+
+const rtClampDelta = (d) => Math.max(-RATING.MAX_DELTA, Math.min(RATING.MAX_DELTA, d));
+
+// Applied to a delta arriving from the host. The host computed it, but a host
+// is just another player's browser — so the clamp is re-applied on receipt.
+// This is the honest bar Specs/ONLINE-PLAY.md sets: make it not-embarrassingly-
+// easy, don't pretend a party game has server-grade anti-cheat.
+function ratingApply(profile, delta, { nose = 0, won = false } = {}) {
+  const d = rtClampDelta(Math.round(Number(delta) || 0));
+  const rating = Math.max(RATING.FLOOR, (profile.rating ?? RATING.START) + d);
+  const history = [
+    ...(profile.history ?? []),
+    { d, r: rating, n: Math.max(0, Math.round(Number(nose) || 0)) },
+  ].slice(-RATING.HISTORY_MAX);
+  return {
+    ...profile,
+    rating,
+    games: (profile.games ?? 0) + 1,
+    wins: (profile.wins ?? 0) + (won ? 1 : 0),
+    nose: (profile.nose ?? 0) + Math.max(0, Math.round(Number(nose) || 0)),
+    best: Math.max(profile.best ?? RATING.START, rating),
+    history,
+  };
+}
+
+// Career nose count has a ceiling per game: every other player can vote for you
+// at most once per round. Anything above that didn't happen.
+const ratingNoseCap = (playerCount, rounds) =>
+  Math.max(0, (playerCount - 1) * Math.max(0, rounds));
+
+// -- storage ------------------------------------------------------------------
+// Every read and write is total: a corrupt or unavailable store yields a fresh
+// profile rather than an exception, because nothing here is worth a broken boot.
+
+function ratingFresh(name = "") {
+  return {
+    v: RATING.VERSION,
+    pid: ratingNewPid(),
+    name,
+    rating: RATING.START,
+    games: 0,
+    wins: 0,
+    nose: 0,
+    best: RATING.START,
+    history: [],
+  };
+}
+
+function ratingLoad() {
+  let raw = null;
+  try { raw = globalThis.localStorage?.getItem(RATING.KEY) ?? null; } catch { /* blocked */ }
+  if (!raw) return ratingFresh();
+  try {
+    const p = JSON.parse(raw);
+    if (!p || typeof p !== "object" || !p.pid) return ratingFresh();
+    // Version switch, not a silent merge: a future v2 gets a real migration
+    // here, and anything unrecognised is reseeded rather than half-read.
+    if (p.v !== RATING.VERSION) return ratingFresh(typeof p.name === "string" ? p.name : "");
+    return { ...ratingFresh(p.name), ...p, v: RATING.VERSION };
+  } catch { return ratingFresh(); }
+}
+
+function ratingSave(profile) {
+  try {
+    globalThis.localStorage?.setItem(RATING.KEY, JSON.stringify({ ...profile, v: RATING.VERSION }));
+    return true;
+  } catch { return false; }   // private mode, quota, disabled storage — all survivable
+}
+
+function ratingReset(name = "") {
+  try { globalThis.localStorage?.removeItem(RATING.KEY); } catch { /* nothing to undo */ }
+  const fresh = ratingFresh(name);
+  ratingSave(fresh);
+  return fresh;
+}
+
+
 /* ===== bots.js ===== */
 // bots.js — BotBrain for practice mode. Lane A owns this file.
 // CLAUDE.md rule: ALL bot tuning constants live in this one block, never inline.
@@ -1920,6 +2111,12 @@ const FIXTURES = [
 
   { id: "18", screen: "ABOUT", name: "Om",
     make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
+
+  // 19+ are the numbers added by the v1.1 work (PRD §2.1). PROFILE renders from
+  // the live career profile in ui.js rather than from `u`, because a career
+  // outlives any single game — under snap-screens that is always a fresh 1000.
+  { id: "19", screen: "PROFILE", name: "Profilen din",
+    make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
 ];
 
 // Resolve a fixture id ("07") to boot-ready state, or null for unknown/absent ids.
@@ -1945,10 +2142,12 @@ function getFixture(id) {
 
 
 
+
 /* ---------- state ---------- */
 let U = freshUi();       // screen flow (Lane B)
 let G = null;            // game data — mutated ONLY with engine.js results
 let CONTENT = { deck: null, fakes: null }; // fetched real content, if served over http
+let PROFILE = null;      // this device's career (rating.js); loaded once at boot
 let lastScreen = null;   // gate the entrance animation to REAL screen changes (not surgical re-renders)
 
 const t = (k, ...a) => { const v = STR[U.lang][k]; return typeof v === "function" ? v(...a) : v; };
@@ -2194,6 +2393,7 @@ SCREENS.HOME = () => {
    <div style="flex:1"></div>
    <button class="btn" id="hnew">${t("homeNewGame")}</button>
    <button class="btn secondary" id="hrules">${t("homeHowTo")}</button>
+   <button class="linkbtn" id="hprofile">${t("homeProfile")} ${ratingPill()}</button>
    <button class="linkbtn" id="habout">${t("homeAbout")}</button>`);
   app.querySelectorAll("[data-lang]").forEach((b) => b.onclick = () => {
     if (U.lang === b.dataset.lang) return;
@@ -2201,6 +2401,7 @@ SCREENS.HOME = () => {
   });
   document.getElementById("hnew").onclick = () => { play("confirm"); loadContent(U.lang); U.screen = "MODE"; render(); };
   document.getElementById("hrules").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "RULES"; render(); };
+  document.getElementById("hprofile").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "PROFILE"; render(); };
   document.getElementById("habout").onclick = () => { U.rulesReturn = "HOME"; play("confirm"); U.screen = "ABOUT"; render(); };
 };
 
@@ -3005,8 +3206,10 @@ SCREENS.WINNER = () => {
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
         <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+     ${G.ratingMine === undefined ? "" : `<p class="small" style="margin-top:10px">${t("ratingDelta", G.ratingMine)} → ${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</p>`}
    </div>
    <button class="btn" id="replay">${t("playAgain")}</button>`);
+  settleRating();
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
@@ -3024,6 +3227,68 @@ SCREENS.WINNER = () => {
     U = Object.assign(freshUi(), keep, { screen: "SETUP" });
     render();
   };
+};
+
+/* ---------- career rating (PRD §2.1) ---------- */
+
+// Once per game, on the winner screen. Guarded by G.ratingDone, the same idempotency
+// pattern G.celebrated already uses — the topbar (mute/theme) re-renders this screen.
+// Online (C13) replaces the local apply with the host's broadcast; the maths and the
+// clamp are identical either way, because the host is just another browser.
+function settleRating() {
+  if (!G || G.ratingDone) return;
+  G.ratingDone = true;
+  const deltas = ratingDeltas(G.players.map((p, i) => ({
+    pid: p.pid,
+    rating: p.pid === U.myPid ? PROFILE.rating : RATING.START,
+    games: p.pid === U.myPid ? PROFILE.games : 0,
+    score: p.score,
+    isBot: p.kind === "bot",
+  })));
+  const mine = deltas[U.myPid];
+  if (mine === undefined) return;      // solo vs bots — nothing to settle
+  G.ratingMine = mine;                 // shown on the winner screen
+  const seat = mySeat();
+  PROFILE = ratingApply(PROFILE, mine, {
+    nose: Math.min(G.players[seat]?.bluffVotes ?? 0, ratingNoseCap(G.players.length, G.round)),
+    won: (G.winnersIdx ?? []).includes(seat),
+  });
+  ratingSave(PROFILE);
+}
+
+const ratingPill = () =>
+  `<span class="ratingpill">${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</span>`;
+
+SCREENS.PROFILE = () => {
+  const p = PROFILE;
+  const last = [...(p.history ?? [])].reverse().slice(0, 10);
+  shell(`
+   <h2>${t("profileTitle")}</h2>
+   <div class="card" style="text-align:center">
+     <div class="word" style="font-size:44px">${p.rating}</div>
+     <p class="sub" style="margin:2px 0 0">${esc(ratingTier(p.rating, U.lang))}</p>
+     <p class="small">${t("profileBest", p.best)}</p>
+   </div>
+   <div class="card">
+     <div class="scoreline"><span>${t("profileGames")}</span><span>${p.games}</span></div>
+     <div class="scoreline"><span>${t("profileWins")}</span><span>${p.wins}</span></div>
+     <div class="scoreline"><span>${t("profileNose")}</span><span>👃 ${p.nose}</span></div>
+   </div>
+   ${last.length ? `<div class="card"><b>${t("profileLast")}</b>
+     <div class="chiprow" style="margin-top:8px">${last.map((h) => `
+       <span class="pchip ${h.d >= 0 ? "done" : ""}">${h.d >= 0 ? "+" : ""}${h.d}</span>`).join("")}</div></div>` : ""}
+   <p class="small">${t("profilePrivacy")}</p>
+   <div style="flex:1"></div>
+   <button class="btn secondary" id="wipeprofile">${t("profileWipe")}</button>
+   <button class="linkbtn" id="profback">${t("back")}</button>`);
+  document.getElementById("wipeprofile").onclick = () => {
+    // Deliberately destructive and deliberately one tap: the moment we persist
+    // an identifier, an easy way to erase it stops being a nicety (PRD §10).
+    PROFILE = ratingReset();
+    U.myPid = PROFILE.pid;
+    play("error"); render();
+  };
+  document.getElementById("profback").onclick = () => { U.screen = U.rulesReturn; play("back"); render(); };
 };
 
 /* ---------- showmanship helpers (RM-guarded) ---------- */
@@ -3061,10 +3326,12 @@ const bootFx = getFixture(
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
 if (bootFx) { U = bootFx.u; G = bootFx.g; }
-// One id for this device, minted before the first render. C8 replaces this with
-// the persisted profile's pid so a rating survives a reload; until then it just
-// has to be stable for the session, and identify seat 0 so mySeat() returns 0.
-U.myPid ??= newPid();
+// The career profile is the source of this device's identity: its pid outlives
+// reloads, which is what lets a rating mean anything. newPid() stays as the
+// fallback for a browser that refuses storage entirely.
+PROFILE = ratingLoad();
+U.myPid = PROFILE.pid ?? newPid();
+if (PROFILE.name) U.uname = PROFILE.name;
 render();
 
 } catch (e) {

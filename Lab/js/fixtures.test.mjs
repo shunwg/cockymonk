@@ -9,7 +9,9 @@ import { FIXTURES, getFixture } from "./fixtures.js";
 const SCREEN_IDS = [
   "HOME", "LANG", "MODE", "PLAYERS", "PARTYSETUP", "SETUP", "GM_INTRO", "GM_DASH",
   "BLUFF", "WAIT", "VOTE", "VOTEWAIT", "REVEAL", "BOARD", "OMKAMP", "WINNER", "RULES", "ABOUT",
+  "PROFILE",
 ];
+const SCREEN_COUNT = SCREEN_IDS.length;   // numbers are permanent; new screens append
 // Keys of the G literal in ui.js startGame() — fxMakeG must mirror it.
 const G_KEYS = [
   "players", "target", "round", "gm", "phase", "card", "bluffs", "decoys", "gmDecoyDone",
@@ -19,14 +21,14 @@ const G_KEYS = [
 ];
 const NEEDS_G = SCREEN_IDS.slice(SCREEN_IDS.indexOf("GM_INTRO"), SCREEN_IDS.indexOf("WINNER") + 1);
 
-test("registry: exactly 18 fixtures, ids 01..18, screens valid and unique", () => {
-  assert.equal(FIXTURES.length, 18);
+test("registry: one fixture per screen, ids 01.., screens valid and unique", () => {
+  assert.equal(FIXTURES.length, SCREEN_COUNT);
   FIXTURES.forEach((f, i) => {
     assert.equal(f.id, String(i + 1).padStart(2, "0"), `fixture ${i} id`);
     assert.ok(SCREEN_IDS.includes(f.screen), `${f.id}: unknown screen ${f.screen}`);
     assert.ok(f.name?.length > 0, `${f.id}: missing bokmål name`);
   });
-  assert.equal(new Set(FIXTURES.map((f) => f.screen)).size, 18, "one fixture per screen");
+  assert.equal(new Set(FIXTURES.map((f) => f.screen)).size, SCREEN_COUNT, "one fixture per screen");
 });
 
 test("getFixture: resolves every id, screen applied, unknown ids → null", () => {
