@@ -2,6 +2,22 @@
 
 Norsk ord-bløffespill (Balderdash/Fibbage). Se `docs/spilldesign.md` for full spillspesifikasjon.
 
+## Samarbeidsregler (github.com/shunwg/cockymonk)
+
+Mappen `ordkrig/` i cockymonk-repoet er en SPEILING av Edvards lokale git, som er
+master. Reglene gjelder alle som jobber der – mennesker og Claude-agenter:
+
+- **Eksperimenter gjerne!** Test og endre fritt, men i egne grener (f.eks.
+  `shun/ide-navn`) – ikke rett i `main`. Edvard henter gode endringer tilbake til
+  master og synker `main` når noe publiseres.
+- **Ingen publisering herfra:** kjør aldri `eas update`/`eas build`/`eas submit`.
+  TestFlight-publisering skjer kun manuelt fra Edvards maskin.
+- **Aldri hemmeligheter i repoet:** ingen `.env`, `service_role`-nøkler,
+  `.p8`-filer eller tokens. (Supabase-anon-nøkkelen i koden er offentlig med vilje.)
+- **Databaseendringer avtales først:** appen deler LIVE Supabase-database med
+  ekte spillere på TestFlight – endringer i `supabase/` eller RPC-er kan knekke
+  klienter som allerede er ute.
+
 ## Viktig
 
 - **Expo SDK 56** (ikke 57). Docs: https://docs.expo.dev/versions/v56.0.0/
