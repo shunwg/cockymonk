@@ -8,6 +8,7 @@ import {
   bluffersExpected, votersExpected, readyToOpenVote,
 } from "./engine.js";
 import { TUNING, BOT_NAMES, botPick, bluffOffsets, voteOffsets } from "./bots.js";
+import { pickFakes, safePool } from "./fakepool.js";
 import { play, setMuted, isMuted } from "./audio.js";
 import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
@@ -672,7 +673,17 @@ function newRound() {
   G.round++;
   if (!U.deck.length) U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   G.card = U.deck.pop();
-  U.fakePool = shuffled(CONTENT.fakes ?? MINI_FAKES[U.lang]);
+  // Bot lies are REAL explanations of OTHER deck words (fakepool.js), so they
+  // match the truth's length and voice by construction instead of by tuning.
+  // Drawn once per round for the whole lineup, because the close/random split
+  // is a property of the SET — picking one at a time cannot express it.
+  U.fakePool = pickFakes({
+    n: G.players.length + 2,                 // every seat could be a bot, plus the GM decoy and a spare
+    card: G.card,
+    pool: safePool({ deck: CONTENT.deck ?? MINI_DECK[U.lang], remaining: U.deck, card: G.card }),
+    filler: CONTENT.fakes ?? MINI_FAKES[U.lang],
+    lang: U.lang,
+  });
   G.bluffs = {}; G.votes = {}; G.decoys = ["", ""]; G.doubles = []; G.deltas = null; G.gmStole = false;
   G.options = null;
   G.timedOut = { bluff: [], vote: [] };     // a missed deadline never outlives its round (D4)

@@ -32,8 +32,13 @@ Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a
 | Any analytics SDK MCP | Privacy label is "Data Not Collected" (CLAUDE.md guardrail) |
 
 ## House skills & agents (already in this repo)
-`.claude/skills/`: **card-author** · **playtest-loop** · **release-captain** · **asset-wrangler** · **game-director** (phase-gated orchestrator) · **qa-gate** (validator battery) · **playtest-panel** (5 simulated player personas) · **motion-designer** (original Lottie assets)
+`.claude/skills/`: **card-author** · **playtest-loop** · **release-captain** · **asset-wrangler** · **game-director** (phase-gated orchestrator) · **qa-gate** (validator battery) · **playtest-panel** (5 simulated player personas) · **motion-designer** (original Lottie assets) · **game-feel** (how the game feels to touch)
 `.claude/agents/`: **swift-reviewer** · **swiftui-specialist**
 `.claude/commands/`: **/playtest** · **/newcards** · **/ship** · **/theme** · **/director** · **/qa**
+
+**game-feel vs motion-designer** — the split is deliberate and neither may drift into the other. `game-feel` owns *game-state* motion (pawn hops, nose growth, card pops, chip flips, screen entrances), input response, haptics, sound pairing and pacing. `motion-designer` owns *celebration overlays* only, as Lottie JSON. Grounded in Swink's *Game Feel* (2009) ch. 1, which classifies a turn-based bluffing game as "naked polish" — so polish carries the entire feel load, and `game-feel` exists to stop that being spent at random.
+
+### Reference-only skills (not house skills — do not use for Cocky Monk work)
+`.claude/skills/reference-game-developer` (Unity/Unreal, MIT) and `.claude/skills/reference-shader-techniques` (HLSL/GLSL) were installed 2026-07-26 from the [Snyk game-dev skills roundup](https://snyk.io/articles/top-claude-skills-3d-modeling-game-dev-shader-programming/) at the user's request, as background reading. **Neither applies to this stack** — we have no game engine, no physics engine, no WebGL and no shader stage. Their auto-triggers were removed for exactly that reason: upstream they fire on "game development", "game optimization", "visual effects" and "rendering optimization", which would have loaded Unity object-pooling advice into CSS work. Each carries a `PROVENANCE.md` with the fetch record, the licence position, and the original frontmatter. For anything they sound like they cover, use **game-feel**.
 
 Asset sourcing lives in `ASSETS.md` — 4 Kenney CC0 packs are already bundled in `AssetsIncoming/`. Lottie authoring: the **text-to-lottie** skill (from `diffusionstudio/lottie`, vendored into `.claude/skills/text-to-lottie/` — see its PROVENANCE.md) backs motion-designer with spec maps, motion-taste rules, and recipes; `Lab/vendor/lottie.min.js` (MIT) powers the Lab preview page at `/Lab/lottie/player.html`.

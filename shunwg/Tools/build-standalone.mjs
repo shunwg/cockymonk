@@ -36,7 +36,7 @@ const scriptSafe = (obj) => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 const CSS_FILES = ["tokens.css", "base.css", "components.css", "screens.css", "themes.css"];
 // Dependency order: leaves first, entry (ui.js, which runs render() at its foot) last.
-const JS_MODULES = ["state.js", "engine.js", "clock.js", "rating.js", "bots.js", "audio.js", "themes.js", "net.js", "lottie.js", "fixtures.js", "ui.js"];
+const JS_MODULES = ["state.js", "engine.js", "clock.js", "rating.js", "bots.js", "fakepool.js", "audio.js", "themes.js", "net.js", "lottie.js", "fixtures.js", "ui.js"];
 
 // Turn one ES module into plain top-level code: drop import lines, drop the
 // `export` keyword. All modules then share the single IIFE scope in the bundle.
