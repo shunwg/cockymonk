@@ -16,7 +16,127 @@ import {
   ratingSave, ratingReset, ratingNoseCap, ratingTier,
 } from "./rating.js";
 
+import {
+  NET, NET_CONFIG, netProject, netLoopback, netRoomCode, netShareLink,
+  netRoomFromUrl, netTally, netVotesIn,
+} from "./net.js";
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// A mid-round game, seat 0 GM, seats 1-3 bluffers.
+const gameAt = (phase) => ({
+  phase,
+  gm: 0,
+  round: 2,
+  players: [0, 1, 2, 3].map((i) => ({ name: `P${i}`, pid: `p${i}`, score: i, bluffVotes: 0, dropped: false, kind: "human" })),
+  card: { prompt: "gane", truth: "DEN HEMMELIGE SANNHETEN" },
+  decoys: ["gm sitt utkast", ""],
+  bluffs: { 1: "løgn fra 1", 2: "løgn fra 2" },
+  votes: { 1: "a", 2: "b", 3: "a" },
+  options: [{ id: "a", kind: "bluff", authors: [1] }, { id: "b", kind: "truth", authors: [] }],
+});
+
+// -- state projection: the test that matters most ------------------------------
+
+test("THE TRUTH NEVER REACHES A NON-GM SEAT BEFORE THE REVEAL", () => {
+  for (const phase of ["card", "bluffing", "voting"]) {
+    const G = gameAt(phase);
+    for (const seat of [1, 2, 3]) {
+      const p = netProject(G, seat);
+      assert.equal(p.card.truth, null, `${phase}: seat ${seat} must not see the truth`);
+      assert.equal(p.card.prompt, "gane", `${phase}: the word itself is public`);
+      assert.ok(!JSON.stringify(p).includes("DEN HEMMELIGE SANNHETEN"),
+        `${phase}: the truth leaked somewhere else in the payload for seat ${seat}`);
+    }
+    assert.equal(netProject(G, 0).card.truth, "DEN HEMMELIGE SANNHETEN", `${phase}: the GM still sees it`);
+  }
+});
+
+test("the truth becomes public at the reveal, and only then", () => {
+  const G = gameAt("reveal");
+  for (const seat of [0, 1, 2, 3]) {
+    assert.equal(netProject(G, seat).card.truth, "DEN HEMMELIGE SANNHETEN", `seat ${seat}`);
+  }
+});
+
+test("the GM's decoy drafts never leave the GM", () => {
+  for (const phase of ["card", "bluffing", "voting", "reveal"]) {
+    const G = gameAt(phase);
+    for (const seat of [1, 2, 3]) {
+      assert.deepEqual(netProject(G, seat).decoys, [], `${phase}: seat ${seat}`);
+      assert.ok(!JSON.stringify(netProject(G, seat)).includes("gm sitt utkast"), `${phase}: draft leaked`);
+    }
+    assert.deepEqual(netProject(G, 0).decoys, ["gm sitt utkast", ""], "the GM keeps their own drafts");
+  }
+});
+
+test("other players' lies are unreadable until voting opens", () => {
+  for (const phase of ["card", "bluffing"]) {
+    const p = netProject(gameAt(phase), 3);
+    assert.deepEqual(p.bluffs, {}, `${phase}: no lie text`);
+    assert.deepEqual(p.bluffsIn, [1, 2], `${phase}: but the chips know who is done`);
+    assert.ok(!JSON.stringify(p).includes("løgn fra 1"), `${phase}: text leaked`);
+  }
+  // Once the pool is built the texts are public by definition — they're on screen.
+  assert.deepEqual(netProject(gameAt("voting"), 3).bluffsIn, undefined);
+});
+
+test("the live tally is anonymous, but you can see your own vote", () => {
+  const p = netProject(gameAt("voting"), 3);
+  assert.deepEqual(p.voteCounts, { a: 2, b: 1 }, "counts travel");
+  assert.equal(p.votesIn, 3);
+  assert.deepEqual(p.votes, { 3: "a" }, "only my own vote, so my screen knows I voted");
+  const p1 = netProject(gameAt("voting"), 1);
+  assert.deepEqual(Object.keys(p1.votes), ["1"], "seat 1 likewise sees only its own");
+  // Full attribution only at the reveal, where the ceremony shows it deliberately.
+  assert.deepEqual(netProject(gameAt("reveal"), 3).votes, { 1: "a", 2: "b", 3: "a" });
+});
+
+test("netTally works from either full votes or projected counts", () => {
+  const host = gameAt("voting");
+  const client = netProject(host, 3);
+  assert.equal(netTally(host, "a"), 2);
+  assert.equal(netTally(client, "a"), 2, "same answer from the redacted copy");
+  assert.equal(netVotesIn(host), 3);
+  assert.equal(netVotesIn(client), 3);
+  assert.equal(netTally(client, "zz"), 0);
+});
+
+test("netProject tolerates a half-built round", () => {
+  assert.equal(netProject(null, 0), null);
+  const bare = { phase: "card", gm: 0, players: [], card: null };
+  assert.doesNotThrow(() => netProject(bare, 1));
+});
+
+// -- room codes and links -----------------------------------------------------
+
+test("room codes avoid characters people mishear", () => {
+  for (const ch of "01OI") assert.ok(!NET_CONFIG.CODE_ALPHABET.includes(ch), `${ch} is ambiguous aloud`);
+  let seq = 0;
+  const code = netRoomCode(() => (seq++ % NET_CONFIG.CODE_ALPHABET.length) / NET_CONFIG.CODE_ALPHABET.length);
+  assert.equal(code.length, NET_CONFIG.CODE_LEN);
+  assert.match(netRoomCode(), /^[A-Z2-9]{6}$/);
+});
+
+test("share links round-trip, and file:// honestly has none", () => {
+  const loc = { protocol: "https:", origin: "https://example.test", pathname: "/cockymonk/", search: "" };
+  const link = netShareLink("ABC234", loc);
+  assert.equal(link, "https://example.test/cockymonk/?room=ABC234");
+  assert.equal(netRoomFromUrl({ search: "?room=abc234" }), "ABC234", "case-insensitive, normalised");
+  assert.equal(netRoomFromUrl({ search: "" }), null);
+  assert.equal(netRoomFromUrl({ search: "?room=<script>" }), null, "rejects junk");
+  assert.equal(netShareLink("ABC234", { protocol: "file:", origin: "null", pathname: "/x.html" }), null);
+});
+
+test("loopback is a real transport, not a special case", () => {
+  const t = netLoopback();
+  assert.equal(t.isHost, true, "local play is its own host");
+  assert.equal(t.kind, "loopback");
+  assert.equal(t.roomCode, null);
+  assert.doesNotThrow(() => { t.send({ t: "state" }); t.sendTo("p1", {}); t.close(); });
+  assert.equal(NET.peers.length, 0);
+});
+
 
 // -- constants ----------------------------------------------------------------
 
