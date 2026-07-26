@@ -21,7 +21,7 @@ import {
 } from "./rating.js";
 import {
   NET, NET_CONFIG, netLoopback, netHost, netJoin, netProject, netShareLink,
-  netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby,
+  netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby, netJoinOpen,
 } from "./net.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
@@ -258,6 +258,96 @@ const NO_THEME_BTN = ["HOME", "RULES", "ABOUT", "LANG", "MODE", "PLAYERS", "PART
 const NO_HELP_BTN = [...NO_THEME_BTN, "SETUP"];
 const CEREMONY_SCREENS = ["REVEAL", "BOARD", "WINNER"];
 
+/* ---------- back navigation ----------
+ * Deliberately NOT a history stack. 40+ sites assign U.screen directly, so
+ * threading a stack through all of them is a refactor no gate would catch a miss
+ * in. A parent map is plain data, read at render time, and needs zero changes to
+ * those sites — the same shape U.rulesReturn already uses, generalised.
+ *
+ * Leaving a room is not just a screen change: the peer connection has to close,
+ * or the host keeps a zombie seat and the room waits on someone who is gone.
+ */
+const IN_GAME = ["GM_INTRO", "GM_DASH", "BLUFF", "WAIT", "VOTE", "VOTEWAIT", "REVEAL", "BOARD", "OMKAMP"];
+
+function backTarget() {
+  const s = U.screen;
+  if (s === "HOME") return null;                       // nowhere left to go
+  if (s === "RULES" || s === "ABOUT" || s === "PROFILE") return { to: U.rulesReturn || "HOME" };
+  if (s === "LANG" || s === "MODE") return { to: "HOME" };
+  if (s === "PLAYERS" || s === "PARTYSETUP") return { to: "MODE" };
+  if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (party() ? "PARTYSETUP" : "PLAYERS") };
+  if (s === "JOIN") return { to: "PARTYSETUP", leave: true };
+  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "PARTYSETUP", leave: true };
+  if (s === "CONNLOST") return { to: "HOME", leave: true };
+  if (s === "WINNER") return { to: "HOME", leave: true };   // the game is over; nothing to confirm
+  if (IN_GAME.includes(s)) return { to: "HOME", leave: true, confirm: true };
+  return { to: "HOME" };
+}
+
+function goBack() {
+  const b = backTarget();
+  if (!b) return;
+  if (b.confirm) { U.backConfirm = true; play("confirm"); render(); return; }
+  backExit(b);
+}
+
+function backExit(b) {
+  U.backConfirm = false;
+  if (b.leave) {
+    resetTimers();                 // a live deadline must not tick on into the menu
+    if (online()) NET.close?.();   // net.js close() restores loopback for us
+    G = null;
+  }
+  play("back");
+  U.screen = b.to;
+  render();
+}
+
+// Confirm overlay for walking out mid-game. Un-numbered, like `hand()` — see the
+// overlay table in Screens/SCREENS.md.
+function confirmQuit() {
+  const why = !online() ? t("quitBodyLocal") : isHost() ? t("quitBodyHost") : t("quitBodyOnline");
+  const d = document.createElement("div");
+  d.className = "handover"; d.id = "quitbox";
+  d.innerHTML = `<h2>${t("quitTitle")}</h2><p class="sub" style="max-width:22rem">${why}</p>
+    <button class="btn" id="qno" style="margin-top:22px;min-width:15rem">${t("quitNo")}</button>
+    <button class="btn secondary" id="qyes" style="min-width:15rem">${t("quitYes")}</button>`;
+  document.body.appendChild(d);
+  const close = () => { d.remove(); U.backConfirm = false; };
+  d.querySelector("#qno").onclick = () => { play("back"); close(); };
+  d.querySelector("#qyes").onclick = () => { close(); backExit({ to: "HOME", leave: true }); };
+}
+
+/* The phone's own back gesture is the one people actually reach for, so keep one
+ * spare history entry pushed and re-arm it after every pop: the gesture then
+ * reaches goBack() instead of navigating off the game. At HOME we deliberately do
+ * NOT re-arm, so a second press really does leave the page. pushState throws on
+ * some file:// engines and the standalone bundle runs from disk — hence try/catch. */
+function backArm() {
+  try { globalThis.history?.pushState({ cm: 1 }, ""); } catch { /* file:// may refuse */ }
+}
+function backInstallHistory() {
+  if (!globalThis.addEventListener) return;
+  backArm();
+  globalThis.addEventListener("popstate", () => {
+    if (!backTarget()) return;     // at HOME: let the pop stand and the page unload
+    backArm();
+    if (document.getElementById("quitbox")) { document.getElementById("quitbox").remove(); U.backConfirm = false; return; }
+    goBack();
+  });
+}
+
+// The room event, plus a second line only on the device it happened to: being
+// told "you'll sit this round out" matters to exactly one person, and reads as
+// noise to everyone else.
+function lateNoteHtml() {
+  const lj = G?.lateJoin;
+  if (!lj?.note) return "";
+  const mine = lj.seat === mySeat();
+  const benched = mine && (G.timedOut?.bluff?.includes(lj.seat) || G.timedOut?.vote?.includes(lj.seat));
+  return `<div class="latenote" role="status">${lj.note}${benched ? `<br><span class="small">${t("lateNextRound")}</span>` : ""}</div>`;
+}
+
 function shell(inner, { gm = false } = {}) {
   clearCelebrations();   // no celebration bleeds into the next screen
   // Entrance animation only on a real screen change — surgical re-renders (tick-ins,
@@ -265,15 +355,20 @@ function shell(inner, { gm = false } = {}) {
   const changed = U.screen !== lastScreen;
   const fadeClass = changed ? (CEREMONY_SCREENS.includes(U.screen) ? "fade ceremony" : "fade") : "";
   lastScreen = U.screen;
+  const canBack = !!backTarget();
   app.innerHTML = `
    <div class="topbar">
-     <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
+     <span style="display:flex;align-items:center;gap:8px;min-width:0">
+       ${canBack ? `<button class="iconbtn backbtn" id="backbtn" aria-label="${t("back")}">←</button>` : ""}
+       <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
+     </span>
      <span>
        ${NO_HELP_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="helpbtn" aria-label="${t("rulesTitle")}">?</button>`}
        ${NO_THEME_BTN.includes(U.screen) || (online() && !isHost()) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
        <button class="iconbtn" id="mutebtn">${isMuted() ? "🔇" : "🔊"}</button>
      </span>
    </div>
+   ${lateNoteHtml()}
    <div class="${fadeClass}" style="flex:1;display:flex;flex-direction:column;">${inner}</div>`;
   app.style.boxShadow = gm ? "inset 0 0 0 4px var(--color-accent-gm)" : "none";
   const tb = document.getElementById("themebtn");
@@ -281,6 +376,12 @@ function shell(inner, { gm = false } = {}) {
   const help = document.getElementById("helpbtn");
   if (help) help.onclick = () => { U.rulesReturn = U.screen; play("confirm"); U.screen = "RULES"; render(); };
   document.getElementById("mutebtn").onclick = () => { setMuted(!isMuted()); render(); };
+  const bb = document.getElementById("backbtn");
+  if (bb) bb.onclick = () => goBack();
+  // Re-attach after every repaint: shell() replaces app.innerHTML wholesale, and
+  // the overlay lives on document.body so it survives that — put it back only if
+  // the flag says it should be up.
+  if (U.backConfirm && !document.getElementById("quitbox")) confirmQuit();
 }
 
 /* ---------- render dispatch ---------- */
@@ -506,8 +607,63 @@ function startGame() {
     timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    // The door stays open this long for people who had the link but were slow.
+    // Absolute time, like G.deadline, so it survives the hop to a client with a
+    // differently-set clock. Only the HOST ever judges it (netSeatLate).
+    joinOpenUntil: Date.now() + NET_CONFIG.LATE_JOIN_MS,
+    // { note, seat } for the last latecomer. In G, not U, because it is a ROOM
+    // event: the person it happened to is on another device, and they are the one
+    // who most needs to hear that they inherited a bot's points.
+    lateJoin: null,
   };
   newRound();
+}
+
+/* ---------- late join (3-minute window after start) ----------
+ * A friend who opens the link 40 seconds late used to reach a dead end: the host
+ * seated them in NET.peers but G.players was already built, so netBroadcastState
+ * skipped them (seat < 0) and they sat on "waiting for the host" forever.
+ *
+ * Taking a BOT's chair is the preferred outcome, not a fallback: it keeps
+ * G.players.length stable — which is what every engine vector and scoreRound's
+ * Array(playerCount) assume — and "du tok over Kåres plass" is a better story
+ * than an extra chair appearing. They inherit the bot's score, which the banner
+ * says out loud; silently resetting it to 0 would hop a pawn backwards and read
+ * as a bug.
+ */
+function netSeatLate(msg) {
+  if (!netJoinOpen(G)) return { ok: false, reason: "started" };
+  const botSeat = G.players.findIndex((p) => p.kind === "bot" && !p.dropped);
+  const name = String(msg.name ?? "?").slice(0, 24) || "?";
+  let seat, tookFrom = null;
+
+  if (botSeat >= 0) {
+    tookFrom = G.players[botSeat].name;
+    Object.assign(G.players[botSeat], { name, pid: msg.pid, kind: "remote" });
+    seat = botSeat;
+  } else if (G.players.length < NET_CONFIG.MAX_PLAYERS) {
+    seat = G.players.length;
+    G.players.push({
+      name, color: AVA[seat], score: 0, bluffVotes: 0, dropped: false,
+      pid: msg.pid, kind: "remote",
+    });
+  } else return { ok: false, reason: "full" };
+
+  // Past the card reveal, this round is already in motion: they watch it out and
+  // play from the next one. timedOut is exactly the right vehicle — it means "not
+  // expected this round, and NOT dropped" (vectors D4/E9) and newRound clears it.
+  // Without this, bluffersExpected/votersExpected would wait forever on someone
+  // who was parking a car when the word was drawn.
+  if (G.phase !== "card") {
+    if (!G.timedOut.bluff.includes(seat)) G.timedOut.bluff.push(seat);
+    if (!G.timedOut.vote.includes(seat)) G.timedOut.vote.push(seat);
+  }
+  G.lateJoin = {
+    note: tookFrom ? t("lateTookSeat", esc(name), esc(tookFrom)) : t("lateJoined", esc(name)),
+    seat,
+  };
+  play("tickIn");
+  return { ok: true, seat, tookFrom };
 }
 
 function newRound() {
@@ -524,6 +680,7 @@ function newRound() {
   G.phase = "card";
   G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
   U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
+  G.lateJoin = null;                        // a joiner announcement lasts its round, no longer
   U.screen = "GM_INTRO"; play("cardDraw"); render(); netPush();
   // Bot GM auto-advances. A REMOTE gm does not: that person taps on their own
   // device, and their tap arrives as a state broadcast.
@@ -561,7 +718,10 @@ function scheduleBotBluffs() {
   const offsets = bluffOffsets(bots.length, Math.random);
   bots.forEach((i, k) => {
     later(() => {
-      if (G.bluffs[i] !== undefined) return;
+      // Re-check the seat is STILL a bot: a late joiner may have taken this chair
+      // since the timer was armed, and a bot fake must never be submitted as a
+      // human's answer.
+      if (!isBot(i) || G.bluffs[i] !== undefined) return;
       G.bluffs[i] = takeFakeText(); play("tickIn");
       botTickUI(i);
       maybeAllBluffsIn();
@@ -771,7 +931,7 @@ function scheduleBotVotes() {
   const offsets = voteOffsets(bots.length, Math.random);
   bots.forEach((i, k) => {
     later(() => {
-      if (G.votes[i] !== undefined) return;
+      if (!isBot(i) || G.votes[i] !== undefined) return;   // chair may have changed hands
       G.votes[i] = botPick(G.options, i, Math.random); play("voteCast");
       if (U.screen === "VOTEWAIT") render();
       maybeAllVotesIn();
@@ -1189,10 +1349,15 @@ SCREENS.WINNER = () => {
 function screenForSeat(g, seat) {
   switch (g.phase) {
     case "card": return "GM_INTRO";
+    // timedOut has to be consulted here, not just "did they submit". Otherwise the
+    // next broadcast puts a player who missed the deadline (or joined late) back on
+    // an input screen whose submission the host will reject — an unwinnable box.
     case "bluffing":
       if (seat === g.gm) return "GM_DASH";
+      if (g.timedOut?.bluff?.includes(seat)) return "WAIT";
       return g.bluffs?.[seat] !== undefined || (g.bluffsIn ?? []).includes(seat) ? "WAIT" : "BLUFF";
     case "voting":
+      if (g.timedOut?.vote?.includes(seat)) return "VOTEWAIT";
       return seat === g.gm || g.votes?.[seat] !== undefined ? "VOTEWAIT" : "VOTE";
     case "reveal": return "REVEAL";
     case "board": return "BOARD";
@@ -1210,10 +1375,22 @@ function netPush() {
 
 // Host: accept an intent from a client. Every one is re-judged here — the host's
 // clock decides what is late, not the sender's (a client could lie about either).
-function netOnClientMessage(msg) {
+function netOnClientMessage(msg, conn) {
   if (!G || !isHost()) return;
-  const seat = G.players.findIndex((p) => p.pid === msg.pid);
-  if (seat < 0) return;
+  let seat = G.players.findIndex((p) => p.pid === msg.pid);
+  // A hello with no seat means someone arrived after startGame(). Either the door
+  // is still open and we seat them, or we say so plainly and let them go play
+  // bots — never the old silent return, which stranded them on LOBBY_WAIT.
+  if (seat < 0) {
+    if (msg.t !== "hello") return;
+    const r = netSeatLate(msg);
+    if (!r.ok) { NET.sendTo(msg.pid, { t: "bye", reason: r.reason }); return; }
+    seat = r.seat;
+    netBroadcastLobby();
+    netPush();
+    render();
+    return;
+  }
   switch (msg.t) {
     case "bluff": {
       if (G.phase !== "bluffing") return;
@@ -1265,15 +1442,27 @@ function netOnHostState(msg) {
   render();
 }
 
-function netHandle(msg) {
+function netHandle(msg, conn) {
   if (!msg?.t) return;
-  if (isHost()) { netOnClientMessage(msg); return; }
+  if (isHost()) { netOnClientMessage(msg, conn); return; }
   // The host renamed us because our id collided with someone already seated
   // (a shared browser profile). Adopt it, or we'd never find our own seat.
   if (msg.t === "rebind") { U.myPid = msg.pid; NET.myPid = msg.pid; return; }
   if (msg.t === "state") { netOnHostState(msg); return; }
   if (msg.t === "ratings") { netApplyRatings(msg); return; }
-  if (msg.t === "bye") { netFail(msg.reason === "full" ? "full" : "host-gone"); return; }
+  // "started"/"full" are not connection failures — the room simply said no. Send
+  // them back to JOIN with the real reason and the play-vs-bots way out, rather
+  // than to CONNLOST, which offers a reconnect that will never succeed.
+  if (msg.t === "bye") {
+    if (msg.reason === "started" || msg.reason === "full") {
+      NET.close?.();
+      U.joinError = msg.reason === "started" ? "joinFailStarted" : "joinFailFull";
+      U.joining = false; U.screen = "JOIN"; render();
+      return;
+    }
+    netFail("host-gone");
+    return;
+  }
 }
 
 function netFail(reason) {
@@ -1333,6 +1522,7 @@ SCREENS.HOST_LOBBY = () => {
      <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
    ${need ? `<p class="small">${t("lobbyNeed", need)}</p>` : ""}
    <div style="flex:1"></div>
+   <p class="small" style="text-align:center;margin:0 0 8px">${t("lobbyLateWindow")}</p>
    <button class="btn" id="startroom" ${need ? "disabled" : ""}>${t("lobbyStart")}</button>
    <button class="linkbtn" id="tojoin">${t("lobbyJoinInstead")}</button>`);
   const cp = document.getElementById("copylink");
@@ -1597,5 +1787,9 @@ netLoopback();          // local play is its own host; online replaces this tran
 // This is the whole point of "send a link to your friends": no menu to navigate.
 const bootRoom = netRoomFromUrl();
 if (bootRoom && !bootFx) { U.joinCode = bootRoom; U.screen = "JOIN"; }
+
+// Not under a fixture: a posed screen is a still life, and arming the history trap
+// there would make the gallery's back button behave like a game.
+if (!bootFx) backInstallHistory();
 
 render();
