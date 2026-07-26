@@ -47,8 +47,9 @@
 ## Pacing — de faktiske tallene
 
 Robot-tempoet bor i `TUNING`-blokken i `Lab/js/bots.js` (speiles til `BotTuning.swift`).
-**Regel: pacing-konstanter finnes KUN i TUNING-blokken — aldri inline i UI- eller motorkode.**
-Menneskelige spillmestre pacer selv (tapp per beat) — konstantene gjelder bot-GM og robotenes «menneskefølelse».
+**Regel: pacing-konstanter finnes KUN i to frosne blokker — aldri inline i UI- eller motorkode.**
+`bots.js TUNING` = robot-følelse (hvor menneskelig en robot oppfører seg). `clock.js TIMERS` = fasefrister (regler verten setter og alle enheter adlyder). To blokker fordi de svarer til hver sin herre; se LANES.md kontrakt 5.
+Menneskelige spillmestre pacer selv (tapp per beat) — TUNING-konstantene gjelder bot-GM og robotenes «menneskefølelse».
 
 | Konstant | Verdi | Styrer |
 |---|---|---|
@@ -65,26 +66,30 @@ Menneskelige spillmestre pacer selv (tapp per beat) — konstantene gjelder bot-
 
 **Budsjettene fra PRD §11:** median runde ≤ 3 min med 5 spillere · brettfasen ≤ 20 s · «Åpne avstemning» skal få en reaksjon fra rommet hver eneste runde. Enhver flyt-endring måles mot disse tre.
 
-## Forslag: bluffe-timer (60 s)
+## Fasefrister *(VEDTATT 2026-07-25 — PRD §5.2a)*
 
-> **FORSLAG — ikke vedtatt.** Avgjøres i PRD §13.
+> **Avgjort: vei B (auto-hopp), og ikke bare på bløffingen — på fire faser.** Forslaget over ble tatt opp i PRD §13 og vedtatt utvidet: nett-spill uten frister lar én person som går fra telefonen fryse hele rommet, og der biter ikke sosialt press slik det gjør rundt et bord.
+>
+> **Gjelder nettleser-bygget.** iOS-appen har ingen frister før PRD §5.2a utvides dit.
 
-Idéen: en valgfri 60-sekunders nedtelling på bløffskrivingen, for bord med somlere.
+| Fase | Standard | Ved 0:00 | Vises på |
+|---|---|---|---|
+| Bløffing | 60 s | Ventende bløffere hoppes over for **den runden**; svaret når aldri alternativlista, og et sent svar avvises | 09, 10 |
+| Lokkemat | 45 s | Avstemningen åpner uansett. Det spillmesteren rakk å skrive beholdes | 08 |
+| Avstemning | 45 s | De som ikke rakk å stemme, stemmer ikke; runden regnes ut med stemmene som kom | 11, 12 |
+| Avsløring | 25 s per beat | Seremonien går videre selv, slik en bot-GM allerede gjør | 13 |
 
-- **Bryter:** spillmester-styrt toggle på skjerm 06 Spilloppsett. **Standard: AV.**
-- **Visning:** nedtelling i 09 (Dikt en løgn) og 10 (Venterommet). Ikke på pulten (08) — spillmesteren har nok å følge med på.
+- **Bryter:** verten setter lengdene på skjerm 06 Spilloppsett. **Standard: PÅ i nett og practice, AV i hotseat** — å sende én telefon rundt pacer seg selv.
+- **Hvorfor lokkemat likevel vises på pulten (08):** forslaget over sa «ikke på pulten». Det holdt så lenge timeren bare gjaldt bløfferne. Nå har spillmesteren sin egen frist, og en frist man ikke ser er en felle.
+- **Hopp er ikke frafall.** Den som mister en frist beholder poengene sine, teller fortsatt i spillerantallet og i rotasjonen, og forventes igjen neste runde (PRD §5.5). Kun ekte frakobling forbi reconnect-vinduet fjerner noen.
 
-To ærlige implementeringsveier:
+**De to åpne spørsmålene, besvart:**
+1. *Skal timeren skjules i practice?* **Nei.** Robotene leverer på rundt 12 s mot et 60 s-vindu, så den utløses nesten aldri — men practice er der spillere lærer at den finnes. Å skjule den gjør første nett-runde til en overraskelse.
+2. *Frakobling vs. somling?* En spiller inne i 30 s-reconnect-vinduet holdes **helt utenfor** somle-settet. Først når vinduet renner ut blir de et ekte frafall (PRD §5.5).
 
-| | A · Ren UI-purring | B · Auto-hopp over somlere |
-|---|---|---|
-| Ved 0:00 | Skjermen maser (puls, lyd, «rommet venter på deg!») — men ingenting skjer i motoren | Ventende bløffere hoppes over, som ved frakobling (PRD §5.5-mekanikken) |
-| Motoren | Urørt — `canOpenVote` i `Lab/js/engine.js` krever fortsatt alle bløffer inne | Krever motor-endring (ny aksjon/tilstand) + nye testvektorer i `Tools/engine-vectors.json` + PRD §5.2/§5.5-amendment |
-| Risiko | Somleren kan fortsatt somle | En treg venn mister runden sin — festfiendtlig når det treffer feil person |
+**Klokka er ikke en regelmotor.** Fristene bor i `Lab/js/clock.js TIMERS` — ikke i `bots.js TUNING`, som er robot-følelse. Motoren forblir tidløs (LANES.md kontrakt 1): utløp kommer inn som en vanlig aksjon, og **bare verten fyrer den av**, så to klokker aldri kan krangle. Regelen er bevist av vektorer uten tid i seg (`Tools/engine-vectors.json`: D4, R8, R9, E7–E9).
 
-**Anbefaling:** A først — null motor-risiko, og sosialt press gjør resten rundt et ekte bord. B kun hvis spilltesting viser at purring ikke biter, og da via PRD-endring, aldri som stille motorpatch.
-
-Åpne spørsmål før vedtak: (1) I practice er timeren nesten meningsløs — robotene leverer alltid godt under 60 s; skal den skjules der? (2) Party + frakobling: en spiller i reconnect-vinduet (PRD §5.5) må ikke telle som somler.
+**Mot budsjettene i PRD §11:** verste bot-vindu er ca. 12,3 s bløffing og 10,2 s avstemning med 5 roboter — godt innenfor 60/45 s, så frister endrer ikke pacingen i practice. I nett-spill senker de taket på en runde fra «uendelig» til ca. 3 min, som er nøyaktig medianbudsjettet.
 
 ---
 

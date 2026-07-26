@@ -21,6 +21,7 @@ Nesetellingen (👃) er separat fra poengene: én stemme sanket = ett hakk lengr
 | D1 | Identiske løgner slås sammen til ett alternativ. Hver forfatter får ceil(stemmer/antall forfattere) poeng — delt, rundet opp. Nesetellingen (Gullnesen) krediterer derimot hver forfatter alle stemmene. |
 | D2 | Seier krever poeng ≥ mål, og sjekkes KUN når runde % antall spillere == 0 — alle skal ha vært spillmester like mange ganger. |
 | D3 | Dobbeltreff: en løgn som ≈ sannheten tas ut av bunken (slås sammen med sannheten), forfatteren får +3 og stemmer fortsatt — sannheten er synlig for alle. |
+| D4 | Fasefrister (PRD §5.2a) gjelder KUN den runden. Den som ikke rekker fristen beholder poengene sine, teller fortsatt i spillerantallet og i rotasjonen, og forventes igjen neste kort — det er noe helt annet enn å falle ut. Å miste løgnefristen tar ikke stemmen din, og omvendt. Et manglende svar er bare fraværende, så ingen poengregel endres. |
 
 ## Runde-eksemplene (testvektorene R1–R7)
 
@@ -103,6 +104,28 @@ Stemmene: Anne → Bos løgn · Bo → sannheten. Falt ut: Cam — hopper over l
 
 Spillmesteren stjal runden: **nei**.
 
+### R8 · Cam rakk ikke løgnefristen — men stemmer fortsatt
+
+Stemmene: Anne → Bos løgn · Bo → sannheten · Cam → Annes løgn. Rakk ikke løgnefristen: Cam — svaret nådde aldri lista, men stemmen teller (se D4).
+
+| Spillmesteren | Anne | Bo | Cam |
+|---|---|---|---|
+| **+0** | **+1** | **+3** | **+0** |
+| 👃 0 | 👃 1 | 👃 1 | 👃 0 |
+
+Spillmesteren stjal runden: **nei**.
+
+### R9 · Anne rakk ikke stemmefristen — spillmesteren stjeler
+
+Stemmene: Bo → Cams løgn · Cam → Bos løgn. Rakk ikke stemmefristen: Anne — stemmen er bare fraværende (se D4).
+
+| Spillmesteren | Anne | Bo | Cam |
+|---|---|---|---|
+| **+2** | **+0** | **+1** | **+1** |
+| 👃 0 | 👃 0 | 👃 1 | 👃 1 |
+
+Spillmesteren stjal runden: **JA (+2 er med i tallet over)**.
+
 ## Hele spill (G1–G3)
 
 | Id | Beviser |
@@ -121,6 +144,9 @@ Spillmesteren stjal runden: **nei**.
 | E4 | Ditt eget svar vises aldri i din egen stemmeliste; sannheten (ingen forfatter) er synlig for alle. |
 | E5 | Spillmesteren stemmer aldri. |
 | E6 | Spillmester-rollen roterer hver runde i oppsett-rekkefølge, rundt og rundt. |
+| E7 | Et svar som kommer etter at løgnefristen er ute, avvises — alternativlista er allerede satt. |
+| E8 | Går lokkemat-fristen ut, teller det som «ferdig»: det spillmesteren rakk å skrive beholdes, og avstemningen kan åpne. |
+| E9 | Å miste en frist er ikke å falle ut — neste kort nullstiller lista, og du forventes igjen. |
 
 ---
 

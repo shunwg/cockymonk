@@ -26,17 +26,29 @@ function fxMakeG(overrides = {}) {
       score: [6, 8, 5, 3][i],
       bluffVotes: [2, 4, 1, 5][i],
       dropped: false,
+      pid: `fx:${i}`,          // fixtures are posed, never networked
+      kind: "human",
     })),
     target: 15,
+    theme: "salongen",
     round: 2,
     gm: 0,
+    phase: "bluffing",
     card: fxCard, bluffs: {}, decoys: ["", ""], gmDecoyDone: true,
     options: null, doubles: [], votes: {}, deltas: null, gmStole: false,
+    revealIdx: 0,
+    timedOut: { bluff: [], vote: [] },
+    deadline: null,            // null keeps every posed screen static for snap-screens
+    timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
-    goalCelebrated: false, celebrated: false, awaitingNext: false,
+    goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     ...overrides,
   };
 }
+
+// Inlined rather than imported from clock.js: fixtures.js deliberately imports
+// only DOM-free, side-effect-free modules, and clock.js owns a live interval.
+const fxTimers = () => ({ on: false, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
 
 // A full vote pool the way openVote() builds it: three bluffs + one GM decoy +
 // the truth, shuffled by the engine with a FIXED rng so letters (and therefore
@@ -82,7 +94,10 @@ export const FIXTURES = [
     make: () => ({ u: { mode: "party", uname: "Åse", botCount: 3 }, g: null }) },
 
   { id: "06", screen: "SETUP", name: "Spilloppsett",
-    make: () => ({ u: { mode: "hotseat", names: fxNames.slice() }, g: null }) },
+    // Party rather than hotseat, so the registry actually shows the phase-timer
+    // controls (PRD §5.2a) — they only exist in the modes that use them, and a
+    // screen nobody can review is a screen that rots.
+    make: () => ({ u: { mode: "party", names: fxNames.slice() }, g: null }) },
 
   { id: "07", screen: "GM_INTRO", name: "Ny spillmester",
     make: () => ({ u: { mode: "hotseat" }, g: fxMakeG() }) },
@@ -134,8 +149,11 @@ export const FIXTURES = [
     make: () => {
       const pool = fxPool(0);
       return {
-        u: { mode: "hotseat", revealIdx: 2 },
+        u: { mode: "hotseat" },
         g: fxMakeG({
+          // revealIdx moved U → G: the whole room watches the same beat, so it
+          // has to travel with the game state (PRD §10 synced spectacle).
+          phase: "reveal", revealIdx: 2,
           bluffs: pool.bluffs, options: pool.options, doubles: pool.doubles,
           votes: {
             1: fxTruthId(pool.options),
@@ -178,7 +196,39 @@ export const FIXTURES = [
 
   { id: "18", screen: "ABOUT", name: "Om",
     make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
+
+  // 19+ are the numbers added by the v1.1 work (PRD §2.1). PROFILE renders from
+  // the live career profile in ui.js rather than from `u`, because a career
+  // outlives any single game — under snap-screens that is always a fresh 1000.
+  { id: "19", screen: "PROFILE", name: "Profilen din",
+    make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
+
+  // The lobby screens read NET.peers, which fixtures.js cannot import (net.js
+  // owns a live Peer). Tools/snap-screens.mjs therefore poses them via the
+  // fixture roster below, which ui.js prefers over NET when present — a posed
+  // screen must never need a network to be reviewable.
+  { id: "20", screen: "HOST_LOBBY", name: "Vertens lobby",
+    make: () => ({ u: { mode: "party", botCount: 1, fxRoster: fxLobby(3), fxRoom: "GKM47P" }, g: null }) },
+
+  { id: "21", screen: "JOIN", name: "Bli med",
+    make: () => ({ u: { joinCode: "GKM47P", uname: "Ingrid" }, g: null }) },
+
+  { id: "22", screen: "LOBBY_WAIT", name: "Venter på verten",
+    make: () => ({ u: { mode: "party", fxRoster: fxLobby(4), fxRoom: "GKM47P" }, g: null }) },
+
+  { id: "23", screen: "CONNLOST", name: "Mistet kontakten",
+    // Mid-countdown rather than at 0: the state a player actually sees.
+    make: () => ({ u: { fxRoom: "GKM47P", lostAt: 0, fxLostLeft: 18 }, g: null }) },
 ];
+
+// A posed lobby roster. Åse hosts; the last seat is deliberately disconnected so
+// the "borte" state is reviewable rather than theoretical.
+function fxLobby(n) {
+  return fxNames.slice(0, n).map((name, i) => ({
+    pid: `fx:${i}`, name, rating: [1240, 1005, 980, 1512][i] ?? 1000,
+    games: [42, 8, 3, 77][i] ?? 0, nose: 0, connected: i !== n - 1,
+  }));
+}
 
 // Resolve a fixture id ("07") to boot-ready state, or null for unknown/absent ids.
 export function getFixture(id) {

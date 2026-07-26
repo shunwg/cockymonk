@@ -3,7 +3,8 @@
   "decisions": [
     { "id": "D1", "note": "Merged identical bluffs (PRD §5.5): each author scores ceil(votes/authorCount); for the Gullnese bluffVotes tally each author is credited the option's full vote count." },
     { "id": "D2", "note": "Win threshold: score >= target, checked only when round % playerCount == 0 (demo line 807 behavior, canonical per PRD §5.4 'full rotation')." },
-    { "id": "D3", "note": "Dobbeltreff authors are removed from the option pool (their bluff merges with truth), receive +3, and still vote; the truth option remains votable by them (truth has no authors)." }
+    { "id": "D3", "note": "Dobbeltreff authors are removed from the option pool (their bluff merges with truth), receive +3, and still vote; the truth option remains votable by them (truth has no authors)." },
+    { "id": "D4", "note": "Phase timeouts (PRD §5.2a) are per round, never permanent. A player who misses the bluff or vote window keeps their score, stays in playerCount and the GM rotation, and is expected again after the next drawCard — deliberately NOT the `dropped` path of PRD §5.5. Missing a bluff does not forfeit the vote, and vice versa. Their missing answer or vote is simply absent, which scoreRound already handles, so no scoring rule changes: R8 lands on the same pool as the drop vector R7, and R9 flips gmStole purely by absence." }
   ],
   "rounds": [
     {
@@ -127,6 +128,42 @@
         "gmStole": false,
         "bluffVotes": { "0": 0, "1": 0, "2": 1, "3": 0 }
       }
+    },
+    {
+      "id": "R8-bluff-timeout-excluded",
+      "desc": "PRD §5.2a: Cam missed the 60 s bluff window, so his answer never entered the pool — but he is NOT dropped, so he still votes and still scores from it. Same option pool as a drop (R7), reached by a different route.",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "timedOut": { "bluff": [3] },
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "c", "kind": "decoy", "authors": [0] }
+      ],
+      "votes": { "1": "b", "2": "t", "3": "a" },
+      "expected": {
+        "deltas": { "0": 0, "1": 1, "2": 3, "3": 0 },
+        "gmStole": false,
+        "bluffVotes": { "0": 0, "1": 1, "2": 1, "3": 0 }
+      }
+    },
+    {
+      "id": "R9-vote-timeout-flips-steal",
+      "desc": "PRD §5.2a: Anne was the only one who would have found the truth, but missed the 45 s vote window. Her vote is simply absent, so nobody found the truth and the GM steals the round (§5.3 row 3).",
+      "players": ["GM", "Anne", "Bo", "Cam"],
+      "timedOut": { "vote": [1] },
+      "options": [
+        { "id": "t", "kind": "truth", "authors": [] },
+        { "id": "a", "kind": "bluff", "authors": [1] },
+        { "id": "b", "kind": "bluff", "authors": [2] },
+        { "id": "c", "kind": "bluff", "authors": [3] }
+      ],
+      "votes": { "2": "c", "3": "b" },
+      "expected": {
+        "deltas": { "0": 2, "1": 0, "2": 1, "3": 1 },
+        "gmStole": true,
+        "bluffVotes": { "0": 0, "1": 0, "2": 1, "3": 1 }
+      }
     }
   ],
   "games": [
@@ -213,6 +250,26 @@
       "desc": "PRD §5.1: GM rotates every round in setup order, wrapping around.",
       "given": { "players": 3, "gmSequence": true },
       "expected": { "gmByRound": [0, 1, 2, 0, 1, 2] }
+    },
+    {
+      "id": "E7-late-bluff-rejected",
+      "desc": "PRD §5.2a: once the bluff window has closed for a seat, a late submission is rejected. Without this the answer could slip in after the pool was settled and appear from nowhere mid-vote.",
+      "given": { "timeoutBluffsFirst": true, "player": 3 },
+      "action": { "type": "submitBluff", "player": 3, "text": "altfor sent" },
+      "expected": { "rejected": true, "bluffsUnchanged": true }
+    },
+    {
+      "id": "E8-decoy-timeout-opens-vote",
+      "desc": "PRD §5.2a + §5.5 decoy gating: the GM's decoy window closing settles the decoy state exactly like a manual done — a partial draft is kept, not discarded, and the vote may then open.",
+      "given": { "decoyDraft": ["det lille hullet i en ostehøvel"] },
+      "action": { "type": "timeoutDecoys", "decoys": ["det lille hullet i en ostehøvel"] },
+      "expected": { "gmDecoyDone": true, "decoysKept": 1, "canOpenVote": true, "phaseAfterOpen": "voting" }
+    },
+    {
+      "id": "E9-timeout-is-not-dropped",
+      "desc": "D4: a timed-out player is skipped for that round only. They are never marked dropped, and the next drawCard clears the timed-out set so they are expected again.",
+      "given": { "player": 3 },
+      "expected": { "dropped": false, "expectedAgainNextRound": true, "timedOutClearedOnDrawCard": true }
     }
   ]
 }

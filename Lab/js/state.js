@@ -17,6 +17,14 @@ export const STR = {
     passOn: "Send telefonen videre", giveTo: (n) => `Gi telefonen til ${n}`, noPeek: "Ikke titt.", hold: "Hold",
     yourBluff: (w) => `Din tur til å dikte. Hva betyr «${w}»?`, bluffPh: "Skriv en troverdig løgn…",
     emptyBluff: "Selv en dårlig løgn er bedre enn ingen.", lockIn: "Lever løgnen",
+    // Fasefrister (PRD §5.2a)
+    tooLate: "For sent — runden gikk videre uten deg.",
+    timeUp: "Tiden er ute.", tenLeft: "Ti sekunder igjen.",
+    clockBluff: "til å dikte", clockWait: "til alle er inne", clockDecoy: "til avstemningen åpner",
+    clockVote: "til å stemme", clockReveal: "til neste avsløring",
+    timerTitle: "Frister", timerOn: "På", timerOff: "Av",
+    timerBluffLabel: "Tid til å dikte en løgn", timerVoteLabel: "Tid til å stemme",
+    timerHint: "Rekker du ikke fristen, går runden videre uten svaret ditt — men du er med igjen neste runde.",
     allIn: "Alle løgnene er inne.", waitingFor: "Venter på", thinkingDots: "tenker…", openVote: "Åpne avstemning",
     gmComposing: (n) => `${n} dikter lokkemat`, shuffling: "Spillmesteren blander kortene…",
     votingTime: (n) => `${n}, hva er sannheten?`, yourVote: "Hva er sannheten?", cantOwn: "(ditt eget svar er skjult)",
@@ -50,7 +58,40 @@ export const STR = {
     aboutTitle: "Om Cocky Monk",
     aboutBlurb: "Et selskapsspill om å lyve med stil. Dere lager moroa rundt bordet — appen holder bare i nesen.",
     aboutCredits: "Skrifter og lyder: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "Vi samler ikke inn data. Punktum.",
+    // Honest, not reassuring: the moment a profile is persisted, "vi lagrer
+    // ingenting" is an over-claim. PRD §10 / ONLINE-PLAY.md «den ærlige linja».
+    aboutPrivacy: "Ingen server ser spillet ditt. Profilen din — navn, rating og nesetelling — ligger kun i denne nettleseren, og du kan slette den når som helst.",
+    homeProfile: "Profilen din",
+    profileTitle: "Profilen din", profileGames: "Spill", profileWins: "Seire",
+    profileNose: "Neser sanket", profileLast: "Siste spill",
+    profileBest: (n) => `Toppnotering: ${n}`,
+    profileWipe: "Slett profilen", back: "Tilbake",
+    profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
+    // Nett-rom (PRD §2.1)
+    modeOnline: "Spill over nett", modeOnlineSub: "Del en kode med venner — hver sin skjerm, hvor som helst",
+    lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
+    lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
+    lobbyPlayers: (n) => `${n} inne`,
+    lobbyNeed: (n) => `Trenger ${n} flere — eller fyll opp med roboter`,
+    lobbyBots: "Roboter", lobbyStart: "Start spillet",
+    lobbyJoinInstead: "Har du en kode? Bli med i stedet",
+    lobbyWaiting: "Venter på verten", lobbyWaitingSub: "Verten starter når alle er inne.",
+    lobbyYou: "deg", lobbyHost: "vert", lobbyOffline: "borte",
+    joinTitle: "Bli med i et rom", joinCode: "Romkode", joinName: "Navnet ditt",
+    joinGo: "Bli med", joinConnecting: "Kobler til…",
+    joinFailNoRoom: "Fant ikke rommet. Sjekk koden — eller så er spillet over.",
+    joinFailTimeout: "Fikk ikke kontakt. Nettet ditt slipper kanskje ikke gjennom.",
+    joinFailGeneric: "Noe gikk galt med tilkoblingen.",
+    joinPlayBots: "Spill mot roboter i stedet",
+    lostTitle: "Mistet kontakten", lostSub: (s) => `Prøver å koble til igjen… ${s} s`,
+    lostRetry: "Prøv igjen nå", lostHotseat: "Fortsett på én telefon",
+    lostHostGone: "Verten forlot rommet. Rommet er over — men dere kan fortsette her på én telefon.",
+    netNoPeer: "Nett-spill krever nettleser-versjonen med PeerJS.",
+    lobbyRoomOf: (n) => `${n} sitt rom`,
+    joinConnectingTo: (c) => `Kobler til rom ${c}…`,
+    backToLobby: "← Tilbake til lobbyen",
+    setupForRoom: "Du er vert. Dette gjelder hele rommet.",
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -67,6 +108,14 @@ export const STR = {
     passOn: "Pass the phone on", giveTo: (n) => `Give the phone to ${n}`, noPeek: "No peeking.", hold: "Hold",
     yourBluff: (w) => `Your turn to invent. What does “${w}” mean?`, bluffPh: "Write a credible lie…",
     emptyBluff: "Even a bad lie beats no lie.", lockIn: "Submit the lie",
+    // Phase timers (PRD §5.2a)
+    tooLate: "Too late — the round moved on without you.",
+    timeUp: "Time's up.", tenLeft: "Ten seconds left.",
+    clockBluff: "to make one up", clockWait: "until everyone's in", clockDecoy: "until voting opens",
+    clockVote: "to vote", clockReveal: "to the next reveal",
+    timerTitle: "Timers", timerOn: "On", timerOff: "Off",
+    timerBluffLabel: "Time to write a lie", timerVoteLabel: "Time to vote",
+    timerHint: "Miss the deadline and the round moves on without your answer — but you're back in next round.",
     allIn: "All lies accounted for.", waitingFor: "Waiting for", thinkingDots: "thinking…", openVote: "Open the vote",
     gmComposing: (n) => `${n} is composing decoys`, shuffling: "The game master shuffles the cards…",
     votingTime: (n) => `${n}, what's the truth?`, yourVote: "What's the truth?", cantOwn: "(your own answer is hidden)",
@@ -100,7 +149,39 @@ export const STR = {
     aboutTitle: "About Cocky Monk",
     aboutBlurb: "A party game about lying with style. You make the fun around the table — the app just holds the nose.",
     aboutCredits: "Fonts and audio: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
-    aboutPrivacy: "We collect no data. Full stop.",
+    // Honest, not reassuring — see the nb note above.
+    aboutPrivacy: "No server sees your game. Your profile — name, rating and nose count — lives only in this browser, and you can delete it whenever you like.",
+    homeProfile: "Your profile",
+    profileTitle: "Your profile", profileGames: "Games", profileWins: "Wins",
+    profileNose: "Noses collected", profileLast: "Recent games",
+    profileBest: (n) => `Personal best: ${n}`,
+    profileWipe: "Delete profile", back: "Back",
+    profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
+    ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
+    // Online rooms (PRD §2.1)
+    modeOnline: "Play online", modeOnlineSub: "Share a code with friends — own screen, anywhere",
+    lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
+    lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
+    lobbyPlayers: (n) => `${n} in`,
+    lobbyNeed: (n) => `Need ${n} more — or fill up with bots`,
+    lobbyBots: "Bots", lobbyStart: "Start the game",
+    lobbyJoinInstead: "Got a code? Join instead",
+    lobbyWaiting: "Waiting for the host", lobbyWaitingSub: "The host starts when everyone's in.",
+    lobbyYou: "you", lobbyHost: "host", lobbyOffline: "away",
+    joinTitle: "Join a room", joinCode: "Room code", joinName: "Your name",
+    joinGo: "Join", joinConnecting: "Connecting…",
+    joinFailNoRoom: "Couldn't find that room. Check the code — or the game's over.",
+    joinFailTimeout: "Couldn't get through. Your network may be blocking it.",
+    joinFailGeneric: "Something went wrong connecting.",
+    joinPlayBots: "Play against bots instead",
+    lostTitle: "Lost the connection", lostSub: (s) => `Trying to reconnect… ${s}s`,
+    lostRetry: "Retry now", lostHotseat: "Carry on with one phone",
+    lostHostGone: "The host left. The room's over — but you can carry on here on one phone.",
+    netNoPeer: "Online play needs the browser version with PeerJS.",
+    lobbyRoomOf: (n) => `${n}'s room`,
+    joinConnectingTo: (c) => `Connecting to room ${c}…`,
+    backToLobby: "← Back to the lobby",
+    setupForRoom: "You're the host. This applies to the whole room.",
   },
 };
 
@@ -153,6 +234,11 @@ export const esc = (s) =>
 
 export const rnd = (a, b) => a + Math.random() * (b - a);
 
+// Stable-ish id for one device/player. Deliberately NOT crypto.randomUUID():
+// that is undefined on non-secure origins, and the standalone bundle has to run
+// from file://. Collision risk across a room of eight is not worth a thought.
+export const newPid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
 // One timer registry so phase changes can cancel everything pending.
 const timers = [];
 export const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
@@ -176,7 +262,19 @@ export function freshUi() {
     usedFakes: new Set(),
     cur: 0,                 // whose hotseat turn (bluff entry / vote)
     voteIdx: 0,
-    revealIdx: 0,
     afterHand: null,
+    myPid: null,            // this device's player id; set once at boot
+    draftBluff: "",         // mirrors the bluff textarea so a re-render can't eat it
+    // Online rooms (PRD §2.1). The roster itself lives in net.js NET.peers;
+    // these are only what the join/lobby SCREENS need to draw.
+    joinCode: "", joinError: null, joining: false,
+    lostAt: 0,              // when the connection dropped, for the 30 s countdown
+    netSeats: null,         // pids to seat as real peers, in order, at startGame
+    // Posed-only (fixtures.js): let the gallery show the lobby without a network.
+    fxRoster: null, fxRoom: null, fxLostLeft: undefined,
+    // Host's phase-timer choices, made on screen 06 and copied into G at start.
+    // ON by default because the modes that use it (party/online) are the ones
+    // where one person walking away can freeze everyone else.
+    timers: { on: true, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 },
   };
 }

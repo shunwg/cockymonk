@@ -1,8 +1,10 @@
-# ONLINE-PLAY.md — parring i dag, nett og poengliste i morgen
+# ONLINE-PLAY.md — parring i dag, nett i nettleseren, poengliste i morgen
 
-> **FREMTID — IKKE IMPLEMENTERT.** PRD §2 utelukker internett-multiplayer, kontoer og servere i v1, og CLAUDE.md forbyr nettverk utover lokal MultipeerConnectivity. Dette dokumentet er designplassen for segment 5 — den som vil eie det kan tegne fritt her, men **koden venter på PRD-endring + Mac-dag**.
+> **STATUS ENDRET 2026-07-25.** PRD **§2.1** flyttet nett-spill inn i scope — men **kun for nettleser-bygget** (`Lab/`, `dist/CockyMonk.html`, GitHub Pages). iOS-appen i `Sources/` er urørt: fortsatt kun lokal MultipeerConnectivity, fortsatt «Data Not Collected».
+>
+> Del 1 og 2 er **bygget**. Del 4 (Game Center på iOS) er fortsatt **fremtid** og venter på Mac-dag.
 
-## Del 1 — Slik virker lokal party-modus i dag (dette ER i scope)
+## Del 1 — Lokal party-modus på iPhone (uendret)
 
 Party-modus er Kahoot-følelsen rundt ett bord: hver spiller på egen iPhone, samme rom, ingen server (PRD §4). Spillmesterens telefon er vert.
 
@@ -14,46 +16,84 @@ Party-modus er Kahoot-følelsen rundt ett bord: hver spiller på egen iPhone, sa
 | 4 · Klar-status | Verten starter når alle er inne; rollene deles ut (verten er første spillmester) | PRD §4 |
 | 5 · Spill | All spilltilstand flyter vert ↔ spillere over MPC; ingen data forlater rommet | PRD §10 |
 
-**Arkitektur-regelen som gjør fremtiden billig:** `GameEngine` snakker aldri med enheter direkte — kun med `Transport`-protokollen (`LoopbackTransport` for hotseat/practice, `MultipeerTransport` for party). Alt under denne linja i dokumentet er i praksis «en tredje transport».
+**Arkitektur-regelen som gjorde nett billig:** `GameEngine` snakker aldri med enheter direkte — kun med `Transport`-protokollen. Nett-rom ble nøyaktig det denne regelen lovet: **en tredje transport**, uten at motoren eller skjermene merket noe.
 
-**Kanttilfellet:** faller verten ut, viser alle enheter en reconnect-tilstand i 30 sekunder, deretter tilbys «fortsett i Hotseat» (PRD §5.5). Latensbudsjettet er ≤ 300 ms for synkron spectacle (PRD §10).
+**Status:** MPC-transporten er fortsatt Mac-dag-arbeid (MAC_RUNBOOK.md). Nettleseren har ikke MPC — der er det WebRTC som gjelder (Del 2).
 
-**Status:** PartyLobby-skjermen er ikke bygget i Lab-en ennå (browser-en har ikke MPC — Lab-en simulerer party med roboter). Skjermen får nummer i `Screens/SCREENS.md` når den finnes; selve MPC-transporten er Mac-dag-arbeid (MAC_RUNBOOK.md).
+## Del 2 — Nett-rom i nettleser-bygget *(bygget, PRD §2.1)*
 
-## Del 2 — Fremtidsdesign: spill over nett + global poengliste
+Verten lager et rom, deler en **kode på 6 tegn** eller en **lenke**, og starter når nok folk er inne. Ingen konto, ingen innlogging, ingen spillserver.
 
-**Anbefalt vei: Game Center (GameKit).** Apple-kontoen finnes allerede på hver iPhone — ingen egne kontoer, ingen egen server, ingen driftskostnad. To byggeklosser:
-
-| Byggekloss | Hva den gir oss | Hva den IKKE løser |
+| Beat | Hva skjer | Skjerm |
 |---|---|---|
-| GameKit matchmaking (`GKMatch`) | Finn venner / åpne rom over nett; sanntidsmeldinger mellom 3–8 spillere | Somle-toleranse og reconnection må vi designe selv (samme problem som MPC §5.5) |
-| GameKit leaderboards | Global poengliste uten backend; ukes-/allevighets-varianter innebygd | Juksesikring (se under) |
+| 1 · Verten åpner rom | Får en kode (`ABC234`) og en delbar lenke `…/?room=ABC234` | 19 Vertens lobby |
+| 2 · Spillerne blir med | Lenken fyller koden inn selv; ellers taster man den | 20 Bli med |
+| 3 · Lobbyen fylles | Alle ser hverandres navn, farge og rating-merke | 19 / 22 |
+| 4 · Verten starter | «Start spillet» våkner ved 3 spillere. Verten er første spillmester | 19 |
+| 5 · Spill | Verten eier tilstanden og kringkaster den; alle andre tegner det de får | 07–16 |
 
-### «Gullnese-ligaen» — hva den globale poenglisten rangerer
+### Hvordan det henger sammen teknisk
 
-Runde-poeng er meningsløse globalt (de nullstilles per spill). Det som er morsomt å sammenligne på tvers av verden er *løgnkarrieren*:
+**PeerJS (MIT), lagt i `Lab/vendor/peerjs.min.js`, brukt kun i `Lab/js/net.js`.** Vertens peer-id *er* romkoden (med `cm-`-prefiks, så vi ikke kolliderer med andre apper på den delte megleren). En offentlig megler brukes til **signalering** — å koble to nettlesere sammen. Selve spillet går deretter direkte mellom nettleserne (WebRTC data channels): **meglere ser aldri et kort, en løgn eller en stemme.**
 
-| Liste | Måler | Hvorfor |
+**Verten er fasit.** Bare verten trekker kort, åpner avstemning, regner poeng og går videre. Klientene sender handlinger og tegner svaret. Ingen sammensmelting av tilstand, ingen desync-klasse vi ikke kan feilsøke uten server.
+
+**`netProject(G, sete)` — den viktigste funksjonen i hele nett-laget.** Verten sender aldri rå tilstand. Hver mottaker får en sensurert kopi:
+
+| Hva | Hvem ser det | Hvorfor |
 |---|---|---|
-| Gullnese-ligaen (hoved) | Karriere-sum av stemmer dine bløffer har sanket (👃-tellingen) | Spillets sjel — beste løgner, ikke beste gjetter |
-| Ukens nese | Samme, rullerende 7 dager | Gir nye spillere en liste de kan nå toppen av |
-| Raskeste seier | Færrest runder til vunnet spill (min. 4 spillere) | Skryterett for hele bordet |
+| `card.truth` | kun spillmesteren, fram til avsløringen | ellers er spillet ødelagt — og en test alene på én maskin ville sett helt fin ut |
+| `decoys` | kun spillmesteren | halvskrevne lokkematretter er private |
+| bløff-tekster | ingen før avstemningen åpner | før det vises kun *hvem* som er ferdig (chips), ikke *hva* de skrev |
+| hvem stemte hva | ingen før avsløringen | PRD §5.2#4 — tellingen er anonym mens den pågår |
 
-Per språk (nb/en) — å lyve på norsk og engelsk er ulike idretter.
+Regelen er kodet én gang og testet først i `Lab/js/online.test.mjs`.
 
-**Ærlig om juks:** tallene er klient-rapporterte. Game Center har ingen server-side validering av våre regler. Det er et festspill — innsatsen er skryterett, ikke penger — så terskelen er «ikke pinlig lett»: rimelighetstak per innsending (maks teoretisk 👃 per spill = (spillere − 1) × runder), og aldri premier med verdi. Mer enn det er over-engineering.
+### Somling og frafall
 
-### Personvern — den ærlige linja
+- **Fasefrister** (PRD §5.2a) gjør at ingen kan fryse rommet: 60 s bløffing, 45 s lokkemat, 45 s avstemning, 25 s per avsløringsbeat. Bare verten fyrer av utløpet, så to klokker kan aldri krangle. Detaljert flyt i `FLOW.md`.
+- **Frafall:** mister en spiller kontakten, får de skjerm 23 med 30 sekunders nedtelling og kobler seg på igjen med **samme id** — verten sender hele tilstanden på nytt, så det finnes ingenting å spille av. Mens vinduet løper blir de **ikke** regnet som somlere (PRD §5.5).
+- **Faller verten ut** er rommet over: vertens id *er* romkoden, så det finnes ingen ny vert å velge. Klientene får tilbud om «fortsett i hotseat» fra siste kringkastede tilstand — de har den allerede. Dette er en ærlig begrensning, ikke en skjult feil.
+- **Når WebRTC ikke kommer gjennom** (stramt bedriftsnett, enkelte mobilnett uten TURN-relé): rommet feiler synlig etter 8 sekunder med en begrunnelse og en knapp for å spille mot roboter i stedet. Vi kjøper ikke TURN-servere for et festspill.
 
-Dagens etikett er **«Data Not Collected»** og CLAUDE.md freder den. Game Center endrer regnestykket: Apple håndterer identiteten, men App Store-personvernskjemaet må besvares på nytt (Game Center-bruk er typisk «Identifiers/Gameplay Content — knyttet til deg» avhengig av oppsett). **Dette må verifiseres konkret på Mac-dag før noen bygger.** Er svaret at etiketten ryker, er det en PRD-beslutning om det er verdt det — ikke en teknisk detalj.
+## Del 3 — Rating: «løgnkarrieren» *(bygget)*
 
-### Porten for å bygge dette (i rekkefølge, ingen snarveier)
+Runde-poeng er meningsløse på tvers av spill (de nullstilles). Det som er verdt å samle på er hvor god løgner du er **over tid**, og mot hvem.
 
-1. PRD §2-amendment vedtas (online + poengliste inn i scope, f.eks. v1.1).
-2. CLAUDE.md-nettverksregelen oppdateres eksplisitt (GameKit-unntak, som lottie-ios-unntaket).
-3. Personvern-etiketten re-vurderes med faktisk GameKit-oppsett (Mac-dag).
-4. Bygges som **en tredje transport** bak `Transport`-protokollen + et `Leaderboard`-grensesnitt — motoren og skjermene merker ikke forskjell. Null nettverkskode utenfor transporten.
+**Matematikken:** Elo, brutt ned parvis. Mot hver ratede motstander regnes forventet resultat `E = 1/(1+10^((Rmot−Rdeg)/400))`, du får 1 for å ende over dem, 0,5 likt, 0 under — og summen deles på `(N−1)` slik at et spill med 8 gir omtrent samme utslag som et med 3. **Å slå noen med høyere rating gir mer.** Start 1000, K = 40 de første 10 spillene, så 24, så 16.
+
+**Roboter teller ikke.** Er du alene mot roboter skjer det ingenting med ratingen — practice skal ikke kunne pumpes. Et spill som aldri når vinnerskjermen teller heller ikke: en venn som går tom for batteri skal ikke straffes.
+
+**Hvor den bor:** i din egen nettleser (`localStorage`, én versjonert nøkkel), ikke på en server. Når du blir med i et rom sender du ratingen din dit, så alle rundt bordet ser hverandres. Verten regner ut endringene når spillet er ferdig og kringkaster dem; hver enhet tar imot **kun sin egen**.
+
+**Ærlig om juks:** tallene er klient-rapporterte, og det er et bevisst valg. Vi tar de billige grepene — man kan bare endre sin egen rating, endringer over ±64 avvises, 👃-tellingen har et tak på `(spillere − 1) × runder`, og det finnes ingen global liste å klatre på. Signering og server-validering er over-engineering når innsatsen er skryterett. Se `Screens/SCREENS.md` skjerm 21 for «Slett profilen».
+
+## Del 4 — Fremtid: global poengliste på iOS *(fortsatt ikke bygget)*
+
+Nett-rom i nettleseren gir *rommet* en rangering. En **verdensliste** er noe annet, og der er Game Center fortsatt riktig vei på iOS: Apple-kontoen finnes allerede på telefonen — ingen egne kontoer, ingen server, ingen driftskostnad.
+
+| Byggekloss | Hva den gir | Hva den IKKE løser |
+|---|---|---|
+| GameKit matchmaking (`GKMatch`) | Finn venner / åpne rom over nett mellom 3–8 spillere | Somle-toleranse og reconnection — men det er nå løst i Del 2 og kan gjenbrukes |
+| GameKit leaderboards | Global poengliste uten backend; ukes- og evighetsvarianter innebygd | Juksesikring |
+
+Listene, om de bygges: **Gullnese-ligaen** (karriere-sum av stemmer bløffene dine har sanket — spillets sjel, beste løgner ikke beste gjetter) · **Ukens nese** (rullerende 7 dager, så nye spillere har noe å nå toppen av) · **Raskeste seier** (færrest runder, min. 4 spillere). Per språk — å lyve på norsk og engelsk er ulike idretter.
+
+## Personvern — den ærlige linja
+
+**iOS: uendret.** «Data Not Collected» står, og PRD §2.1 holder nett-spill utenfor `Sources/` nettopp for at den skal fortsette å stå.
+
+**Nettleseren: endret, og vi sier det høyt.** En romkode og tilkoblingsdetaljer når en offentlig megler; **spillinnhold gjør det aldri**. Navn, rating og nesetelling ligger i din egen nettleser og sendes kun til rommet du blir med i. Ingen server har et tall om deg. Men «vi lagrer ingenting i det hele tatt» er ikke lenger sant — så Om-skjermen sier hva som faktisk lagres, og profilen kan slettes med én knapp. Gjenta aldri den gamle linja.
+
+**Bygger noen Del 4:** personvernskjemaet må besvares på nytt med faktisk GameKit-oppsett (Game Center er typisk «Identifiers/Gameplay Content — knyttet til deg»). Ryker etiketten, er det en PRD-beslutning om det er verdt det — ikke en teknisk detalj.
+
+## Porten — hvor vi står
+
+1. ✅ **PRD §2-amendment vedtatt** — §2.1, 2026-07-25, nett-rom + rating i scope for nettleser-bygget.
+2. ✅ **CLAUDE.md-nettverksregelen oppdatert** — eksplisitt PeerJS-unntak, samme form som lottie-ios-unntaket.
+3. ⬜ **Personvern-etiketten re-vurderes med GameKit** — gjelder kun Del 4, venter på Mac-dag. Nettleserens linje er allerede skrevet om (over).
+4. ✅ **Bygget som en tredje transport** bak `Transport`-sømmen — motoren og skjermene merker ikke forskjell. Null nettverkskode utenfor `Lab/js/net.js`.
 
 ---
 
-*Autoritet: PRD §2/§4/§5.5/§8/§10 + CLAUDE.md. Dette dokumentet endrer ingenting av det — det tegner veien for den som vil eie segment 5.*
+*Autoritet: PRD §2.1/§4/§5.2a/§5.5/§8/§10 + CLAUDE.md + LANES.md kontrakt 7. Del 1 og 4 beskriver iOS; Del 2 og 3 beskriver nettleser-bygget som er bygget.*

@@ -21,6 +21,8 @@ Run every check below, in order, and report **one** verdict table. Never report 
 | 8 | Repo hygiene | `git status` clean, or every dirty file explained by the current task. |
 | 9 | Rules-sheet drift | `node Tools/rules-sheet.mjs --check` — `Specs/SCORING.md` is generated; hand-edits or vectors missing a bokmål label fail. |
 | 10 | Screen fixtures | `node --test Lab/js/fixtures.test.mjs` — the numbered-screen registry (Screens/SCREENS.md) must stay renderable and engine-shaped. |
+| 11 | Online, clock & rating | `node --test Lab/js/online.test.mjs` — the segment-5 gate. Covers state projection (**the truth must never reach a non-GM seat**), deadline arithmetic, and the Elo math. |
+| 12 | Bundle budget | `node Tools/build-standalone.mjs` prints the size and exits non-zero past **1.0 MB**. The standalone must stay double-clickable, offline, and small enough to send to a friend. |
 
 ## Verdict table format
 

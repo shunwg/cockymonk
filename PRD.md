@@ -16,13 +16,24 @@
 ## 2. Scope
 | In v1 | Out of v1 |
 |---|---|
-| **Hotseat mode** (one phone) with full game-master flow | Internet multiplayer, accounts, servers |
-| **Party mode** (each player on own iPhone, same room, MultipeerConnectivity — Kahoot-style) | Cross-room/remote play |
+| **Hotseat mode** (one phone) with full game-master flow | Internet multiplayer **in the iOS app**, accounts, hosted servers |
+| **Party mode** (each player on own iPhone, same room, MultipeerConnectivity — Kahoot-style) | Cross-room/remote play **in the iOS app** |
 | **Practice mode** (solo vs. computer players — same screens as party mode, bots instead of phones) | Online bots, bot difficulty levels |
 | Board-race scoreboard, 3 visual themes | Custom/user-made themes |
 | Language: Norwegian + English (UI **and** deck) | Other languages |
 | Original decks: `deck_nb.json` (250 target) + `deck_en.json` (150 target, `EDIT-ME`: cut for v1?) | Category packs beyond `ord` |
 | Sound, haptics, board animation | Ads, IAP, analytics, tracking |
+
+### 2.1 Amendment — online rooms in the browser Lab (v1.1, 2026-07-25)
+The **web build only** (`Lab/`, `dist/CockyMonk.html`, GitHub Pages) gains three features. The iOS app in `Sources/` is untouched by this amendment and keeps every rule above.
+
+| Added to scope — **web build only** | Still out of scope, everywhere |
+|---|---|
+| **Online rooms:** the host shares a 6-character code or a link; players join from their own device. Host chooses when to start. WebRTC peer-to-peer, host-authoritative, **no accounts and no game server** — a public broker is used for signalling only and never sees game content | Accounts, logins, hosted game state, matchmaking with strangers |
+| **Career rating:** an Elo-style rating stored **on each player's own device**, exchanged inside the room so everyone present sees everyone's rank | A global/worldwide leaderboard, server-held scores, cheat validation |
+| **Phase timers** (§5.2a) | Timers in hotseat mode |
+
+**Why the split:** the browser build is how this game gets playtested with real people before there is a Mac. Shipping online play there costs the iOS app nothing — `Sources/` gains no networking, keeps the `Transport` protocol as written in §4, and keeps the "Data Not Collected" label. The web build's privacy line changes honestly: see §10.
 
 ## 3. Legal guardrail (unchanged, non-negotiable)
 Mechanics free, expression not. Never ship the name Kokkelimonke, its texts, art, or logo. All cards original (card-author skill). All bundled assets CC0 or licensed with a written record in `ASSETS.md` + `Resources/Audio/CREDITS.md`.
@@ -58,6 +69,20 @@ Mechanics free, expression not. Never ship the name Kokkelimonke, its texts, art
 | 6 | Brettet | Board screen: pawns hop their earned spaces one by one, camera follows the leader | Same board, all devices | Same |
 | 7 | Neste | GM role passes to next player; win check at end of each **full rotation** (§5.4) | — | — |
 
+### 5.2a Phase timers *(web build only — amendment 2026-07-25, resolves §13)*
+Four countdowns, **on by default in online and practice, off in hotseat** (passing one phone paces itself). The host sets the lengths at game setup. This is `Specs/FLOW.md` **Option B** — the clock actually advances the game, it does not merely nag.
+
+| Phase | Default | At 0:00 |
+|---|---|---|
+| Bløffing (§5.2#2) | 60 s | Pending bluffers are **skipped for that round** — their answer never enters the option pool, exactly as a mid-round drop is handled. A late submission is rejected |
+| GM decoys (§5.2#3) | 45 s | Voting opens anyway. Whatever the GM had typed is kept; empty decoys are simply absent |
+| Avstemning (§5.2#4) | 45 s | Non-voters do not vote; the round is scored with the votes that arrived |
+| Avsløring (§5.2#5) | 25 s per beat | The ceremony advances itself, as a bot GM already does |
+
+**Timeout ≠ drop.** A timed-out player keeps their score, stays in the player count and the GM rotation, and is expected again next round (§5.5). Only a genuine disconnect past the reconnect window drops anyone.
+
+**The clock is not a rule engine.** Deadlines live outside the engine, which stays timerless (LANES.md contract #1); expiry enters as an explicit action, fired **only by the host**, so the deadline is one number every device agrees on rather than a race between clocks.
+
 ### 5.3 Scoring
 | Event | Points | Goes to |
 |---|---|---|
@@ -80,6 +105,8 @@ Track race: **Kort** = first past **8** · **Standard** = first past **15** (def
 - App killed mid-round → full state restore (SwiftData) in hotseat; party mode host restores and re-invites.
 - 3 players → 1 GM + 2 bluffers: 2 bluffs + truth + up to 2 GM decoys = 3–5 options. GM decoy strongly encouraged copy-wise at small counts.
 - **Decoy gating:** the shuffle may never fire before the GM's decoy state is settled — in practice/party, a bot or slow GM finishing their decoy after "all bluffs in" must still make the option pool (the demo's `gmDecoyDone` gate).
+- **Timeout is per round, not permanent** *(§5.2a, web build)*: a player who misses the bluff or vote window is skipped for that round only. They keep their score, still count toward `playerCount` and the win check, and are expected again on the next card. This is deliberately *not* the drop path above.
+- **A reconnecting player is never a laggard** *(web build)*: while a player is inside the 30 s reconnect window, their phase timer does not judge them — they are excluded from the timed-out set entirely. Only when the window expires do they become a genuine drop.
 
 ## 6. The board (scoreboard as a place, not a table)
 - A winding track of exactly *target* spaces (8/15/25) with Start and Mål. One pawn per player in their avatar color.
@@ -110,6 +137,8 @@ As v1 PRD §7 (original, verifiable, ≤140 chars, cheeky-never-crude), now per 
 - **Accessibility:** Dynamic Type XL, VoiceOver on everything incl. board state summary ("Anne leder på felt 9"), Reduced Motion → hops become slides + crossfades, no color-only info.
 - **Performance:** 60 fps board on iPhone 12+; party mode 8 devices stable for a full Maraton.
 - **Privacy:** zero collection, no network beyond local MPC. Label: "Data Not Collected".
+  - **iOS app — unchanged.** No accounts, no analytics, no persistent identifier leaving the device. The §2.1 amendment adds nothing here.
+  - **Web build (§2.1)** — the honest version: a room code and the peers' WebRTC connection details reach a public signalling broker; **game content never does** (it is peer-to-peer). A player's name, rating and career nose count are stored in their own browser's `localStorage`, sent only to the room they join, and erasable at any time from the profile screen. No server holds a score, so there is nothing to collect, breach, or subpoena — but "we store nothing at all" is no longer true, and the About screen says so plainly instead of repeating the old line.
 
 ## 11. Success criteria
 1. A 5-person group finishes a Standard party-mode game with zero rule explanations from you.
@@ -134,4 +163,5 @@ As v1 PRD §7 (original, verifiable, ≤140 chars, cheeky-never-crude), now per 
 ## 13. Open questions *(answer, then delete)*
 - [x] Name: **Cocky Monk** — run a Patentstyret + EUIPO trademark search before any public App Store release (the name is deliberately phonetically adjacent to the Norwegian original; fine for TestFlight)
 - [ ] `EDIT-ME` English deck in v1 or v1.1?
-- [ ] `EDIT-ME` Default theme: Salongen? · Bluff timer (60 s) as GM-togglable option?
+- [ ] `EDIT-ME` Default theme: Salongen?
+- [x] **Bluff timer (60 s)** — **yes, as a host-set room option, not a per-GM toggle.** Default ON online and in practice, OFF in hotseat. `Specs/FLOW.md` **Option B** (the clock advances the game), web build only, specified in §5.2a. Two questions FLOW.md left open are answered there too: the timer is *not* hidden in practice (that is where players learn it exists — bots finish around 12 s against a 60 s window), and a reconnecting player is never counted as a laggard (§5.5).

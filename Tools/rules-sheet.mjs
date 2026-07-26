@@ -23,6 +23,7 @@ const LABELS = {
   D1: "Identiske løgner slås sammen til ett alternativ. Hver forfatter får ceil(stemmer/antall forfattere) poeng — delt, rundet opp. Nesetellingen (Gullnesen) krediterer derimot hver forfatter alle stemmene.",
   D2: "Seier krever poeng ≥ mål, og sjekkes KUN når runde % antall spillere == 0 — alle skal ha vært spillmester like mange ganger.",
   D3: "Dobbeltreff: en løgn som ≈ sannheten tas ut av bunken (slås sammen med sannheten), forfatteren får +3 og stemmer fortsatt — sannheten er synlig for alle.",
+  D4: "Fasefrister (PRD §5.2a) gjelder KUN den runden. Den som ikke rekker fristen beholder poengene sine, teller fortsatt i spillerantallet og i rotasjonen, og forventes igjen neste kort — det er noe helt annet enn å falle ut. Å miste løgnefristen tar ikke stemmen din, og omvendt. Et manglende svar er bare fraværende, så ingen poengregel endres.",
 
   "R1-truth-found-basic": "Grunnrunden — sannhet funnet, løgner høster",
   "R2-gm-steal": "Ingen fant sannheten — spillmesteren stjeler",
@@ -31,6 +32,8 @@ const LABELS = {
   "R5-three-players-two-decoys": "Tre spillere — to lokke-forklaringer er lov",
   "R6-decoy-harvest-plus-steal": "Lokkemat-innhøsting PLUSS tyveri",
   "R7-drop-mid-round": "Cam faller ut midt i runden",
+  "R8-bluff-timeout-excluded": "Cam rakk ikke løgnefristen — men stemmer fortsatt",
+  "R9-vote-timeout-flips-steal": "Anne rakk ikke stemmefristen — spillmesteren stjeler",
 
   "G1-win-only-at-rotation-end": "Å krysse mål midt i rotasjonen vinner IKKE — sjekken fyrer først når rotasjonen er komplett.",
   "G2-tie-triggers-omkamp": "Uavgjort forbi mål ved rotasjonsslutt → omkamp: de uavgjorte bløffer, nest høyeste poengsum agerer spillmester.",
@@ -42,6 +45,9 @@ const LABELS = {
   "E4-own-answer-hidden": "Ditt eget svar vises aldri i din egen stemmeliste; sannheten (ingen forfatter) er synlig for alle.",
   "E5-gm-does-not-vote": "Spillmesteren stemmer aldri.",
   "E6-gm-rotation-order": "Spillmester-rollen roterer hver runde i oppsett-rekkefølge, rundt og rundt.",
+  "E7-late-bluff-rejected": "Et svar som kommer etter at løgnefristen er ute, avvises — alternativlista er allerede satt.",
+  "E8-decoy-timeout-opens-vote": "Går lokkemat-fristen ut, teller det som «ferdig»: det spillmesteren rakk å skrive beholdes, og avstemningen kan åpne.",
+  "E9-timeout-is-not-dropped": "Å miste en frist er ikke å falle ut — neste kort nullstiller lista, og du forventes igjen.",
 };
 
 // ---- rendering helpers ------------------------------------------------------
@@ -62,6 +68,8 @@ function renderRound(r) {
   const notes = [];
   if (r.doubles?.length) notes.push(`Dobbeltreff: ${r.doubles.map((d) => name(r.players, d)).join(", ")} (+3, se D3).`);
   if (r.dropped?.length) notes.push(`Falt ut: ${r.dropped.map((d) => name(r.players, d)).join(", ")} — hopper over løgn og stemme.`);
+  if (r.timedOut?.bluff?.length) notes.push(`Rakk ikke løgnefristen: ${r.timedOut.bluff.map((d) => name(r.players, d)).join(", ")} — svaret nådde aldri lista, men stemmen teller (se D4).`);
+  if (r.timedOut?.vote?.length) notes.push(`Rakk ikke stemmefristen: ${r.timedOut.vote.map((d) => name(r.players, d)).join(", ")} — stemmen er bare fraværende (se D4).`);
   const header = `| ${r.players.map((_, i) => name(r.players, i)).join(" | ")} |`;
   const sep = `|${r.players.map(() => "---").join("|")}|`;
   const deltas = `| ${r.players.map((_, i) => `**+${r.expected.deltas[i] ?? 0}**`).join(" | ")} |`;

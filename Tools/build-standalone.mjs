@@ -6,12 +6,16 @@
 // It inlines: all CSS, all JS modules (concatenated into ONE classic script —
 // no ES-module/blob machinery, so it loads from file:// on every browser with
 // zero origin caveats), the full deck_nb/deck_en + fakes, the six Lottie
-// celebration JSONs, and vendored lottie-web. Fonts use the Google Fonts <link>
-// when online and the rounded system fallback (DESIGN.md §2) offline.
+// celebration JSONs, and vendored lottie-web + PeerJS. Fonts are base64-inlined,
+// so the brand survives offline (DESIGN.md §2).
 //
-// Safe to concatenate because the 8 modules share no top-level name (checked;
-// fixtures.js keeps to fx*/FIXTURES/getFixture) and each only reads others'
-// names at call time, after all declarations evaluate in dependency order.
+// Safe to concatenate only because the modules share no top-level name, and
+// each reads others' names at call time, after all declarations evaluate in
+// dependency order. That invariant is now enforced rather than trusted:
+// `node --test Lab/js/online.test.mjs` reads JS_MODULES below and fails on any
+// collision — a clash here is a SyntaxError that appears ONLY in the bundle,
+// never while serving the Lab, so it must not depend on anyone remembering.
+// Per-module prefixes: fixtures.js → fx*, clock.js → ck*, rating.js → rt*, net.js → nt*.
 //
 // Usage:  node Tools/build-standalone.mjs   →   dist/CockyMonk.html
 // The frozen demo and the componentized Lab remain the sources of truth; this is
@@ -32,7 +36,7 @@ const scriptSafe = (obj) => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 const CSS_FILES = ["tokens.css", "base.css", "components.css", "screens.css", "themes.css"];
 // Dependency order: leaves first, entry (ui.js, which runs render() at its foot) last.
-const JS_MODULES = ["state.js", "engine.js", "bots.js", "audio.js", "themes.js", "lottie.js", "fixtures.js", "ui.js"];
+const JS_MODULES = ["state.js", "engine.js", "clock.js", "rating.js", "bots.js", "audio.js", "themes.js", "net.js", "lottie.js", "fixtures.js", "ui.js"];
 
 // Turn one ES module into plain top-level code: drop import lines, drop the
 // `export` keyword. All modules then share the single IIFE scope in the bundle.
@@ -45,6 +49,9 @@ function stripModule(src) {
 }
 const LOTTIE = ["confetti_win", "gullnese_shimmer", "gm_steal_sting",
                 "celebration_salongen", "celebration_fjellet", "celebration_verdensrommet"];
+
+// Ceiling for the self-contained build. ~650 KB with PeerJS + Fredoka inlined.
+const BUDGET_BYTES = 1024 * 1024;
 
 async function main() {
   // ---- fonts: Fredoka base64 @font-face (offline brand), then CSS ----
@@ -72,9 +79,11 @@ async function main() {
   };
   for (const name of LOTTIE) bundle.lottie[name] = await readJson(`Resources/Lottie/${name}.json`);
 
-  // ---- vendored lottie-web (raw JS; must not contain a literal </script>) ----
+  // ---- vendored libs (raw JS; must not contain a literal </script>) ----
   const lottieLib = await read("Lab/vendor/lottie.min.js");
   if (/<\/script/i.test(lottieLib)) throw new Error("lottie.min.js contains </script — needs escaping");
+  const peerLib = await read("Lab/vendor/peerjs.min.js");
+  if (/<\/script/i.test(peerLib)) throw new Error("peerjs.min.js contains </script — needs escaping");
 
   // ---- one classic script: strip module syntax, concat in dependency order ----
   const gameJs = JS_MODULES.map((m) => `/* ===== ${m} ===== */\n${stripModule(sources[m])}`).join("\n\n");
@@ -100,7 +109,10 @@ window.__COCKY__ = ${scriptSafe(bundle)};</script>
 <script>/* lottie-web 5.12.2 — MIT (see ASSETS.md) */
 ${lottieLib}
 </script>
-<script>/* the game — 8 Lab modules concatenated into one classic script (file://-safe) */
+<script>/* PeerJS 1.5.4 — MIT (see ASSETS.md). Inert until a player hosts or joins. */
+${peerLib}
+</script>
+<script>/* the game — all Lab modules concatenated into one classic script (file://-safe) */
 (function () {
 "use strict";
 try {
@@ -118,8 +130,19 @@ ${gameJs}
 
   await mkdir(p("dist"), { recursive: true });
   await writeFile(p("dist/CockyMonk.html"), html, "utf8");
-  const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
+  const bytes = Buffer.byteLength(html);
+  const kb = (bytes / 1024).toFixed(0);
   console.log(`dist/CockyMonk.html  (${kb} KB)  · ${cardCount} cards · ${LOTTIE.length} Lottie · self-contained`);
+
+  // The whole point of this file is that you can double-click it, play offline,
+  // and send it to a friend. A bundle that quietly grows past a megabyte stops
+  // being that, so the budget is a gate (qa-gate row 12) rather than a hope.
+  if (bytes > BUDGET_BYTES) {
+    throw new Error(
+      `bundle is ${kb} KB, over the ${(BUDGET_BYTES / 1024).toFixed(0)} KB budget. ` +
+      `Shrink it or raise BUDGET_BYTES deliberately — don't let it drift.`,
+    );
+  }
 
   // Artifact variant: body content only (claude.ai wraps it in <!doctype>/<head>/<body>).
   // Same inlined game, no external hosts → CSP-clean. Fonts/lottie/decks all embedded.
@@ -129,6 +152,7 @@ ${css}
 <div id="app"></div>
 <script>window.__COCKY__ = ${scriptSafe(bundle)};</script>
 <script>${lottieLib}</script>
+<script>${peerLib}</script>
 <script>
 (function () {
 "use strict";

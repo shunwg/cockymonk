@@ -16,6 +16,10 @@
 <!-- lottie-web (MIT, vendored) — classic script runs before deferred modules,
      so window.lottie is ready when ui.js imports lottie.js. -->
 <script src="vendor/lottie.min.js"></script>
+<!-- PeerJS (MIT, vendored) — same reason: window.Peer must exist before net.js
+     dials. Loading it does nothing on its own; net.js only touches Peer when a
+     player actually hosts or joins, so an offline game never sees the network. -->
+<script src="vendor/peerjs.min.js"></script>
 <script type="module" src="js/ui.js"></script>
 </body>
 </html>

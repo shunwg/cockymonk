@@ -472,6 +472,11 @@ function buildMarkdown() {
     ["accent.bluff (bluffPink)", resolveRef(sem.accent.bluff), "bg (inkNight)", resolvedBg],
     ["accent.gm (gmViolet)", resolveRef(sem.accent.gm), "bg (inkNight)", resolvedBg],
     ["accent.turn (turnYellow)", resolveRef(sem.accent.turn), "bg (inkNight)", resolvedBg],
+    // Countdown ring (PRD §5.2a). The numeral inside it is real text a player
+    // reads under time pressure, so it answers to the same 4.5:1 floor.
+    ["timer.calm (mutedViolet)", resolveRef(sem.timer.calm), "bg (inkNight)", resolvedBg],
+    ["timer.warn (turnYellow)", resolveRef(sem.timer.warn), "bg (inkNight)", resolvedBg],
+    ["timer.urgent (bluffPink)", resolveRef(sem.timer.urgent), "bg (inkNight)", resolvedBg],
   ];
   for (const [fgName, fg, bgName, bg] of pairs) {
     const ratio = contrastRatio(fg, bg);

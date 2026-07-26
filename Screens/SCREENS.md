@@ -1,4 +1,4 @@
-# Skjermregisteret — 01–18
+# Skjermregisteret — 01–23
 
 Alle visuelle referanser i dette prosjektet bruker **skjermnummer**. Si «endre 07», ikke «den lilla skjermen med kortet». Da vet alle fire nøyaktig hva som menes — i chat, i commits og i Claude-økter.
 
@@ -24,7 +24,7 @@ Skjermene er *poserte*: faste spillere (Åse, Markus, Ingrid, Jonas), faste poen
 | 03 | `MODE` | Spillmodus | Én telefon (hotseat) vs hver sin telefon (party) | [03](png/03-mode.png) |
 | 04 | `PLAYERS` | Spillere | Navneliste 3–8, legg til/fjern | [04](png/04-players.png) |
 | 05 | `PARTYSETUP` | Party-oppsett | Ditt navn + antall roboter (Lab) | [05](png/05-partysetup.png) |
-| 06 | `SETUP` | Spilloppsett | Spillengde (8/15/25) + brettvalg + start | [06](png/06-setup.png) |
+| 06 | `SETUP` | Spilloppsett | Spillengde (8/15/25) + brettvalg + **frister** (PRD §5.2a: på/av + lengder) + start. Fixturen poserer party-modus, siden fristene kun finnes der | [06](png/06-setup.png) |
 | 07 | `GM_INTRO` | Ny spillmester | «X er spillmester» + runde-banner | [07](png/07-gm_intro.png) |
 | 08 | `GM_DASH` | Spillmester-pulten | Ordet, hemmelig sannhet (hold for å se), lokkemat-felter, innsjekk-chips, «Åpne avstemning» | [08](png/08-gm_dash.png) |
 | 09 | `BLUFF` | Dikt en løgn | Spillerbanner, ordet, løgn-tekstfelt | [09](png/09-bluff.png) |
@@ -37,6 +37,11 @@ Skjermene er *poserte*: faste spillere (Åse, Markus, Ingrid, Jonas), faste poen
 | 16 | `WINNER` | Vinner | Seier, poengliste, Gullnesen til beste løgner | [16](png/16-winner.png) |
 | 17 | `RULES` | Slik spiller du | Illustrert 30-sekunders regelgjennomgang | [17](png/17-rules.png) |
 | 18 | `ABOUT` | Om | Kreditering + personvernlinja | [18](png/18-about.png) |
+| 19 | `PROFILE` | Profilen din | Rating + tier, toppnotering, spill/seire/neser, siste 10 endringer, «Slett profilen» (PRD §2.1) | [19](png/19-profile.png) |
+| 20 | `HOST_LOBBY` | Vertens lobby | Romkode, delbar lenke, navnefelt, spillerliste med rating, robot-utfyll, «Start spillet» (låst under 3 spillere) | [20](png/20-host_lobby.png) |
+| 21 | `JOIN` | Bli med | Kodefelt (fylles av delelenka), navn, kobler-til/feilet — og alltid en vei ut til robotspill | [21](png/21-join.png) |
+| 22 | `LOBBY_WAIT` | Venter på verten | Klientens lobby: romkode + hvem som er inne | [22](png/22-lobby_wait.png) |
+| 23 | `CONNLOST` | Mistet kontakten | 30 s nedtelling, prøv igjen, «fortsett på én telefon» | [23](png/23-connlost.png) |
 
 **Filer:** alle skjermene tegnes av `Lab/js/ui.js` (`SCREENS.<ID>`); utseendet bor i `Lab/css/screens.css` + `components.css` (og `themes.css` for 14). Tekstene bor i `Lab/js/state.js` (`STR`, nb + en). Endrer du utseende: kjør `node --test Lab/js/fixtures.test.mjs`, sjekk galleriet, og `node Tools/snap-screens.mjs NN`.
 
@@ -53,4 +58,6 @@ Disse ligger *oppå* skjermene og refereres med navn:
 
 ## Kommer (får nummer når de finnes)
 
-PRD §8 nevner skjermer som ennå ikke er bygget i Lab-en: **PartyLobby** (ekte nearby-parring — se `Specs/ONLINE-PLAY.md` del 1) og **Pause/Innstillinger**. Den som bygger dem: legg til fixture i `fixtures.js`, gi neste ledige nummer her, kjør snap.
+Neste ledige nummer er **24**. Ennå ikke bygget: **Pause/Innstillinger** (PRD §8). Den som bygger dem: legg til fixture i `fixtures.js`, gi neste ledige nummer her, kjør snap.
+
+*(19 gikk til Profilen din fordi den ble bygget først — numre tildeles i den rekkefølgen skjermene faktisk finnes, aldri etter plan.)*
