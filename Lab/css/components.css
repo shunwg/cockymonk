@@ -25,6 +25,15 @@
    DESIGN.md §9, nothing by colour alone: the numeral counts down, and at
    urgent the ring thins to a hollow outline. Both survive Reduced Motion,
    where base.css kills the transition and the ring simply snaps. */
+/* Field labels. A placeholder is not a label: it disappears the moment the field
+   has a value — which for the join code is immediately, because the share link
+   fills it in. That left two unexplained boxes, and gave a screen reader nothing
+   but a value to read out (DESIGN.md §9). */
+.fieldlabel {
+  display: block; margin: 12px 0 4px;
+  color: var(--color-text-secondary); font-size: 14px; font-weight: 700;
+}
+
 /* Career rating badge (PRD §2.1) — quiet by design; the Nose and the Board
    own the drama (DESIGN.md §5 boldness budget). */
 .ratingpill {

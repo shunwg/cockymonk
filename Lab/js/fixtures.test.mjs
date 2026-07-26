@@ -15,7 +15,7 @@ const SCREEN_COUNT = SCREEN_IDS.length;   // numbers are permanent; new screens 
 // Keys of the G literal in ui.js startGame() — fxMakeG must mirror it.
 const G_KEYS = [
   "players", "target", "round", "gm", "phase", "card", "bluffs", "decoys", "gmDecoyDone",
-  "options", "doubles", "votes", "deltas", "gmStole", "revealIdx", "timedOut", "deadline",
+  "options", "doubles", "votes", "deltas", "gmStole", "revealIdx", "timedOut", "deadline", "theme",
   "timers", "inOmkamp", "omkampParticipants",
   "preOmkampScores", "goalCelebrated", "celebrated", "awaitingNext", "ratingDone",
 ];

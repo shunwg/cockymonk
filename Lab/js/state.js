@@ -88,6 +88,10 @@ export const STR = {
     lostRetry: "Prøv igjen nå", lostHotseat: "Fortsett på én telefon",
     lostHostGone: "Verten forlot rommet. Rommet er over — men dere kan fortsette her på én telefon.",
     netNoPeer: "Nett-spill krever nettleser-versjonen med PeerJS.",
+    lobbyRoomOf: (n) => `${n} sitt rom`,
+    joinConnectingTo: (c) => `Kobler til rom ${c}…`,
+    backToLobby: "← Tilbake til lobbyen",
+    setupForRoom: "Du er vert. Dette gjelder hele rommet.",
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -174,6 +178,10 @@ export const STR = {
     lostRetry: "Retry now", lostHotseat: "Carry on with one phone",
     lostHostGone: "The host left. The room's over — but you can carry on here on one phone.",
     netNoPeer: "Online play needs the browser version with PeerJS.",
+    lobbyRoomOf: (n) => `${n}'s room`,
+    joinConnectingTo: (c) => `Connecting to room ${c}…`,
+    backToLobby: "← Back to the lobby",
+    setupForRoom: "You're the host. This applies to the whole room.",
   },
 };
 

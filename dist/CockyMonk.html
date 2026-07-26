@@ -334,6 +334,15 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
    DESIGN.md §9, nothing by colour alone: the numeral counts down, and at
    urgent the ring thins to a hollow outline. Both survive Reduced Motion,
    where base.css kills the transition and the ring simply snaps. */
+/* Field labels. A placeholder is not a label: it disappears the moment the field
+   has a value — which for the join code is immediately, because the share link
+   fills it in. That left two unexplained boxes, and gave a screen reader nothing
+   but a value to read out (DESIGN.md §9). */
+.fieldlabel {
+  display: block; margin: 12px 0 4px;
+  color: var(--color-text-secondary); font-size: 14px; font-weight: 700;
+}
+
 /* Career rating badge (PRD §2.1) — quiet by design; the Nose and the Board
    own the drama (DESIGN.md §5 boldness budget). */
 .ratingpill {
@@ -855,6 +864,10 @@ const STR = {
     lostRetry: "Prøv igjen nå", lostHotseat: "Fortsett på én telefon",
     lostHostGone: "Verten forlot rommet. Rommet er over — men dere kan fortsette her på én telefon.",
     netNoPeer: "Nett-spill krever nettleser-versjonen med PeerJS.",
+    lobbyRoomOf: (n) => `${n} sitt rom`,
+    joinConnectingTo: (c) => `Kobler til rom ${c}…`,
+    backToLobby: "← Tilbake til lobbyen",
+    setupForRoom: "Du er vert. Dette gjelder hele rommet.",
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -941,6 +954,10 @@ const STR = {
     lostRetry: "Retry now", lostHotseat: "Carry on with one phone",
     lostHostGone: "The host left. The room's over — but you can carry on here on one phone.",
     netNoPeer: "Online play needs the browser version with PeerJS.",
+    lobbyRoomOf: (n) => `${n}'s room`,
+    joinConnectingTo: (c) => `Connecting to room ${c}…`,
+    backToLobby: "← Back to the lobby",
+    setupForRoom: "You're the host. This applies to the whole room.",
   },
 };
 
@@ -2317,6 +2334,7 @@ function fxMakeG(overrides = {}) {
       kind: "human",
     })),
     target: 15,
+    theme: "salongen",
     round: 2,
     gm: 0,
     phase: "bluffing",
@@ -2730,7 +2748,8 @@ const shuffled = (a) => {
 const takeFakeText = () => U.fakePool.pop() ?? "…";
 
 /* ---------- shell ---------- */
-const NO_THEME_BTN = ["HOME", "RULES", "ABOUT", "LANG", "MODE", "PLAYERS", "PARTYSETUP"];
+const NO_THEME_BTN = ["HOME", "RULES", "ABOUT", "LANG", "MODE", "PLAYERS", "PARTYSETUP",
+  "JOIN", "LOBBY_WAIT", "CONNLOST"];
 const NO_HELP_BTN = [...NO_THEME_BTN, "SETUP"];
 const CEREMONY_SCREENS = ["REVEAL", "BOARD", "WINNER"];
 
@@ -2746,7 +2765,7 @@ function shell(inner, { gm = false } = {}) {
      <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
      <span>
        ${NO_HELP_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="helpbtn" aria-label="${t("rulesTitle")}">?</button>`}
-       ${NO_THEME_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
+       ${NO_THEME_BTN.includes(U.screen) || (online() && !isHost()) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
        <button class="iconbtn" id="mutebtn">${isMuted() ? "🔇" : "🔊"}</button>
      </span>
    </div>
@@ -2902,7 +2921,10 @@ SCREENS.PARTYSETUP = () => {
 };
 
 SCREENS.SETUP = () => {
-  shell(`<h2>${t("length")}</h2>
+  const forRoom = online() && isHost();
+  shell(`${forRoom ? `<div class="banner gm">${t("lobbyRoomOf", esc(U.uname || "?"))} · ${t("lobbyPlayers", lobbyRoster().filter((p) => p.connected).length)}</div>
+   <p class="small">${t("setupForRoom")}</p>` : ""}
+   <h2>${t("length")}</h2>
    <div class="seg">${[["kort", 8], ["std", 15], ["mara", 25]].map(([k, v]) => `
      <button class="${U.target === v ? "on" : ""}" data-target="${v}">${t(k)}</button>`).join("")}</div>
    <h2>${t("theme")}</h2>
@@ -2924,7 +2946,10 @@ SCREENS.SETUP = () => {
    <p class="small">${t("timerHint")}</p>` : ""}` : ""}
    <div style="flex:1"></div><p class="small">${t("rules")}</p>
    <button class="btn" id="begin">${t("begin")}</button>
+   ${forRoom ? `<button class="linkbtn" id="backlobby">${t("backToLobby")}</button>` : ""}
    <button class="linkbtn" id="setuprules">${t("homeHowTo")}</button>`);
+  const bl = document.getElementById("backlobby");
+  if (bl) bl.onclick = () => { U.screen = "HOST_LOBBY"; play("back"); render(); };
   app.querySelectorAll("[data-target]").forEach((b) => b.onclick = () => { U.target = Number(b.dataset.target); play("toggle"); render(); });
   app.querySelectorAll("[data-theme]").forEach((b) => b.onclick = () => { U.theme = b.dataset.theme; play("toggle"); render(); });
   app.querySelectorAll("[data-timer]").forEach((b) => b.onclick = () => { U.timers.on = b.dataset.timer === "on"; play("toggle"); render(); });
@@ -2936,7 +2961,8 @@ SCREENS.SETUP = () => {
     play("toggle"); render();
   });
   app.querySelectorAll("[data-votems]").forEach((b) => b.onclick = () => { U.timers.voteMs = Number(b.dataset.votems); play("toggle"); render(); });
-  document.getElementById("begin").onclick = startGame;
+  // Online: seat the room first, then start. Local: straight in.
+  document.getElementById("begin").onclick = () => (online() && isHost() ? netStartRoom() : startGame());
   document.getElementById("setuprules").onclick = () => { U.rulesReturn = "SETUP"; play("confirm"); U.screen = "RULES"; render(); };
 };
 
@@ -2961,6 +2987,7 @@ function startGame() {
       };
     }),
     target: U.target,
+    theme: U.theme,          // the room shares one board (PRD §6) — it travels with G
     round: 0,
     gm: 0,                       // the host/user (seat 0) is always the first GM
     phase: "card",               // engine.js PHASES — what the ROOM is doing, vs U.screen (what THIS device shows)
@@ -3726,6 +3753,7 @@ function netOnHostState(msg) {
   // the host advances. On a client that must simply mean "me" — otherwise your
   // own answer screen wears the game master's name and colour.
   U.cur = mySeat();
+  if (G.theme) U.theme = G.theme;   // everyone sits at the same table
   NET.skewMs = clockSkew(msg.t0 ?? Date.now());
   const seat = mySeat();
   const next = screenForSeat(G, seat);
@@ -3757,23 +3785,28 @@ function netFail(reason) {
   render();
 }
 
-// Host: hand out seats and start. Bots fill any empty chairs, which is what
-// makes the room playable with two friends instead of demanding five.
+// Host: seat everyone and start. Bots fill any empty chairs, which is what makes
+// the room playable with two friends instead of demanding five.
+//
+// Called from screen 06, NOT from the lobby: the online path used to jump
+// straight into the game, so a host silently got 15 points / Salongen / default
+// deadlines and was never asked. Hosting IS choosing those things. Seats are
+// read here rather than in the lobby so someone who joins while the host is
+// still picking a board still gets a chair.
 function netStartRoom() {
   const humans = NET.peers.filter((p) => p.connected);
   const botNames = BOT_NAMES[U.lang].slice(0, Math.max(0, U.botCount));
   U.names = [...humans.map((p) => p.name), ...botNames].slice(0, NET_CONFIG.MAX_PLAYERS);
   U.mode = "party";                       // same screens as practice; the seats differ
   U.netSeats = humans.map((p) => p.pid);  // startGame reads this to seat real peers
-  play("confirm");
   startGame();
-  netPush();
 }
 
 // Posed fixtures supply their own roster/code (fixtures.js cannot import net.js),
 // so the lobby screens are reviewable in the gallery with no network at all.
 const lobbyRoster = () => U.fxRoster ?? NET.peers;
 const lobbyRoom = () => U.fxRoom ?? NET.roomCode;
+const lobbyHostName = () => lobbyRoster()[0]?.name || null;
 
 SCREENS.HOST_LOBBY = () => {
   const roster = lobbyRoster();
@@ -3795,7 +3828,7 @@ SCREENS.HOST_LOBBY = () => {
          ${p.pid === U.myPid ? `· ${t("lobbyHost")}` : ""}${p.connected ? "" : `· ${t("lobbyOffline")}`}
          ${p.rating ? `<span class="ratingpill">${p.rating}</span>` : ""}</span>`).join("")}</div>
    </div>
-   <p class="small" style="margin:10px 0 4px">${t("joinName")}</p>
+   <label class="fieldlabel" for="hostname">${t("joinName")}</label>
    <input type="text" id="hostname" maxlength="14" placeholder="${t("namePh")}" value="${esc(U.uname ?? "")}">
    <h2>${t("lobbyBots")}</h2>
    <div class="seg">${[0, 1, 2, 3].map((n) => `
@@ -3820,14 +3853,17 @@ SCREENS.HOST_LOBBY = () => {
   document.getElementById("startroom").onclick = () => {
     PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
     ratingSave(PROFILE);
-    netStartRoom();
+    // On to game setup — length, board, deadlines. The room keeps filling
+    // behind this screen; seats are taken when the host actually starts.
+    U.mode = "party";
+    U.screen = "SETUP"; play("confirm"); render();
   };
   document.getElementById("tojoin").onclick = () => { U.screen = "JOIN"; play("back"); render(); };
 };
 
 SCREENS.LOBBY_WAIT = () => {
   shell(`
-   <h2>${t("lobbyWaiting")}</h2>
+   <h2>${lobbyHostName() ? t("lobbyRoomOf", esc(lobbyHostName())) : t("lobbyWaiting")}</h2>
    <div class="card" style="text-align:center">
      <span class="eyebrow">${t("lobbyCode")}</span>
      <div class="word" style="font-size:32px;letter-spacing:5px">${esc(lobbyRoom() ?? "…")}</div>
@@ -3850,12 +3886,14 @@ SCREENS.JOIN = () => {
   const err = U.joinError;
   shell(`
    <h2>${t("joinTitle")}</h2>
+   <label class="fieldlabel" for="jcode">${t("joinCode")}</label>
    <input type="text" id="jcode" maxlength="10" autocapitalize="characters" autocomplete="off"
           placeholder="${t("joinCode")}" value="${esc(U.joinCode ?? "")}"
           style="text-transform:uppercase;letter-spacing:4px;font-weight:700">
+   <label class="fieldlabel" for="jname">${t("joinName")}</label>
    <input type="text" id="jname" maxlength="14" placeholder="${t("joinName")}" value="${esc(U.uname ?? "")}">
    ${err ? `<div class="banner" style="background:var(--color-timer-urgent)">${t(err)}</div>` : ""}
-   ${U.joining ? `<p class="small">${t("joinConnecting")}</p>` : ""}
+   ${U.joining ? `<p class="small">${t("joinConnectingTo", esc((U.joinCode ?? "").toUpperCase()))}</p>` : ""}
    <div style="flex:1"></div>
    <button class="btn" id="dojoin" ${U.joining ? "disabled" : ""}>${t("joinGo")}</button>
    <button class="linkbtn" id="joinbots">${t("joinPlayBots")}</button>`);

@@ -30,6 +30,7 @@ function fxMakeG(overrides = {}) {
       kind: "human",
     })),
     target: 15,
+    theme: "salongen",
     round: 2,
     gm: 0,
     phase: "bluffing",
