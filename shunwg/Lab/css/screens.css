@@ -75,7 +75,7 @@
   border-radius: 28px; box-shadow: var(--shadow-hard);
   background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000008 3px 4px);   /* paper grain */
 }
-.home-badge .logo { width: 92px; height: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.home-badge .logo { width: 92px; height: auto; }   /* shadow is drawn inside LOGO() */
 .linkbtn {
   display: block; width: 100%; background: none; border: none; cursor: pointer; min-height: 44px;
   color: var(--color-text-secondary); font: inherit; font-weight: 600; font-size: 15px;

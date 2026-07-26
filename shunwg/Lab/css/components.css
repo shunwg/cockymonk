@@ -139,34 +139,78 @@
 @keyframes dotPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .author { display: flex; align-items: center; gap: 9px; margin-top: 9px; font-weight: 600; font-size: 14px; }
 
-/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods. */
-.face { width: 34px; height: 34px; border-radius: 50%; position: relative; flex: none; border: 2.5px solid var(--color-border); }
-.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
-.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
-.face .smile {
-  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); width: 12px; height: 6px;
-  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px; transition: all .18s ease;
+/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods.
+   This is the LOGO() drawing in ui.js rendered in CSS so it can wear a player
+   colour, grow a Nose and change mood: bevelled token, flat brows, dot eyes,
+   smirk, capsule Nose. Every dimension is a ratio of --fs (the face box), so the
+   same markup is correct at 34 px and 68 px — never add pixel geometry per site,
+   pass a `size` to face() instead. Ink weight is deliberately NOT scaled linearly
+   past the outline: brows and mouth keep their stroke so a 34 px chip stays
+   readable. */
+.face {
+  --fs: 34px;
+  width: var(--fs); height: var(--fs); border-radius: 50%; position: relative; flex: none;
+  /* The outline is an INSET ring, not a border, on purpose: a border would shrink
+     the padding box and every % below would silently resolve against a smaller
+     box, so the features would drift as --fs changed. Second inset is the darker
+     crescent that makes this a piece on a table rather than a sticker. */
+  box-shadow:
+    inset 0 0 0 calc(var(--fs) * .08) var(--color-border),
+    inset calc(var(--fs) * -.05) calc(var(--fs) * -.07) 0 #00000024;
 }
-/* suspicious — narrowed eyes, flat mouth (shown while others are bluffing) */
-.face.suspicious::before, .face.suspicious::after { height: 2px; border-radius: 2px; top: 12px; }
-.face.suspicious .smile { height: 0; width: 10px; border-radius: 0; border-bottom-width: 2.5px; }
-/* smug — a sly smirk (the GM who just stole the round) */
-.face.smug .smile { width: 14px; height: 5px; transform: translateX(-40%) rotate(-12deg); }
-.face.smug::after { transform: scaleY(1.4); }
-/* shocked — wide eyes, round mouth (a double-hit) */
+.face::before, .face::after {   /* eyes */
+  content: ""; position: absolute; top: 32%; width: 10%; height: 10%; border-radius: 50%;
+  background: var(--color-border); transition: transform .18s ease, height .18s ease;
+}
+.face::before { left: 26%; }
+.face::after { right: 26%; }
+.face .brows { position: absolute; inset: 0; pointer-events: none; }
+.face .brows::before, .face .brows::after {   /* the cocky part: flat, high, unbothered */
+  content: ""; position: absolute; top: 20%; width: 18%; height: 6%; border-radius: 99px;
+  background: var(--color-border); transition: transform .18s ease, top .18s ease;
+}
+.face .brows::before { left: 21%; transform: rotate(8deg); }
+.face .brows::after { right: 21%; transform: rotate(-8deg); }
+.face .smile {   /* a smirk, tilted — never a symmetric arc */
+  position: absolute; left: 45%; bottom: 20%; transform: translateX(-50%) rotate(-9deg);
+  width: 26%; height: 13%;
+  border: calc(var(--fs) * .06) solid var(--color-border); border-top: none;
+  border-radius: 0 0 99px 99px; transition: all .18s ease;
+}
+/* suspicious — narrowed eyes, lowered brows, flat mouth (while others are bluffing) */
+.face.suspicious::before, .face.suspicious::after { height: 4%; border-radius: 2px; top: 34%; }
+.face.suspicious .brows::before, .face.suspicious .brows::after { top: 25%; }
+.face.suspicious .smile { height: 0; width: 26%; border-radius: 0; transform: translateX(-50%) rotate(-4deg); }
+/* smug — a wider smirk, one eye squeezed (the GM who just stole the round) */
+.face.smug .smile { width: 38%; height: 11%; transform: translateX(-48%) rotate(-16deg); }
+.face.smug::after { transform: scaleY(1.5); }
+.face.smug .brows::after { top: 16%; transform: rotate(-15deg); }
+/* shocked — wide eyes, raised brows, round mouth (a double-hit) */
 .face.shocked::before, .face.shocked::after { transform: scale(1.5); }
-.face.shocked .smile { width: 9px; height: 9px; border: 2.5px solid var(--color-border); border-radius: 50%; bottom: 4px; }
+.face.shocked .brows::before, .face.shocked .brows::after { top: 14%; }
+.face.shocked .smile {
+  width: 20%; height: 20%; border: calc(var(--fs) * .06) solid var(--color-border);
+  border-radius: 50%; bottom: 10%; transform: translateX(-50%);
+}
 /* delighted — big grin (the winner) */
-.face.delighted .smile { width: 16px; height: 9px; border-radius: 0 0 16px 16px; }
+.face.delighted .smile { width: 38%; height: 20%; border-radius: 0 0 99px 99px; bottom: 12%; transform: translateX(-50%) rotate(-4deg); }
+.face.delighted .brows::before, .face.delighted .brows::after { top: 16%; }
 
 /* Vote-open flash + GM-steal screen shake — showmanship, RM-guarded in JS */
 .flash { position: fixed; inset: 0; z-index: 85; pointer-events: none; background: var(--color-accent-turn); animation: flashFade .5s ease-out both; }
 @keyframes flashFade { 0% { opacity: .55; } 100% { opacity: 0; } }
 .shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake { 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)} }
+/* The Nesen. A full capsule that LIES ACROSS the face and juts out to the right,
+   exactly as in LOGO() — not a stub bolted to the rim. --notch is the vote count;
+   0 votes leaves the tip just short of the cheek, and every notch adds a third of
+   a face-width of shame. Width is computed here so no call site owns geometry. */
 .nose {
-  position: absolute; left: 96%; top: 13px; height: 9px; width: 6px; border-radius: 0 7px 7px 0;
-  background: var(--color-accent-bluff); border: 2.5px solid var(--color-border); border-left: none;
+  position: absolute; left: 44%; top: 43%;
+  height: calc(var(--fs) * .23);
+  width: calc(var(--fs) * (.5 + .33 * var(--notch, 0)));
+  border-radius: 999px;
+  background: var(--color-accent-bluff); border: calc(var(--fs) * .05) solid var(--color-border);
   transform-origin: left center;
   box-shadow: inset 0 1px 0 #ffffff66, inset 0 -1px 0 #00000022;   /* inked-on-paper */
 }
@@ -174,9 +218,17 @@
    reveal beat, so a transition can't fire; a stronger vote count boings harder). DESIGN §4. */
 .nose.grow { animation: noseBoing var(--spring-nose-grow-duration) var(--spring-nose-grow-ease) both; }
 @keyframes noseBoing {
-  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--votes, 1))); }
+  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--notch, 1))); }
   100% { transform: scaleX(1); }
 }
+/* Mascot length, matching LOGO() exactly (34.2 of a 34.8-unit head). Decorative
+   faces wear this; a face whose Nose is REPORTING something — reveal chips, the
+   Gullnese — must stay on the --notch scale or the length would lie. */
+.nose.brand { width: calc(var(--fs) * .98); }
+/* The Nose is absolutely positioned, so it reserves NO layout width and a long
+   one would run straight through the name beside it. Anywhere a face sits inline
+   with text, buy back exactly the overflow — hence --notch living on .face. */
+.author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
 .nose.violet { background: var(--color-accent-gm); }
 .nose.gold { background: gold; }
 

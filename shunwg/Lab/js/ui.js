@@ -61,12 +61,38 @@ const isHost = () => NET.isHost;
 const online = () => NET.kind !== "loopback";
 const app = document.getElementById("app");
 
-const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
-  <circle cx="13" cy="13" r="11" fill="#FFF6E8" stroke="#23233B" stroke-width="2.6"/>
-  <circle cx="9.5" cy="10.5" r="1.6" fill="#23233B"/><circle cx="16.5" cy="10.5" r="1.6" fill="#23233B"/>
-  <path d="M9 17 q4 3.4 8 0" stroke="#23233B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-  <path d="M23 11 h14 a3.4 3.4 0 0 1 0 6.8 h-14 z" fill="#FF5C97" stroke="#23233B" stroke-width="2.4"/>
+// The mark. Literal hexes, not tokens: this is the brand asset, it must render
+// identically on every theme and in the standalone file:// bundle, and it is the
+// one drawing the whole app copies. The avatar in components.css is the SAME
+// face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
+// Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
+// than via a CSS filter so the mark carries it everywhere it appears.
+const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.447).toFixed(1)}" height="${sz}" viewBox="0 0 55 38" fill="none" role="img" aria-hidden="true">
+  <g fill="#141425">
+    <circle cx="18.8" cy="20.3" r="16"/>
+    <rect x="18" y="19.2" width="34.2" height="7.7" rx="3.85"/>
+  </g>
+  <circle cx="20" cy="18.5" r="16" fill="#E8D5AE"/>
+  <circle cx="21.4" cy="17.1" r="14.3" fill="#FFF6E8"/>
+  <circle cx="20" cy="18.5" r="16" stroke="#23233B" stroke-width="2.8"/>
+  <g stroke="#23233B" stroke-linecap="round" fill="none">
+    <path d="M11 9 15.2 9.6" stroke-width="2"/><path d="M27.4 9 23.2 9.6" stroke-width="2"/>
+    <path d="M15 26.2q3.2 3.4 6.6-.6" stroke-width="2.5"/>
+  </g>
+  <circle cx="13.3" cy="13.9" r="1.7" fill="#23233B"/><circle cx="25.1" cy="13.9" r="1.7" fill="#23233B"/>
+  <rect x="19.2" y="17.4" width="34.2" height="5.2" rx="2.6" fill="#FF5C97" stroke="#23233B" stroke-width="2.5"/>
 </svg>`;
+
+// Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
+// call sites used to hand-roll this markup with per-site pixel geometry, and two
+// had already drifted (no mouth at all) — so the geometry now lives in exactly
+// one place: components.css scales all of it off --fs. `notch` is the vote count
+// the Nose is bragging about; the width formula is CSS's, not ours.
+const face = ({ color, size = 34, mood = "", notch = 0, tone = "", grow = false, bob = false, brand = false }) =>
+  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};background:${color}">
+     <i class="brows"></i><i class="smile"></i>
+     <i class="nose ${tone}${brand ? " brand" : ""}${grow ? " grow" : ""}"></i>
+   </span>`;
 
 /* ---------- content loading (inlined bundle → http real decks → embedded mini) ---------- */
 async function loadContent(lang) {
@@ -302,8 +328,7 @@ SCREENS.RULES = () => {
        <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
      </div>`).join("")}
    <div class="nose-demo" aria-hidden="true">
-     ${[7, 18, 32].map((w) => `
-       <span class="face" style="background:var(--color-avatar-2)"><span class="smile"></span><span class="nose" style="width:${w}px"></span></span>`).join("")}
+     ${[1, 2, 3].map((n) => face({ color: "var(--color-avatar-2)", notch: n })).join("")}
    </div>
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
@@ -514,9 +539,7 @@ SCREENS.GM_INTRO = () => {
      <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       <div class="face bob" style="background:${gm.color};width:68px;height:68px;">
-         <div class="smile" style="width:18px;height:9px;bottom:11px;"></div>
-         <div class="nose violet" style="top:29px;width:28px;height:13px;"></div></div></div>
+       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
    </div>
    ${party() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
@@ -738,9 +761,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob suspicious" style="background:${G.players[mySeat()].color};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: G.players[mySeat()].color, size: 60, mood: "suspicious", brand: true, bob: true })}
    </div>`);
 };
 
@@ -858,8 +879,7 @@ SCREENS.REVEAL = () => {
          ${!isT ? `<div class="author">
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
-              return `<span class="face" style="background:${pl.color}">
-                        <span class="nose grow ${gmA ? "violet" : ""}" style="--votes:${voters.length};width:${6 + voters.length * 14}px"></span></span>
+              return `${face({ color: pl.color, notch: voters.length, grow: true, tone: gmA ? "violet" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
@@ -1128,8 +1148,7 @@ SCREENS.WINNER = () => {
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
-       <span class="face delighted" style="background:${liar.color};width:48px;height:48px;">
-         <span class="nose gold grow" style="--votes:${liar.bluffVotes};top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
+       ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
        <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
@@ -1355,9 +1374,7 @@ SCREENS.LOBBY_WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("lobbyWaitingSub")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob" style="background:${AVA[0]};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: AVA[0], size: 60, brand: true, bob: true })}
    </div>`);
 };
 
