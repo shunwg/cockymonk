@@ -28,7 +28,8 @@ body {
 
 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; min-height: 38px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .3px; color: var(--color-text-on-bg); font-size: 17px; }
-.brand .logo { filter: drop-shadow(0 2px 0 rgba(0,0,0,.4)); }
+/* No drop-shadow: LOGO() draws its own hard offset shadow so the mark is
+   self-contained wherever it appears (topbar, hero, standalone bundle). */
 .brand .small { font-weight: 500; }
 .iconbtn {
   background: #ffffff10; border: 2px solid #ffffff2e; color: var(--color-text-on-bg);

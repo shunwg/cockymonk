@@ -214,7 +214,8 @@ body {
 
 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; min-height: 38px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .3px; color: var(--color-text-on-bg); font-size: 17px; }
-.brand .logo { filter: drop-shadow(0 2px 0 rgba(0,0,0,.4)); }
+/* No drop-shadow: LOGO() draws its own hard offset shadow so the mark is
+   self-contained wherever it appears (topbar, hero, standalone bundle). */
 .brand .small { font-weight: 500; }
 .iconbtn {
   background: #ffffff10; border: 2px solid #ffffff2e; color: var(--color-text-on-bg);
@@ -440,34 +441,78 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
 @keyframes dotPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .author { display: flex; align-items: center; gap: 9px; margin-top: 9px; font-weight: 600; font-size: 14px; }
 
-/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods. */
-.face { width: 34px; height: 34px; border-radius: 50%; position: relative; flex: none; border: 2.5px solid var(--color-border); }
-.face::before { content: ""; position: absolute; left: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
-.face::after { content: ""; position: absolute; right: 7px; top: 11px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-border); transition: transform .18s ease, height .18s ease; }
-.face .smile {
-  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); width: 12px; height: 6px;
-  border: 2.5px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px; transition: all .18s ease;
+/* The face + Nesen — the signature (DESIGN.md §4). The Monk has moods.
+   This is the LOGO() drawing in ui.js rendered in CSS so it can wear a player
+   colour, grow a Nose and change mood: bevelled token, flat brows, dot eyes,
+   smirk, capsule Nose. Every dimension is a ratio of --fs (the face box), so the
+   same markup is correct at 34 px and 68 px — never add pixel geometry per site,
+   pass a `size` to face() instead. Ink weight is deliberately NOT scaled linearly
+   past the outline: brows and mouth keep their stroke so a 34 px chip stays
+   readable. */
+.face {
+  --fs: 34px;
+  width: var(--fs); height: var(--fs); border-radius: 50%; position: relative; flex: none;
+  /* The outline is an INSET ring, not a border, on purpose: a border would shrink
+     the padding box and every % below would silently resolve against a smaller
+     box, so the features would drift as --fs changed. Second inset is the darker
+     crescent that makes this a piece on a table rather than a sticker. */
+  box-shadow:
+    inset 0 0 0 calc(var(--fs) * .08) var(--color-border),
+    inset calc(var(--fs) * -.05) calc(var(--fs) * -.07) 0 #00000024;
 }
-/* suspicious — narrowed eyes, flat mouth (shown while others are bluffing) */
-.face.suspicious::before, .face.suspicious::after { height: 2px; border-radius: 2px; top: 12px; }
-.face.suspicious .smile { height: 0; width: 10px; border-radius: 0; border-bottom-width: 2.5px; }
-/* smug — a sly smirk (the GM who just stole the round) */
-.face.smug .smile { width: 14px; height: 5px; transform: translateX(-40%) rotate(-12deg); }
-.face.smug::after { transform: scaleY(1.4); }
-/* shocked — wide eyes, round mouth (a double-hit) */
+.face::before, .face::after {   /* eyes */
+  content: ""; position: absolute; top: 32%; width: 10%; height: 10%; border-radius: 50%;
+  background: var(--color-border); transition: transform .18s ease, height .18s ease;
+}
+.face::before { left: 26%; }
+.face::after { right: 26%; }
+.face .brows { position: absolute; inset: 0; pointer-events: none; }
+.face .brows::before, .face .brows::after {   /* the cocky part: flat, high, unbothered */
+  content: ""; position: absolute; top: 20%; width: 18%; height: 6%; border-radius: 99px;
+  background: var(--color-border); transition: transform .18s ease, top .18s ease;
+}
+.face .brows::before { left: 21%; transform: rotate(8deg); }
+.face .brows::after { right: 21%; transform: rotate(-8deg); }
+.face .smile {   /* a smirk, tilted — never a symmetric arc */
+  position: absolute; left: 45%; bottom: 20%; transform: translateX(-50%) rotate(-9deg);
+  width: 26%; height: 13%;
+  border: calc(var(--fs) * .06) solid var(--color-border); border-top: none;
+  border-radius: 0 0 99px 99px; transition: all .18s ease;
+}
+/* suspicious — narrowed eyes, lowered brows, flat mouth (while others are bluffing) */
+.face.suspicious::before, .face.suspicious::after { height: 4%; border-radius: 2px; top: 34%; }
+.face.suspicious .brows::before, .face.suspicious .brows::after { top: 25%; }
+.face.suspicious .smile { height: 0; width: 26%; border-radius: 0; transform: translateX(-50%) rotate(-4deg); }
+/* smug — a wider smirk, one eye squeezed (the GM who just stole the round) */
+.face.smug .smile { width: 38%; height: 11%; transform: translateX(-48%) rotate(-16deg); }
+.face.smug::after { transform: scaleY(1.5); }
+.face.smug .brows::after { top: 16%; transform: rotate(-15deg); }
+/* shocked — wide eyes, raised brows, round mouth (a double-hit) */
 .face.shocked::before, .face.shocked::after { transform: scale(1.5); }
-.face.shocked .smile { width: 9px; height: 9px; border: 2.5px solid var(--color-border); border-radius: 50%; bottom: 4px; }
+.face.shocked .brows::before, .face.shocked .brows::after { top: 14%; }
+.face.shocked .smile {
+  width: 20%; height: 20%; border: calc(var(--fs) * .06) solid var(--color-border);
+  border-radius: 50%; bottom: 10%; transform: translateX(-50%);
+}
 /* delighted — big grin (the winner) */
-.face.delighted .smile { width: 16px; height: 9px; border-radius: 0 0 16px 16px; }
+.face.delighted .smile { width: 38%; height: 20%; border-radius: 0 0 99px 99px; bottom: 12%; transform: translateX(-50%) rotate(-4deg); }
+.face.delighted .brows::before, .face.delighted .brows::after { top: 16%; }
 
 /* Vote-open flash + GM-steal screen shake — showmanship, RM-guarded in JS */
 .flash { position: fixed; inset: 0; z-index: 85; pointer-events: none; background: var(--color-accent-turn); animation: flashFade .5s ease-out both; }
 @keyframes flashFade { 0% { opacity: .55; } 100% { opacity: 0; } }
 .shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake { 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)} 30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)} }
+/* The Nesen. A full capsule that LIES ACROSS the face and juts out to the right,
+   exactly as in LOGO() — not a stub bolted to the rim. --notch is the vote count;
+   0 votes leaves the tip just short of the cheek, and every notch adds a third of
+   a face-width of shame. Width is computed here so no call site owns geometry. */
 .nose {
-  position: absolute; left: 96%; top: 13px; height: 9px; width: 6px; border-radius: 0 7px 7px 0;
-  background: var(--color-accent-bluff); border: 2.5px solid var(--color-border); border-left: none;
+  position: absolute; left: 44%; top: 43%;
+  height: calc(var(--fs) * .23);
+  width: calc(var(--fs) * (.5 + .33 * var(--notch, 0)));
+  border-radius: 999px;
+  background: var(--color-accent-bluff); border: calc(var(--fs) * .05) solid var(--color-border);
   transform-origin: left center;
   box-shadow: inset 0 1px 0 #ffffff66, inset 0 -1px 0 #00000022;   /* inked-on-paper */
 }
@@ -475,9 +520,17 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
    reveal beat, so a transition can't fire; a stronger vote count boings harder). DESIGN §4. */
 .nose.grow { animation: noseBoing var(--spring-nose-grow-duration) var(--spring-nose-grow-ease) both; }
 @keyframes noseBoing {
-  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--votes, 1))); }
+  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--notch, 1))); }
   100% { transform: scaleX(1); }
 }
+/* Mascot length, matching LOGO() exactly (34.2 of a 34.8-unit head). Decorative
+   faces wear this; a face whose Nose is REPORTING something — reveal chips, the
+   Gullnese — must stay on the --notch scale or the length would lie. */
+.nose.brand { width: calc(var(--fs) * .98); }
+/* The Nose is absolutely positioned, so it reserves NO layout width and a long
+   one would run straight through the name beside it. Anywhere a face sits inline
+   with text, buy back exactly the overflow — hence --notch living on .face. */
+.author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
 .nose.violet { background: var(--color-accent-gm); }
 .nose.gold { background: gold; }
 
@@ -611,7 +664,7 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
   border-radius: 28px; box-shadow: var(--shadow-hard);
   background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000008 3px 4px);   /* paper grain */
 }
-.home-badge .logo { width: 92px; height: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.home-badge .logo { width: 92px; height: auto; }   /* shadow is drawn inside LOGO() */
 .linkbtn {
   display: block; width: 100%; background: none; border: none; cursor: pointer; min-height: 44px;
   color: var(--color-text-secondary); font: inherit; font-weight: 600; font-size: 15px;
@@ -2567,12 +2620,38 @@ const isHost = () => NET.isHost;
 const online = () => NET.kind !== "loopback";
 const app = document.getElementById("app");
 
-const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
-  <circle cx="13" cy="13" r="11" fill="#FFF6E8" stroke="#23233B" stroke-width="2.6"/>
-  <circle cx="9.5" cy="10.5" r="1.6" fill="#23233B"/><circle cx="16.5" cy="10.5" r="1.6" fill="#23233B"/>
-  <path d="M9 17 q4 3.4 8 0" stroke="#23233B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-  <path d="M23 11 h14 a3.4 3.4 0 0 1 0 6.8 h-14 z" fill="#FF5C97" stroke="#23233B" stroke-width="2.4"/>
+// The mark. Literal hexes, not tokens: this is the brand asset, it must render
+// identically on every theme and in the standalone file:// bundle, and it is the
+// one drawing the whole app copies. The avatar in components.css is the SAME
+// face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
+// Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
+// than via a CSS filter so the mark carries it everywhere it appears.
+const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.447).toFixed(1)}" height="${sz}" viewBox="0 0 55 38" fill="none" role="img" aria-hidden="true">
+  <g fill="#141425">
+    <circle cx="18.8" cy="20.3" r="16"/>
+    <rect x="18" y="19.2" width="34.2" height="7.7" rx="3.85"/>
+  </g>
+  <circle cx="20" cy="18.5" r="16" fill="#E8D5AE"/>
+  <circle cx="21.4" cy="17.1" r="14.3" fill="#FFF6E8"/>
+  <circle cx="20" cy="18.5" r="16" stroke="#23233B" stroke-width="2.8"/>
+  <g stroke="#23233B" stroke-linecap="round" fill="none">
+    <path d="M11 9 15.2 9.6" stroke-width="2"/><path d="M27.4 9 23.2 9.6" stroke-width="2"/>
+    <path d="M15 26.2q3.2 3.4 6.6-.6" stroke-width="2.5"/>
+  </g>
+  <circle cx="13.3" cy="13.9" r="1.7" fill="#23233B"/><circle cx="25.1" cy="13.9" r="1.7" fill="#23233B"/>
+  <rect x="19.2" y="17.4" width="34.2" height="5.2" rx="2.6" fill="#FF5C97" stroke="#23233B" stroke-width="2.5"/>
 </svg>`;
+
+// Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
+// call sites used to hand-roll this markup with per-site pixel geometry, and two
+// had already drifted (no mouth at all) — so the geometry now lives in exactly
+// one place: components.css scales all of it off --fs. `notch` is the vote count
+// the Nose is bragging about; the width formula is CSS's, not ours.
+const face = ({ color, size = 34, mood = "", notch = 0, tone = "", grow = false, bob = false, brand = false }) =>
+  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};background:${color}">
+     <i class="brows"></i><i class="smile"></i>
+     <i class="nose ${tone}${brand ? " brand" : ""}${grow ? " grow" : ""}"></i>
+   </span>`;
 
 /* ---------- content loading (inlined bundle → http real decks → embedded mini) ---------- */
 async function loadContent(lang) {
@@ -2808,8 +2887,7 @@ SCREENS.RULES = () => {
        <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
      </div>`).join("")}
    <div class="nose-demo" aria-hidden="true">
-     ${[7, 18, 32].map((w) => `
-       <span class="face" style="background:var(--color-avatar-2)"><span class="smile"></span><span class="nose" style="width:${w}px"></span></span>`).join("")}
+     ${[1, 2, 3].map((n) => face({ color: "var(--color-avatar-2)", notch: n })).join("")}
    </div>
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
@@ -3020,9 +3098,7 @@ SCREENS.GM_INTRO = () => {
      <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       <div class="face bob" style="background:${gm.color};width:68px;height:68px;">
-         <div class="smile" style="width:18px;height:9px;bottom:11px;"></div>
-         <div class="nose violet" style="top:29px;width:28px;height:13px;"></div></div></div>
+       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
    </div>
    ${party() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
@@ -3244,9 +3320,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob suspicious" style="background:${G.players[mySeat()].color};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: G.players[mySeat()].color, size: 60, mood: "suspicious", brand: true, bob: true })}
    </div>`);
 };
 
@@ -3364,8 +3438,7 @@ SCREENS.REVEAL = () => {
          ${!isT ? `<div class="author">
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
-              return `<span class="face" style="background:${pl.color}">
-                        <span class="nose grow ${gmA ? "violet" : ""}" style="--votes:${voters.length};width:${6 + voters.length * 14}px"></span></span>
+              return `${face({ color: pl.color, notch: voters.length, grow: true, tone: gmA ? "violet" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
@@ -3634,8 +3707,7 @@ SCREENS.WINNER = () => {
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
-       <span class="face delighted" style="background:${liar.color};width:48px;height:48px;">
-         <span class="nose gold grow" style="--votes:${liar.bluffVotes};top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
+       ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
        <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
@@ -3861,9 +3933,7 @@ SCREENS.LOBBY_WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("lobbyWaitingSub")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob" style="background:${AVA[0]};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: AVA[0], size: 60, brand: true, bob: true })}
    </div>`);
 };
 
