@@ -18,7 +18,7 @@ import {
 
 import {
   NET, NET_CONFIG, netProject, netLoopback, netRoomCode, netShareLink,
-  netRoomFromUrl, netTally, netVotesIn,
+  netRoomFromUrl, netTally, netVotesIn, netJoinOpen,
 } from "./net.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -420,5 +420,47 @@ test("clock.js does not shadow state.js's timer registry", async () => {
   for (const forbidden of ["timers", "later", "clearTimers"]) {
     const re = new RegExp(`^(?:export\\s+)?(?:const|let|var|function)\\s+${forbidden}\\b`, "m");
     assert.equal(re.test(src), false, `clock.js must not declare \`${forbidden}\` — state.js owns it`);
+  }
+});
+
+/* ---------------- late join: the 3-minute door (PRD §2 stays intact) ----------
+ * This is a WINDOW, not matchmaking: you still need the code or the link. These
+ * tests pin the window's edges and the one rule that keeps it from deadlocking a
+ * round — a joiner who arrives after the card is drawn must not be *expected*.
+ */
+
+test("late join: the door is open inside the window and shut outside it", () => {
+  const t0 = 1_000_000;
+  const g = { phase: "bluffing", joinOpenUntil: t0 + NET_CONFIG.LATE_JOIN_MS };
+  assert.equal(netJoinOpen(g, t0), true, "open at the moment of start");
+  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS - 1), true, "open 1 ms before the edge");
+  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS), true, "inclusive at the edge");
+  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS + 1), false, "shut 1 ms after");
+});
+
+test("late join: the window is three minutes", () => {
+  assert.equal(NET_CONFIG.LATE_JOIN_MS, 180000);
+});
+
+test("late join: a finished game never accepts anyone, even inside the window", () => {
+  const t0 = 1_000_000;
+  const g = { phase: "winner", joinOpenUntil: t0 + NET_CONFIG.LATE_JOIN_MS };
+  assert.equal(netJoinOpen(g, t0), false, "phase winner overrides an open clock");
+});
+
+test("late join: missing or absent state is never joinable", () => {
+  assert.equal(netJoinOpen(null, 1), false);
+  assert.equal(netJoinOpen(undefined, 1), false);
+  assert.equal(netJoinOpen({ phase: "bluffing" }, 1), false, "no joinOpenUntil → shut, never open-by-default");
+});
+
+test("late join: timedOut reaches the client, so a seated latecomer is not shown an input screen", () => {
+  // screenForSeat (ui.js) routes a timedOut seat to WAIT/VOTEWAIT instead of
+  // BLUFF/VOTE. That only works if the projection carries timedOut — without it
+  // the joiner is handed a box whose submission the host will reject.
+  for (const phase of ["bluffing", "voting"]) {
+    const g = { ...gameAt(phase), timedOut: { bluff: [3], vote: [3] } };
+    const seen = netProject(g, 3);
+    assert.deepEqual(seen.timedOut, { bluff: [3], vote: [3] }, `${phase}: timedOut must survive projection`);
   }
 });

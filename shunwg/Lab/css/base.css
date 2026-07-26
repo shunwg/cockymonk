@@ -27,7 +27,17 @@ body {
 }
 
 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; min-height: 38px; }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .3px; color: var(--color-text-on-bg); font-size: 17px; }
+/* min-width:0 + nowrap so the wordmark ELLIPSISES rather than wrapping once the
+   back button joins the row — a wrapped brand doubles the topbar height, which at
+   375 px eats a chunk of the board. The "· lab" suffix is decorative and is the
+   first thing to go. */
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .3px; color: var(--color-text-on-bg); font-size: 17px; min-width: 0; white-space: nowrap; }
+.brand > span { overflow: hidden; text-overflow: ellipsis; }
+/* Narrow phones: drop the "· lab" suffix first, then the wordmark entirely. The
+   mark alone carries the brand at that size — which is the point of a mark. The
+   three icon buttons never shrink; they are 44 px touch targets (DESIGN §9). */
+@media (max-width: 400px) { .brand .small { display: none; } }
+@media (max-width: 390px) { .brand > span { display: none; } }
 /* No drop-shadow: LOGO() draws its own hard offset shadow so the mark is
    self-contained wherever it appears (topbar, hero, standalone bundle). */
 .brand .small { font-weight: 500; }
