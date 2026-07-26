@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Ordkrig",
+    "slug": "app",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edword92.ordkrig",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8b913b4b-c051-4a76-be14-fe4886edc9f4"
+      }
+    },
+    "owner": "edword92",
+    "updates": {
+      "url": "https://u.expo.dev/8b913b4b-c051-4a76-be14-fe4886edc9f4",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 15000
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-audio",
+      "expo-secure-store"
+    ],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    }
+  }
+}

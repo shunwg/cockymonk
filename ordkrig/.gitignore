@@ -1,0 +1,51 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Byggeskript med hemmeligheter (token/nøkler) – aldri i git
+scripts/*.cmd
+
+# Ordgenerering: store rådatafiler (lastes ned på nytt, se scripts/wordgen/README.md)
+scripts/wordgen/*.frk
+scripts/wordgen/lemma_nob.txt
+scripts/wordgen/candidates.json
+# results.json (API-cachen) beholdes med vilje i git – dyr å gjenskape

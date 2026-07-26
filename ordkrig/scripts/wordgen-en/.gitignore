@@ -1,0 +1,4 @@
+# Store nedlastede kilder (regenererbare) – holdes utenfor git
+count_1w.txt
+wn31.tar.gz
+dict/
