@@ -201,7 +201,33 @@ export const FIXTURES = [
   // outlives any single game — under snap-screens that is always a fresh 1000.
   { id: "19", screen: "PROFILE", name: "Profilen din",
     make: () => ({ u: { rulesReturn: "HOME" }, g: null }) },
+
+  // The lobby screens read NET.peers, which fixtures.js cannot import (net.js
+  // owns a live Peer). Tools/snap-screens.mjs therefore poses them via the
+  // fixture roster below, which ui.js prefers over NET when present — a posed
+  // screen must never need a network to be reviewable.
+  { id: "20", screen: "HOST_LOBBY", name: "Vertens lobby",
+    make: () => ({ u: { mode: "party", botCount: 1, fxRoster: fxLobby(3), fxRoom: "GKM47P" }, g: null }) },
+
+  { id: "21", screen: "JOIN", name: "Bli med",
+    make: () => ({ u: { joinCode: "GKM47P", uname: "Ingrid" }, g: null }) },
+
+  { id: "22", screen: "LOBBY_WAIT", name: "Venter på verten",
+    make: () => ({ u: { mode: "party", fxRoster: fxLobby(4), fxRoom: "GKM47P" }, g: null }) },
+
+  { id: "23", screen: "CONNLOST", name: "Mistet kontakten",
+    // Mid-countdown rather than at 0: the state a player actually sees.
+    make: () => ({ u: { fxRoom: "GKM47P", lostAt: 0, fxLostLeft: 18 }, g: null }) },
 ];
+
+// A posed lobby roster. Åse hosts; the last seat is deliberately disconnected so
+// the "borte" state is reviewable rather than theoretical.
+function fxLobby(n) {
+  return fxNames.slice(0, n).map((name, i) => ({
+    pid: `fx:${i}`, name, rating: [1240, 1005, 980, 1512][i] ?? 1000,
+    games: [42, 8, 3, 77][i] ?? 0, nose: 0, connected: i !== n - 1,
+  }));
+}
 
 // Resolve a fixture id ("07") to boot-ready state, or null for unknown/absent ids.
 export function getFixture(id) {

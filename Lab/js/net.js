@@ -173,6 +173,18 @@ export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, 
       conn.on("data", (msg) => {
         if (!msg || typeof msg !== "object") return;
         if (msg.t === "hello") {
+          const seated = NET.peers.find((x) => x.pid === msg.pid);
+          // A pid we already have AND still have a live channel to is not a
+          // reconnect — it's a second person carrying the same identity. That
+          // happens whenever a browser profile is shared (two tabs on one
+          // machine share localStorage, so they share a pid) and it must not
+          // let the newcomer take over someone else's row — least of all the
+          // host's. Give them a distinct seat instead of merging them.
+          const collision = seated && (seated.pid === pid || conns.get(msg.pid)?.open);
+          if (collision) {
+            msg.pid = `${msg.pid}~${NET.peers.length}`;
+            ntSafeSend(conn, { t: "rebind", pid: msg.pid });   // so the client agrees who it is
+          }
           // Rebinding by pid is what makes reconnect free: the seat is already
           // in the game, so we just point it at the new connection and resend.
           conns.set(msg.pid, conn);
@@ -183,7 +195,7 @@ export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, 
               pid: msg.pid, name: msg.name, rating: msg.rating,
               games: msg.games, nose: msg.nose, connected: true,
             });
-          } else { conn.send({ t: "bye", reason: "full" }); return; }
+          } else { ntSafeSend(conn, { t: "bye", reason: "full" }); return; }
           onPeerChange?.(NET.peers);
         }
         onMessage?.(msg, conn);

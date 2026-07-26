@@ -9,7 +9,7 @@ import { FIXTURES, getFixture } from "./fixtures.js";
 const SCREEN_IDS = [
   "HOME", "LANG", "MODE", "PLAYERS", "PARTYSETUP", "SETUP", "GM_INTRO", "GM_DASH",
   "BLUFF", "WAIT", "VOTE", "VOTEWAIT", "REVEAL", "BOARD", "OMKAMP", "WINNER", "RULES", "ABOUT",
-  "PROFILE",
+  "PROFILE", "HOST_LOBBY", "JOIN", "LOBBY_WAIT", "CONNLOST",
 ];
 const SCREEN_COUNT = SCREEN_IDS.length;   // numbers are permanent; new screens append
 // Keys of the G literal in ui.js startGame() — fxMakeG must mirror it.

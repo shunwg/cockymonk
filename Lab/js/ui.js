@@ -13,12 +13,16 @@ import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
 import {
   TIMERS, defaultTimers, clockDeadline, clockArm, clockClear, clockLeft, clockSeconds,
-  clockLevel, clockFraction,
+  clockLevel, clockFraction, clockSkew,
 } from "./clock.js";
 import {
   RATING, ratingDeltas, ratingApply, ratingLoad, ratingSave, ratingReset,
   ratingNoseCap, ratingTier,
 } from "./rating.js";
+import {
+  NET, NET_CONFIG, netLoopback, netHost, netJoin, netProject, netShareLink,
+  netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby,
+} from "./net.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
@@ -51,9 +55,10 @@ const order = () => G.players.map((_, i) => i).filter((i) => i !== G.gm && !G.pl
 // G already carries every field they destructure.
 const voteOrder = () => votersExpected(G);
 const bluffOrder = () => bluffersExpected(G);
-// Only the authority advances the game and fires a deadline. Until net.js lands
-// this device is always it; C9 swaps in NET.isHost and nothing else changes.
-const isHost = () => true;
+// Only the authority advances the game and fires a deadline. Local play is its
+// own host, so this is true everywhere except on a joined client.
+const isHost = () => NET.isHost;
+const online = () => NET.kind !== "loopback";
 const app = document.getElementById("app");
 
 const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
@@ -186,7 +191,7 @@ function autoOpenVote() {
   G.phase = "voting";
   U.screen = party() ? (userIsGm() ? "VOTEWAIT" : "VOTE") : "VOTE";
   armClock("voting", G.timers.voteMs, onVoteDeadline);
-  render();
+  render(); netPush();
   scheduleBotVotes();
 }
 
@@ -198,7 +203,7 @@ function onVoteDeadline() {
   if (pending.length) play("error");
   resetTimers();
   play("drumroll");
-  later(() => { computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; armRevealClock(); render(); }, 600);
+  later(() => { computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; armRevealClock(); render(); netPush(); }, 600);
 }
 
 // The reveal paces itself if the GM stops tapping — the same courtesy a bot GM
@@ -347,9 +352,14 @@ SCREENS.MODE = () => {
    <button class="btn modebtn" data-mode="party">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
      <span><b>${t("partyName")}</b><small>${t("partySub")}</small></span></button>
+   <button class="btn modebtn" data-mode="online">
+     <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
+     <span><b>${t("modeOnline")}</b><small>${t("modeOnlineSub")}</small></span></button>
    <div style="flex:1"></div>`);
   app.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
-    U.mode = b.dataset.mode; play("confirm"); U.screen = party() ? "PARTYSETUP" : "PLAYERS"; render();
+    play("confirm");
+    if (b.dataset.mode === "online") { netDoHost(); return; }   // creates the room, then the lobby
+    U.mode = b.dataset.mode; U.screen = party() ? "PARTYSETUP" : "PLAYERS"; render();
   });
 };
 
@@ -434,14 +444,17 @@ function startGame() {
   // This G literal is mirrored by fxMakeG() in fixtures.js — keep the two in sync.
   G = {
     players: U.names.map((name, i) => {
-      const bot = party() && i > 0;
+      // Online: the first N seats are the real peers from the lobby, in join
+      // order, host first. Everything after them is a bot filling a chair.
+      const netPid = U.netSeats?.[i] ?? null;
+      const bot = netPid ? false : (party() && i > 0);
       return {
         name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false,
-        // Seat 0 is this device. Online (C11) fills these from the lobby; until
-        // then the other seats are bots or another pair of hands on the same
-        // phone, and neither needs an identity that outlives the game.
-        pid: i === 0 ? U.myPid : (bot ? `bot:${i}` : `local:${i}`),
-        kind: i === 0 || !bot ? "human" : "bot",
+        // Seat 0 is this device in local play; online it is whichever pid the
+        // lobby put there. Bots and other hands on the same phone don't need an
+        // identity that outlives the game.
+        pid: netPid ?? (i === 0 ? U.myPid : (bot ? `bot:${i}` : `local:${i}`)),
+        kind: netPid ? (netPid === U.myPid ? "human" : "remote") : (bot ? "bot" : "human"),
       };
     }),
     target: U.target,
@@ -477,8 +490,10 @@ function newRound() {
   G.phase = "card";
   G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
   U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
-  U.screen = "GM_INTRO"; play("cardDraw"); render();
-  if (party() && !userIsGm()) later(() => { if (U.screen === "GM_INTRO") enterBluffing(); }, TUNING.GM_INTRO_AUTO_MS);
+  U.screen = "GM_INTRO"; play("cardDraw"); render(); netPush();
+  // Bot GM auto-advances. A REMOTE gm does not: that person taps on their own
+  // device, and their tap arrives as a state broadcast.
+  if (party() && !userIsGm() && isBot(G.gm)) later(() => { if (U.screen === "GM_INTRO") enterBluffing(); }, TUNING.GM_INTRO_AUTO_MS);
 }
 
 /* ---------- GM intro / dashboard ---------- */
@@ -504,7 +519,7 @@ SCREENS.GM_INTRO = () => {
     // said "not on the dashboard" — that held while only bluffers were on a
     // deadline. Now the GM has one too, and an unseen deadline is a trap.
     armClock("bluff", G.timers.bluffMs, onBluffDeadline);
-    render();
+    render(); netPush();          // this tap is what opens the floor to everyone
     if (party()) scheduleBotBluffs();
   };
 };
@@ -608,7 +623,7 @@ function gmOpensVote() {
   G.gmDecoyDone = true;
   openVote();
   G.phase = "voting";
-  if (party()) { U.screen = "VOTEWAIT"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); scheduleBotVotes(); }
+  if (party()) { U.screen = "VOTEWAIT"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); netPush(); scheduleBotVotes(); }
   // Hotseat: the vote clock starts when the phone actually reaches the first
   // voter, not while it is still being passed. (Timers are off in hotseat by
   // default anyway — but if a host turns them on, this is the fair reading.)
@@ -652,7 +667,7 @@ function enterBluffing() {
   G.phase = "bluffing";
   U.cur = mySeat(); U.screen = "BLUFF";
   armClock("bluff", G.timers.bluffMs, onBluffDeadline);
-  render();
+  render(); netPush();
   scheduleBotBluffs();
   later(() => {
     if (!G.gmDecoyDone) { G.decoys[0] = takeFakeText(); G.gmDecoyDone = true; maybeAllBluffsIn(); }
@@ -681,6 +696,13 @@ SCREENS.BLUFF = () => {
     const v = document.getElementById("btxt").value;
     if (!isValidBluff(v)) { document.getElementById("berr").textContent = t("emptyBluff"); play("error"); return; }
     if (G.timedOut.bluff.includes(U.cur)) { document.getElementById("berr").textContent = t("tooLate"); play("error"); return; }
+    // On a client this is an INTENT, not a fact: the host re-judges it against
+    // its own clock and its own state, then tells us what happened.
+    if (!isHost()) {
+      NET.send({ t: "bluff", pid: U.myPid, text: v.trim() });
+      U.draftBluff = ""; play("tickIn"); U.screen = "WAIT"; render();
+      return;
+    }
     G.bluffs[U.cur] = v.trim(); U.draftBluff = ""; play("tickIn");
     if (party()) { U.screen = "WAIT"; render(); maybeAllBluffsIn(); }
     else if (bluffOrder().some((i) => G.bluffs[i] === undefined)) nextBluffer();
@@ -732,8 +754,8 @@ function maybeAllVotesIn() {
   resetTimers();
   play("drumroll");                      // tension roll as the votes close and the reveal opens
   later(() => {
-    computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render();
-    if (party() && !userIsGm()) later(autoReveal, 1400);
+    computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render(); netPush();
+    if (party() && !userIsGm() && isBot(G.gm)) later(autoReveal, 1400);
     else armRevealClock();     // a human GM gets a clock; a bot GM already self-paces
   }, 600);
 }
@@ -755,6 +777,11 @@ SCREENS.VOTE = () => {
 
 function castVote(voter, optionId) {
   play("voteCast");
+  if (!isHost()) {                     // intent, judged by the host (see above)
+    NET.send({ t: "vote", pid: U.myPid, option: optionId });
+    U.screen = "VOTEWAIT"; render();
+    return;
+  }
   G.votes[voter] = optionId;
   if (party()) { U.screen = "VOTEWAIT"; render(); maybeAllVotesIn(); }
   else {
@@ -766,13 +793,13 @@ function castVote(voter, optionId) {
 }
 
 SCREENS.VOTEWAIT = () => {
-  const n = Object.keys(G.votes).length, total = voteOrder().length;
+  const n = netVotesIn(G), total = voteOrder().length;
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${userIsGm() ? "" : `<div class="banner green">${t("youVoted")}</div>`}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
-     const c = Object.values(G.votes).filter((id) => id === o.id).length;
+     const c = netTally(G, o.id);
      return `<div class="opt" style="cursor:default">
        <div class="letter">${o.letter}</div>
        <div style="flex:1">${esc(o.text)}
@@ -832,9 +859,14 @@ SCREENS.REVEAL = () => {
    </div>
    ${done && G.gmStole ? `<div class="banner gm">😈 ${t("gmSteal")}</div>` : ""}
    <div style="flex:1"></div>
-   ${done
-    ? `<button class="btn" id="toboard">${t("toBoard")}</button>`
-    : `<button class="btn gm" id="revealnext">${hostIsBot ? t("skip") : t("tapReveal")}</button>`}`,
+   ${!isHost()
+    // Online: only the game master paces the ceremony. Giving a client its own
+    // advance button lets it run ahead of the room — the opposite of the synced
+    // spectacle in PRD §10, and it desyncs until the next broadcast lands.
+    ? `<p class="small" style="text-align:center">${t("shuffling")}</p>`
+    : done
+      ? `<button class="btn" id="toboard">${t("toBoard")}</button>`
+      : `<button class="btn gm" id="revealnext">${hostIsBot ? t("skip") : t("tapReveal")}</button>`}`,
   { gm: userIsGm() || !party() });
   const tb = document.getElementById("toboard");
   if (tb) tb.onclick = goBoard;
@@ -869,7 +901,7 @@ function doRevealStep() {
     play("noseGrow", v);
   }
   armRevealClock();   // next beat's deadline must exist BEFORE we paint it
-  render();
+  render(); netPush();
 }
 
 function autoReveal() {
@@ -883,7 +915,11 @@ function goBoard() {
   if (U.screen === "BOARD") return;
   resetTimers(); play("confirm");
   G.phase = "board";
-  U.screen = "BOARD"; render();
+  U.screen = "BOARD"; render(); netPush();
+  // animateBoard mutates scores as it hops (see below). A broadcast mid-hop
+  // would clobber a client halfway through its own identical animation, so the
+  // room goes quiet until finishRound sends one authoritative state.
+  NET.quiet = true;
   setTimeout(animateBoard, 400);
 }
 
@@ -1017,6 +1053,7 @@ function animateBoard() {
 
 function finishRound() {
   G.deltas = null;
+  NET.quiet = false;      // the hop chain is done; one authoritative state now
 
   if (G.inOmkamp) {
     // One sudden-death round only: highest tied participant wins, still-tied → shared.
@@ -1027,7 +1064,7 @@ function finishRound() {
     });
     G.winnersIdx = result.winners; G.shared = result.shared;
     G.phase = "winner";
-    U.screen = "WINNER"; play("truthReveal"); render();
+    U.screen = "WINNER"; play("truthReveal"); render(); netPush();
     return;
   }
 
@@ -1036,7 +1073,7 @@ function finishRound() {
   if (check.winners) {
     G.winnersIdx = check.winners; G.shared = check.winners.length > 1;
     G.phase = "winner";
-    U.screen = "WINNER"; play("truthReveal"); render();
+    U.screen = "WINNER"; play("truthReveal"); render(); netPush();
     return;
   }
   if (check.omkamp) {
@@ -1045,10 +1082,11 @@ function finishRound() {
     G.preOmkampScores = scores.slice();
     G.gm = check.omkamp.gm;
     G.phase = "omkamp";
-    U.screen = "OMKAMP"; play("gmSting"); render();
+    U.screen = "OMKAMP"; play("gmSting"); render(); netPush();
     return;
   }
   G.awaitingNext = true;                 // survives topbar re-renders (mute/theme) — no soft-lock
+  netPush();                             // clients need the final scores + the armed Next
   const btn = document.getElementById("nextbtn");
   if (!btn) return;
   btn.disabled = false;
@@ -1110,6 +1148,301 @@ SCREENS.WINNER = () => {
   };
 };
 
+/* ---------- online rooms (PRD §2.1) ----------
+   Two rules, and everything else follows from them:
+     1. Only the host advances the game. Clients send intents and render.
+     2. State leaves the host only through netProject (net.js).
+   Because the host broadcasts whole (redacted) state and render() already draws
+   everything from state, a client needs no reconciliation — it swaps G and
+   re-renders. The screen it lands on is DERIVED from that state, not sent, so a
+   dropped or reordered message can't strand anyone on the wrong screen. */
+
+// Which screen this seat should be looking at, given what the room is doing.
+function screenForSeat(g, seat) {
+  switch (g.phase) {
+    case "card": return "GM_INTRO";
+    case "bluffing":
+      if (seat === g.gm) return "GM_DASH";
+      return g.bluffs?.[seat] !== undefined || (g.bluffsIn ?? []).includes(seat) ? "WAIT" : "BLUFF";
+    case "voting":
+      return seat === g.gm || g.votes?.[seat] !== undefined ? "VOTEWAIT" : "VOTE";
+    case "reveal": return "REVEAL";
+    case "board": return "BOARD";
+    case "omkamp": return "OMKAMP";
+    case "winner": return "WINNER";
+    default: return "GM_INTRO";
+  }
+}
+
+// Host: push the room forward. Called after any state change worth sharing.
+function netPush() {
+  if (!online() || !isHost() || !G) return;
+  netBroadcastState(G, U);
+}
+
+// Host: accept an intent from a client. Every one is re-judged here — the host's
+// clock decides what is late, not the sender's (a client could lie about either).
+function netOnClientMessage(msg) {
+  if (!G || !isHost()) return;
+  const seat = G.players.findIndex((p) => p.pid === msg.pid);
+  if (seat < 0) return;
+  switch (msg.t) {
+    case "bluff": {
+      if (G.phase !== "bluffing") return;
+      if (G.timedOut.bluff.includes(seat) || G.bluffs[seat] !== undefined) return;  // late or duplicate
+      if (!isValidBluff(msg.text)) return;
+      G.bluffs[seat] = String(msg.text).slice(0, 140).trim();
+      play("tickIn"); botTickUI(seat); netPush(); maybeAllBluffsIn();
+      return;
+    }
+    case "vote": {
+      if (G.phase !== "voting") return;
+      if (G.timedOut.vote.includes(seat) || G.votes[seat] !== undefined) return;
+      const visible = visibleOptionsFor(G.options ?? [], seat);
+      if (!visible.some((o) => o.id === msg.option)) return;   // not an option they may pick
+      G.votes[seat] = msg.option;
+      play("voteCast");
+      if (U.screen === "VOTEWAIT") render();
+      netPush(); maybeAllVotesIn();
+      return;
+    }
+    default: return;
+  }
+}
+
+// Client: adopt what the host says. This is the whole client-side game loop.
+function netOnHostState(msg) {
+  if (!msg.g) return;
+  G = msg.g;
+  // A client never walked through mode selection, so U.mode is still null and
+  // party() would report false — which shows it a GM's "Neste" button it must
+  // not have, and routes it down the hotseat handover path. Online IS the
+  // party-shaped flow; say so the moment the first state lands.
+  U.mode = "party";
+  // The bluff and vote screens render "whose turn is it" from U.cur, which only
+  // the host advances. On a client that must simply mean "me" — otherwise your
+  // own answer screen wears the game master's name and colour.
+  U.cur = mySeat();
+  NET.skewMs = clockSkew(msg.t0 ?? Date.now());
+  const seat = mySeat();
+  const next = screenForSeat(G, seat);
+  // Never yank someone off a screen they're mid-input on unless the phase moved.
+  const typing = U.screen === "BLUFF" && next === "BLUFF";
+  if (!typing) U.screen = next;
+  // Clients paint the countdown but never fire it (net.js / clock.js).
+  if (G.deadline && G.timers?.on) {
+    clockArm({ ...G.deadline, skewMs: NET.skewMs, onTick: ckPaint, onExpire: null });
+  } else clockClear();
+  render();
+}
+
+function netHandle(msg) {
+  if (!msg?.t) return;
+  if (isHost()) { netOnClientMessage(msg); return; }
+  // The host renamed us because our id collided with someone already seated
+  // (a shared browser profile). Adopt it, or we'd never find our own seat.
+  if (msg.t === "rebind") { U.myPid = msg.pid; NET.myPid = msg.pid; return; }
+  if (msg.t === "state") { netOnHostState(msg); return; }
+  if (msg.t === "ratings") { netApplyRatings(msg); return; }
+  if (msg.t === "bye") { netFail(msg.reason === "full" ? "full" : "host-gone"); return; }
+}
+
+function netFail(reason) {
+  NET.error = reason;
+  U.screen = "CONNLOST";
+  U.lostAt = Date.now();
+  render();
+}
+
+// Host: hand out seats and start. Bots fill any empty chairs, which is what
+// makes the room playable with two friends instead of demanding five.
+function netStartRoom() {
+  const humans = NET.peers.filter((p) => p.connected);
+  const botNames = BOT_NAMES[U.lang].slice(0, Math.max(0, U.botCount));
+  U.names = [...humans.map((p) => p.name), ...botNames].slice(0, NET_CONFIG.MAX_PLAYERS);
+  U.mode = "party";                       // same screens as practice; the seats differ
+  U.netSeats = humans.map((p) => p.pid);  // startGame reads this to seat real peers
+  play("confirm");
+  startGame();
+  netPush();
+}
+
+// Posed fixtures supply their own roster/code (fixtures.js cannot import net.js),
+// so the lobby screens are reviewable in the gallery with no network at all.
+const lobbyRoster = () => U.fxRoster ?? NET.peers;
+const lobbyRoom = () => U.fxRoom ?? NET.roomCode;
+
+SCREENS.HOST_LOBBY = () => {
+  const roster = lobbyRoster();
+  const link = netShareLink(lobbyRoom());
+  const total = roster.filter((p) => p.connected).length + U.botCount;
+  const need = Math.max(0, NET_CONFIG.MIN_PLAYERS - total);
+  shell(`
+   <h2>${t("lobbyTitle")}</h2>
+   <div class="card" style="text-align:center">
+     <span class="eyebrow">${t("lobbyCode")}</span>
+     <div class="word" style="font-size:40px;letter-spacing:6px">${esc(lobbyRoom() ?? "…")}</div>
+     ${link ? `<button class="btn secondary" id="copylink" style="margin-top:10px">${t("lobbyCopy")}</button>` : ""}
+     <p class="small" style="margin:8px 0 0">${t("lobbyShareHint")}</p>
+   </div>
+   <div class="card">
+     <b>${t("lobbyPlayers", roster.filter((p) => p.connected).length)}</b>
+     <div class="chiprow" style="margin-top:8px">${roster.map((p, i) => `
+       <span class="pchip ${p.connected ? "done" : ""}"><span class="dot" style="background:${AVA[i]}"></span>${esc(p.name)}
+         ${p.pid === U.myPid ? `· ${t("lobbyHost")}` : ""}${p.connected ? "" : `· ${t("lobbyOffline")}`}
+         ${p.rating ? `<span class="ratingpill">${p.rating}</span>` : ""}</span>`).join("")}</div>
+   </div>
+   <p class="small" style="margin:10px 0 4px">${t("joinName")}</p>
+   <input type="text" id="hostname" maxlength="14" placeholder="${t("namePh")}" value="${esc(U.uname ?? "")}">
+   <h2>${t("lobbyBots")}</h2>
+   <div class="seg">${[0, 1, 2, 3].map((n) => `
+     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
+   ${need ? `<p class="small">${t("lobbyNeed", need)}</p>` : ""}
+   <div style="flex:1"></div>
+   <button class="btn" id="startroom" ${need ? "disabled" : ""}>${t("lobbyStart")}</button>
+   <button class="linkbtn" id="tojoin">${t("lobbyJoinInstead")}</button>`);
+  const cp = document.getElementById("copylink");
+  if (cp) cp.onclick = async () => {
+    try { await navigator.clipboard.writeText(link); cp.textContent = t("lobbyCopied"); play("confirm"); }
+    catch { cp.textContent = link; }   // clipboard blocked → show it so it can be copied by hand
+  };
+  const hn = document.getElementById("hostname");
+  if (hn) hn.oninput = () => {
+    // Live, because everyone else in the lobby is looking at this name.
+    U.uname = hn.value;
+    const me = NET.peers.find((x) => x.pid === U.myPid);
+    if (me) { me.name = hn.value || "?"; netBroadcastLobby(); }
+  };
+  app.querySelectorAll("[data-bots]").forEach((b) => b.onclick = () => { U.botCount = Number(b.dataset.bots); play("toggle"); render(); });
+  document.getElementById("startroom").onclick = () => {
+    PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+    ratingSave(PROFILE);
+    netStartRoom();
+  };
+  document.getElementById("tojoin").onclick = () => { U.screen = "JOIN"; play("back"); render(); };
+};
+
+SCREENS.LOBBY_WAIT = () => {
+  shell(`
+   <h2>${t("lobbyWaiting")}</h2>
+   <div class="card" style="text-align:center">
+     <span class="eyebrow">${t("lobbyCode")}</span>
+     <div class="word" style="font-size:32px;letter-spacing:5px">${esc(lobbyRoom() ?? "…")}</div>
+   </div>
+   <div class="card">
+     <div class="chiprow">${lobbyRoster().map((p, i) => `
+       <span class="pchip ${p.connected ? "done" : ""}"><span class="dot" style="background:${AVA[i]}"></span>${esc(p.name)}
+         ${p.pid === U.myPid ? `· ${t("lobbyYou")}` : ""}
+         ${p.rating ? `<span class="ratingpill">${p.rating}</span>` : ""}</span>`).join("")}</div>
+     <p class="small" style="margin:8px 0 0">${t("lobbyWaitingSub")}</p>
+   </div>
+   <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+     <div class="face bob" style="background:${AVA[0]};width:60px;height:60px;">
+       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
+       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+   </div>`);
+};
+
+SCREENS.JOIN = () => {
+  const err = U.joinError;
+  shell(`
+   <h2>${t("joinTitle")}</h2>
+   <input type="text" id="jcode" maxlength="10" autocapitalize="characters" autocomplete="off"
+          placeholder="${t("joinCode")}" value="${esc(U.joinCode ?? "")}"
+          style="text-transform:uppercase;letter-spacing:4px;font-weight:700">
+   <input type="text" id="jname" maxlength="14" placeholder="${t("joinName")}" value="${esc(U.uname ?? "")}">
+   ${err ? `<div class="banner" style="background:var(--color-timer-urgent)">${t(err)}</div>` : ""}
+   ${U.joining ? `<p class="small">${t("joinConnecting")}</p>` : ""}
+   <div style="flex:1"></div>
+   <button class="btn" id="dojoin" ${U.joining ? "disabled" : ""}>${t("joinGo")}</button>
+   <button class="linkbtn" id="joinbots">${t("joinPlayBots")}</button>`);
+  document.getElementById("jcode").oninput = (e) => { U.joinCode = e.target.value.toUpperCase(); };
+  document.getElementById("jname").oninput = (e) => { U.uname = e.target.value; };
+  document.getElementById("dojoin").onclick = () => netDoJoin();
+  document.getElementById("joinbots").onclick = () => {
+    // Always an exit. A broker outage or a hostile network must never be a dead
+    // end — there is a whole game here that needs no network at all.
+    netLoopback(); U.mode = "party"; U.screen = "PARTYSETUP"; play("back"); render();
+  };
+};
+
+SCREENS.CONNLOST = () => {
+  const left = U.fxLostLeft !== undefined
+    ? U.fxLostLeft * 1000
+    : Math.max(0, NET_CONFIG.RECONNECT_MS - (Date.now() - (U.lostAt ?? 0)));
+  const hostGone = NET.error === "host-gone";
+  shell(`
+   <h2>${t("lostTitle")}</h2>
+   <div class="card">
+     <p>${hostGone ? t("lostHostGone") : t("lostSub", Math.ceil(left / 1000))}</p>
+   </div>
+   <div style="flex:1"></div>
+   ${hostGone ? "" : `<button class="btn" id="retrynow">${t("lostRetry")}</button>`}
+   <button class="btn secondary" id="tohotseat">${t("lostHotseat")}</button>`);
+  const r = document.getElementById("retrynow");
+  if (r) r.onclick = () => { NET.reconnect?.(); play("confirm"); };
+  document.getElementById("tohotseat").onclick = () => {
+    // The last broadcast state is still in G, so the room can finish the game on
+    // one screen instead of losing the evening. A free benefit of full-state.
+    netLoopback(); U.mode = "hotseat";
+    U.screen = G ? screenForSeat(G, 0) : "HOME";
+    play("confirm"); render();
+  };
+};
+
+function netDoJoin() {
+  const code = (U.joinCode ?? "").trim().toUpperCase();
+  if (code.length < 4) { U.joinError = "joinFailNoRoom"; render(); return; }
+  if (typeof globalThis.Peer !== "function") { U.joinError = "netNoPeer"; render(); return; }
+  U.joining = true; U.joinError = null; render();
+  PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+  ratingSave(PROFILE);
+  netJoin({
+    code, pid: U.myPid, name: U.uname || PROFILE.name || "?", profile: PROFILE,
+    onMessage: netHandle,
+    onPeerChange: () => { if (U.screen === "LOBBY_WAIT") render(); },
+    onReady: () => { U.joining = false; U.screen = "LOBBY_WAIT"; play("confirm"); render(); },
+    onError: (reason) => {
+      U.joining = false;
+      if (U.screen === "LOBBY_WAIT" || G) { netFail(reason); return; }
+      U.joinError = reason === "no-room" ? "joinFailNoRoom"
+        : reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
+      render();
+    },
+  });
+}
+
+function netDoHost() {
+  if (typeof globalThis.Peer !== "function") { U.joinError = "netNoPeer"; U.screen = "JOIN"; render(); return; }
+  PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+  U.botCount = 2;                 // two friends + one bot is a real game; adjustable in the lobby
+  U.screen = "HOST_LOBBY"; render();
+  netHost({
+    pid: U.myPid, name: U.uname || PROFILE.name || "?", profile: PROFILE,
+    onMessage: netHandle,
+    onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
+    onReady: () => { play("confirm"); if (U.screen === "HOST_LOBBY") render(); },
+    onError: (reason) => {
+      U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
+      U.screen = "JOIN"; render();
+    },
+  });
+}
+
+function netApplyRatings(msg) {
+  const mine = msg.deltas?.[U.myPid];
+  if (mine === undefined || G?.ratingDone) return;
+  G.ratingDone = true;
+  G.ratingMine = mine;
+  const seat = mySeat();
+  PROFILE = ratingApply(PROFILE, mine, {
+    nose: Math.min(G.players[seat]?.bluffVotes ?? 0, ratingNoseCap(G.players.length, G.round)),
+    won: (G.winnersIdx ?? []).includes(seat),
+  });
+  ratingSave(PROFILE);
+  render();
+}
+
 /* ---------- career rating (PRD §2.1) ---------- */
 
 // Once per game, on the winner screen. Guarded by G.ratingDone, the same idempotency
@@ -1119,13 +1452,18 @@ SCREENS.WINNER = () => {
 function settleRating() {
   if (!G || G.ratingDone) return;
   G.ratingDone = true;
-  const deltas = ratingDeltas(G.players.map((p, i) => ({
-    pid: p.pid,
-    rating: p.pid === U.myPid ? PROFILE.rating : RATING.START,
-    games: p.pid === U.myPid ? PROFILE.games : 0,
-    score: p.score,
-    isBot: p.kind === "bot",
-  })));
+  // Ratings come from the lobby: each peer reported its own when it said hello.
+  // Client-reported, and deliberately so — see ONLINE-PLAY.md «ærlig om juks».
+  const deltas = ratingDeltas(G.players.map((p) => {
+    const peer = NET.peers.find((x) => x.pid === p.pid);
+    return {
+      pid: p.pid,
+      rating: p.pid === U.myPid ? PROFILE.rating : (peer?.rating ?? RATING.START),
+      games: p.pid === U.myPid ? PROFILE.games : (peer?.games ?? 0),
+      score: p.score,
+      isBot: p.kind === "bot",
+    };
+  }));
   const mine = deltas[U.myPid];
   if (mine === undefined) return;      // solo vs bots — nothing to settle
   G.ratingMine = mine;                 // shown on the winner screen
@@ -1135,6 +1473,9 @@ function settleRating() {
     won: (G.winnersIdx ?? []).includes(seat),
   });
   ratingSave(PROFILE);
+  // Everyone in the room gets the whole table's deltas so the lobby can show
+  // them; each client applies only its own (net.js / rating.js clamp).
+  if (online() && isHost()) NET.send({ t: "ratings", gameId: G.gameId ?? G.round, deltas });
 }
 
 const ratingPill = () =>
@@ -1213,4 +1554,11 @@ if (bootFx) { U = bootFx.u; G = bootFx.g; }
 PROFILE = ratingLoad();
 U.myPid = PROFILE.pid ?? newPid();
 if (PROFILE.name) U.uname = PROFILE.name;
+netLoopback();          // local play is its own host; online replaces this transport
+
+// A shared link drops you straight at the join screen with the code filled in.
+// This is the whole point of "send a link to your friends": no menu to navigate.
+const bootRoom = netRoomFromUrl();
+if (bootRoom && !bootFx) { U.joinCode = bootRoom; U.screen = "JOIN"; }
+
 render();

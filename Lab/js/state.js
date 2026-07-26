@@ -68,6 +68,26 @@ export const STR = {
     profileWipe: "Slett profilen", back: "Tilbake",
     profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
+    // Nett-rom (PRD §2.1)
+    modeOnline: "Spill over nett", modeOnlineSub: "Del en kode med venner — hver sin skjerm, hvor som helst",
+    lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
+    lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
+    lobbyPlayers: (n) => `${n} inne`,
+    lobbyNeed: (n) => `Trenger ${n} flere — eller fyll opp med roboter`,
+    lobbyBots: "Roboter", lobbyStart: "Start spillet",
+    lobbyJoinInstead: "Har du en kode? Bli med i stedet",
+    lobbyWaiting: "Venter på verten", lobbyWaitingSub: "Verten starter når alle er inne.",
+    lobbyYou: "deg", lobbyHost: "vert", lobbyOffline: "borte",
+    joinTitle: "Bli med i et rom", joinCode: "Romkode", joinName: "Navnet ditt",
+    joinGo: "Bli med", joinConnecting: "Kobler til…",
+    joinFailNoRoom: "Fant ikke rommet. Sjekk koden — eller så er spillet over.",
+    joinFailTimeout: "Fikk ikke kontakt. Nettet ditt slipper kanskje ikke gjennom.",
+    joinFailGeneric: "Noe gikk galt med tilkoblingen.",
+    joinPlayBots: "Spill mot roboter i stedet",
+    lostTitle: "Mistet kontakten", lostSub: (s) => `Prøver å koble til igjen… ${s} s`,
+    lostRetry: "Prøv igjen nå", lostHotseat: "Fortsett på én telefon",
+    lostHostGone: "Verten forlot rommet. Rommet er over — men dere kan fortsette her på én telefon.",
+    netNoPeer: "Nett-spill krever nettleser-versjonen med PeerJS.",
   },
   en: {
     title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
@@ -134,6 +154,26 @@ export const STR = {
     profileWipe: "Delete profile", back: "Back",
     profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
+    // Online rooms (PRD §2.1)
+    modeOnline: "Play online", modeOnlineSub: "Share a code with friends — own screen, anywhere",
+    lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
+    lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
+    lobbyPlayers: (n) => `${n} in`,
+    lobbyNeed: (n) => `Need ${n} more — or fill up with bots`,
+    lobbyBots: "Bots", lobbyStart: "Start the game",
+    lobbyJoinInstead: "Got a code? Join instead",
+    lobbyWaiting: "Waiting for the host", lobbyWaitingSub: "The host starts when everyone's in.",
+    lobbyYou: "you", lobbyHost: "host", lobbyOffline: "away",
+    joinTitle: "Join a room", joinCode: "Room code", joinName: "Your name",
+    joinGo: "Join", joinConnecting: "Connecting…",
+    joinFailNoRoom: "Couldn't find that room. Check the code — or the game's over.",
+    joinFailTimeout: "Couldn't get through. Your network may be blocking it.",
+    joinFailGeneric: "Something went wrong connecting.",
+    joinPlayBots: "Play against bots instead",
+    lostTitle: "Lost the connection", lostSub: (s) => `Trying to reconnect… ${s}s`,
+    lostRetry: "Retry now", lostHotseat: "Carry on with one phone",
+    lostHostGone: "The host left. The room's over — but you can carry on here on one phone.",
+    netNoPeer: "Online play needs the browser version with PeerJS.",
   },
 };
 
@@ -217,6 +257,13 @@ export function freshUi() {
     afterHand: null,
     myPid: null,            // this device's player id; set once at boot
     draftBluff: "",         // mirrors the bluff textarea so a re-render can't eat it
+    // Online rooms (PRD §2.1). The roster itself lives in net.js NET.peers;
+    // these are only what the join/lobby SCREENS need to draw.
+    joinCode: "", joinError: null, joining: false,
+    lostAt: 0,              // when the connection dropped, for the 30 s countdown
+    netSeats: null,         // pids to seat as real peers, in order, at startGame
+    // Posed-only (fixtures.js): let the gallery show the lobby without a network.
+    fxRoster: null, fxRoom: null, fxLostLeft: undefined,
     // Host's phase-timer choices, made on screen 06 and copied into G at start.
     // ON by default because the modes that use it (party/online) are the ones
     // where one person walking away can freeze everyone else.
