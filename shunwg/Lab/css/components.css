@@ -214,11 +214,18 @@
   transform-origin: left center;
   box-shadow: inset 0 1px 0 #ffffff66, inset 0 -1px 0 #00000022;   /* inked-on-paper */
 }
-/* The Nesen boings out per vote — mount keyframe (the element is rebuilt at final width each
-   reveal beat, so a transition can't fire; a stronger vote count boings harder). DESIGN §4. */
+/* The Nesen boings out per vote — mount keyframe (the element is rebuilt at final
+   width each reveal beat, so a transition can't fire). DESIGN §4.
+
+   The start scale FALLS as the vote count rises, so a nose that collected four
+   votes travels further than one that collected one — which is what "a stronger
+   vote count boings harder" was always supposed to mean. It previously read
+   0.25 + 0.12 × notch, i.e. the opposite: notch 1 started at 0.37 and notch 5 at
+   0.85, so the biggest lie of the round got the smallest flourish.
+   Floored at 0.12 so a long nose still starts as a visible stub, not nothing. */
 .nose.grow { animation: noseBoing var(--spring-nose-grow-duration) var(--spring-nose-grow-ease) both; }
 @keyframes noseBoing {
-  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--notch, 1))); }
+  0%   { transform: scaleX(max(0.12, calc(0.55 - 0.09 * var(--notch, 1)))); }
   100% { transform: scaleX(1); }
 }
 /* Mascot length, matching LOGO() exactly (34.2 of a 34.8-unit head). Decorative
@@ -244,7 +251,11 @@
   border: 2.5px solid var(--color-border); border-radius: var(--radius-chip);
   padding: 8px 12px; margin-bottom: 10px; font-weight: 700; font-size: 14px; text-align: center;
   box-shadow: 0 3px 0 var(--color-border);
-  animation: lateIn var(--motion-dur-bob-loop, 400ms) cubic-bezier(.34,1.4,.64,1) both;
+  /* Was --motion-dur-bob-loop with a 400ms fallback — but that token exists and
+     resolves to 2400ms, so the fallback was dead and this banner took 2.4 s to
+     arrive. option-rise (400ms) is the token that actually means "an element
+     rises into place". */
+  animation: lateIn var(--motion-dur-option-rise) cubic-bezier(.34,1.4,.64,1) both;
 }
 @keyframes lateIn { 0% { transform: translateY(-8px) scale(.96); opacity: 0; } 100% { transform: none; opacity: 1; } }
 
@@ -298,4 +309,27 @@
 /* Keyboard / Switch-Control focus on every interactive tile (DESIGN §9) */
 .opt:focus-visible, .seg button:focus-visible, .modebtn:focus-visible {
   outline: 3px solid var(--color-accent-turn); outline-offset: 2px;
+}
+
+/* The word, kept present through voting and the reveal (ui.js wordChip()).
+   A card, not a banner: it is the same object the GM and the bluffers saw, just
+   quieter — same paper, same ink border, one line. The eyebrow keeps it from
+   reading as one of the answer options. */
+.wordchip {
+  display: flex; align-items: baseline; gap: 10px;
+  background: var(--color-surface); color: var(--color-text-on-surface);
+  border: 2.5px solid var(--color-border); border-radius: var(--radius-button);
+  box-shadow: var(--shadow-hard);
+  padding: 8px 14px; margin-bottom: 10px;
+  min-width: 0;
+}
+.wordchip .eyebrow { flex: none; }
+.wordchip .w {
+  font-weight: 700; font-size: 22px; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+/* At Dynamic Type XL the eyebrow and a long compound word cannot share a line. */
+@media (max-width: 380px) {
+  .wordchip { flex-direction: column; gap: 0; }
+  .wordchip .w { font-size: 20px; }
 }

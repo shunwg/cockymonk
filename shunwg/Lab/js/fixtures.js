@@ -44,6 +44,7 @@ function fxMakeG(overrides = {}) {
     timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
     ...overrides,
   };
 }

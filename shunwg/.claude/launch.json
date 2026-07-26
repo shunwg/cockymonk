@@ -6,6 +6,15 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["Tools/serve-lab.mjs"],
       "port": 8787
+    },
+    {
+      "name": "ordkrig",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d C:\\Users\\ShunGong\\AppData\\Local\\Temp\\cm-ordkrig\\ordkrig && npx expo start --web --port 8081"
+      ],
+      "port": 8081
     }
   ]
 }

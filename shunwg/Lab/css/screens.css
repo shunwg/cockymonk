@@ -108,3 +108,21 @@
 .pt.pink   { background: var(--color-accent-bluff); }
 .pt.violet { background: var(--color-accent-gm); color: #fff; }
 .pt.gold   { background: var(--color-accent-turn); }
+
+/* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
+   badges were drawn from the first commit and nothing ever triggered them, so
+   the milestone was scenery. A short gold flare on the space the pawn just
+   passed — deliberately quieter than the Mål medallion's Lottie, because these
+   are waypoints and that is the destination. */
+.space.landmark { animation: landmarkFlare var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease) both; }
+.space.landmark .mark { animation: landmarkMark var(--motion-dur-overtake-wobble) var(--spring-tally-pop-ease) both; }
+@keyframes landmarkFlare {
+  0%   { box-shadow: 0 0 0 0 var(--color-accent-turn), inset 0 0 0 rgba(0,0,0,0); }
+  45%  { box-shadow: 0 0 16px 5px var(--color-accent-turn), inset 0 0 12px rgba(255,197,61,.55); }
+  100% { box-shadow: 0 0 0 0 rgba(255,197,61,0), inset 0 0 0 rgba(0,0,0,0); }
+}
+@keyframes landmarkMark {
+  0%   { transform: scale(1) rotate(0deg); }
+  40%  { transform: scale(1.55) rotate(-12deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}

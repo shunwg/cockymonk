@@ -8,9 +8,12 @@
 // rising boing per liar's-nose notch, a comedic wah-wah when the GM steals, a
 // triumphant chord for the truth. Everything ducks quiet; nothing screeches.
 
+import { haptic } from "./haptics.js";
+
 let ctx = null;
 let muted = false;
 let noiseBuf = null;
+let bus = null;
 
 export function setMuted(m) { muted = m; }
 export function isMuted() { return muted; }
@@ -19,7 +22,52 @@ function ac() {
   if (!ctx) ctx = new (window.AudioContext ?? window.webkitAudioContext)();
   return ctx;
 }
-function now() { return ac().currentTime; }
+
+/* One master bus, and every voice goes through it. Two reasons, both real:
+
+   1. HEADROOM. voteOpen fires five oscillators inside 200 ms and truthReveal
+      four; wired straight to destination those sum past 1.0 and clip, which on a
+      phone speaker is a crackle exactly on the game's biggest beat. The
+      compressor catches the sum instead of us hand-balancing every gain.
+   2. DESIGN.md §7 says "all audio ducks under, never over, the room". That was
+      an unimplemented sentence while there was no bus to duck. Now it is one
+      gain node.
+
+   Threshold/ratio are gentle: this is a limiter for peaks, not a pumping
+   loudness effect. Cheap enough to build once and leave in the graph. */
+function master() {
+  if (bus) return bus;
+  const a = ac();
+  const comp = a.createDynamicsCompressor();
+  comp.threshold.value = -14;
+  comp.knee.value = 12;
+  comp.ratio.value = 6;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.18;
+  const g = a.createGain();
+  g.gain.value = 0.9;                 // a hair below unity: the room is louder than us
+  comp.connect(g).connect(a.destination);
+  bus = comp;
+  return bus;
+}
+
+/* iOS suspends the AudioContext whenever the tab loses focus and does NOT resume
+   it on return, so before this the game went permanently silent the first time
+   you switched apps — and stayed silent through every later round. Autoplay
+   policy also starts the context suspended until a gesture touches it.
+
+   Called from a real event handler in ui.js (a bare resume() outside a gesture
+   is ignored), and again on visibilitychange. Safe to call repeatedly. */
+export function audioUnlock() {
+  try {
+    const a = ac();
+    if (a.state !== "running") a.resume?.();
+  } catch { /* no audio on this device; the game is still playable */ }
+}
+
+export function audioSuspended() {
+  try { return !!ctx && ctx.state !== "running"; } catch { return false; }
+}
 
 // A short white-noise buffer, reused for whooshes/riffles.
 function noise() {
@@ -45,7 +93,7 @@ function tone(freq, { dur = 0.12, type = "triangle", gain = 0.05, when = 0, atta
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(gain, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(a.destination);
+  o.connect(g).connect(master());
   o.start(t); o.stop(t + dur + 0.03);
 }
 
@@ -60,7 +108,7 @@ function whoosh({ dur = 0.18, when = 0, gain = 0.05, from = 1200, to = 400, q = 
   const g = a.createGain();
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f).connect(g).connect(a.destination);
+  src.connect(f).connect(g).connect(master());
   src.start(t); src.stop(t + dur + 0.02);
 }
 
@@ -95,14 +143,43 @@ const VOICES = {
   gmSting:  () => { tone([300, 150], { type: "sawtooth", dur: 0.5, gain: 0.06 }); tone([260, 130], { type: "sawtooth", dur: 0.55, gain: 0.05, when: 0.28 }); }, // wah-wah
 
   // — board —
+  // The cha-ching, ported from Ordkrig's scripts/make-coin-sound.mjs (which
+  // synthesises a 48 kB WAV; we skip the file and keep the recipe). Two sines a
+  // fourth apart — B5 then E6 — and the 90 ms offset on the second is the whole
+  // trick: struck together they are a chord, struck late it is a coin landing.
+  points:   () => { tone(987.77, { type: "sine", dur: 0.28, gain: 0.05, attack: 0.004 }); tone(1318.51, { type: "sine", dur: 0.46, gain: 0.055, when: 0.09, attack: 0.004 }); },
   pawnHop:  () => tone([300, 520], { type: "sine", dur: 0.09, gain: 0.055 }),
   overtake: () => tone([700, 300], { type: "triangle", dur: 0.14, gain: 0.05 }),
   win:      () => { [523, 659, 784, 1046, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.4, gain: 0.05, when: i * 0.08 })); },
 };
 
+/* Sound and haptic are two legs of one beat (game-feel skill, principle 4), so
+   they are paired HERE rather than at ~40 call sites where they would drift. The
+   map is deliberately sparse — a buzz on every play() would be a malfunction.
+
+   Two exclusion rules, both learned from Ordkrig's restraint:
+   - Not for someone ELSE's action. tickIn fires when a bot or a peer submits;
+     three buzzes a round for things you did not do is noise, not feedback.
+   - Not for navigation. confirm/toggle/back fire on nearly every tap.
+
+   What is left is this device's own moments (voteCast) plus the room-wide beats
+   everyone is supposed to feel together (voteOpen, truthReveal, gmSting, win). */
+const HAPTIC_FOR = Object.freeze({
+  voteOpen: "heavy",        // the showstopper — PRD §11 wants the room to react
+  voteCast: "light",        // your own vote landing
+  truthReveal: "success",   // tokens.json names .success on the truthReveal spring
+  gmSting: "heavy",         // ...and .heavy on gmStealPulse
+  pawnHop: "soft",          // ...and .soft per hop
+  points: "light",
+  win: "success",
+  error: "warning",
+});
+
 export function play(event, arg) {
   const voice = VOICES[event];
   if (voice) voice(arg);
+  const h = HAPTIC_FOR[event];
+  if (h) haptic(h);
 }
 
 export const EVENTS = Object.freeze(Object.keys(VOICES));

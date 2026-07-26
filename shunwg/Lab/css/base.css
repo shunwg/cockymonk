@@ -122,3 +122,45 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
      or Reduced-Motion players never see them (e.g. the vote options). */
   .stagger, .opt.stagger { opacity: 1 !important; }
 }
+
+/* ---------- numbers that change ----------
+   Proportional digits re-flow the line every tick, so a counting score visibly
+   jitters and a countdown wobbles between 0:19 and 0:11. Tabular figures give
+   every digit the same advance width. Ordkrig sets fontVariant:['tabular-nums']
+   on ten styles for the same reason. */
+.clock .clocknum, .scoreline, .scoreline b, .pchip, .tally, .ratingnum,
+.board .pawn, .space, input[type="number"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---------- mobile-web feel primitives ----------
+   None of this is styling; each line removes a way the browser breaks the game.
+
+   dvh: with height:100% the layout jumps every time iOS Safari shows or hides
+   the address bar, which on a bottom-pinned CTA means the button moves under
+   your thumb as you reach for it.
+
+   overscroll-behavior: the important one. Pull-to-refresh RELOADS the page, and
+   all game state lives in memory — one over-enthusiastic scroll during a round
+   and the evening is gone. `contain` stops the gesture reaching the browser.
+
+   safe-area: the CTA sits at the bottom edge, which on a notched iPhone is
+   exactly where the home indicator lives. */
+html, body { overscroll-behavior-y: contain; }
+
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+  #app { min-height: 100dvh; }
+}
+
+#app {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+
+/* Buttons and options: suppress the double-tap-zoom wait without relying on
+   user-scalable=no alone, so a press state appears the instant a finger lands. */
+.btn, .opt, .iconbtn, .modebtn, .seg button, .linkbtn, .pchip { touch-action: manipulation; }

@@ -36,7 +36,7 @@ const scriptSafe = (obj) => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 const CSS_FILES = ["tokens.css", "base.css", "components.css", "screens.css", "themes.css"];
 // Dependency order: leaves first, entry (ui.js, which runs render() at its foot) last.
-const JS_MODULES = ["state.js", "engine.js", "clock.js", "rating.js", "bots.js", "fakepool.js", "audio.js", "themes.js", "net.js", "lottie.js", "fixtures.js", "ui.js"];
+const JS_MODULES = ["state.js", "engine.js", "clock.js", "rating.js", "bots.js", "fakepool.js", "haptics.js", "audio.js", "themes.js", "net.js", "lottie.js", "fixtures.js", "ui.js"];
 
 // Turn one ES module into plain top-level code: drop import lines, drop the
 // `export` keyword. All modules then share the single IIFE scope in the bundle.
@@ -85,6 +85,10 @@ async function main() {
   const peerLib = await read("Lab/vendor/peerjs.min.js");
   if (/<\/script/i.test(peerLib)) throw new Error("peerjs.min.js contains </script — needs escaping");
 
+  // ---- app icons, base64 for the <head> (regenerate with Tools/make-icons.mjs) ----
+  const iconSvgB64 = Buffer.from(await read("Lab/icon.svg"), "utf8").toString("base64");
+  const icon180B64 = (await readFile(p("Lab/icon-180.png"))).toString("base64");
+
   // ---- one classic script: strip module syntax, concat in dependency order ----
   const gameJs = JS_MODULES.map((m) => `/* ===== ${m} ===== */\n${stripModule(sources[m])}`).join("\n\n");
   if (/<\/script/i.test(gameJs)) throw new Error("module source contains </script — needs escaping");
@@ -94,8 +98,17 @@ async function main() {
 <html lang="nb">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1B1B2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cocky Monk">
+<!-- Icons as data URIs, because this build is ONE file: a href to icon.svg would
+     404 the moment someone emails it to a friend. No manifest for the same
+     reason — a single file has no scope to install. -->
+<link rel="icon" href="data:image/svg+xml;base64,${iconSvgB64}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="data:image/png;base64,${icon180B64}">
 <title>Cocky Monk</title>
 <!-- Fredoka is base64-inlined in the <style> below (offline brand); no network font. -->
 <style>

@@ -130,6 +130,12 @@ export function ratingFresh(name = "") {
     nose: 0,
     best: RATING.START,
     history: [],
+    // Not a rating field, and it rides here on purpose: mute is the one setting
+    // players expect to survive a reload, and CLAUDE.md promises the web build
+    // keeps exactly ONE versioned localStorage key. A second key for a boolean
+    // would make that line false. audio.js stays storage-free; ui.js does the
+    // reading and writing at the two points that already touch this file.
+    muted: false,
   };
 }
 

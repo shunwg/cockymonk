@@ -9,7 +9,8 @@ import {
 } from "./engine.js";
 import { TUNING, BOT_NAMES, botPick, bluffOffsets, voteOffsets } from "./bots.js";
 import { pickFakes, safePool } from "./fakepool.js";
-import { play, setMuted, isMuted } from "./audio.js";
+import { play, setMuted, isMuted, audioUnlock } from "./audio.js";
+import { haptic, hapticsBindMute, hapticsCancel, wakeOn, wakeOff } from "./haptics.js";
 import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
 import {
@@ -296,6 +297,7 @@ function backExit(b) {
   U.backConfirm = false;
   if (b.leave) {
     resetTimers();                 // a live deadline must not tick on into the menu
+    hapticsCancel(); wakeOff();    // no pattern mid-flight, no lock held over the menu
     if (online()) NET.close?.();   // net.js close() restores loopback for us
     G = null;
   }
@@ -376,7 +378,15 @@ function shell(inner, { gm = false } = {}) {
   if (tb) tb.onclick = () => { U.theme = nextTheme(U.theme); play("toggle"); render(); };
   const help = document.getElementById("helpbtn");
   if (help) help.onclick = () => { U.rulesReturn = U.screen; play("confirm"); U.screen = "RULES"; render(); };
-  document.getElementById("mutebtn").onclick = () => { setMuted(!isMuted()); render(); };
+  document.getElementById("mutebtn").onclick = () => {
+    setMuted(!isMuted());
+    // Persist, and confirm audibly on the way BACK ON — otherwise unmuting is the
+    // one control in the app that gives no feedback that it worked.
+    if (!isMuted()) { audioUnlock(); play("toggle"); }
+    PROFILE = { ...PROFILE, muted: isMuted() };
+    ratingSave(PROFILE);
+    render();
+  };
   const bb = document.getElementById("backbtn");
   if (bb) bb.onclick = () => goBack();
   // Re-attach after every repaint: shell() replaces app.innerHTML wholesale, and
@@ -608,6 +618,7 @@ function startGame() {
     timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
     // The door stays open this long for people who had the link but were slow.
     // Absolute time, like G.deadline, so it survives the hop to a client with a
     // differently-set clock. Only the HOST ever judges it (netSeatLate).
@@ -617,6 +628,9 @@ function startGame() {
     // who most needs to hear that they inherited a bot's points.
     lateJoin: null,
   };
+  // A phone passed round a table is stared at between taps; without this the
+  // screen dims mid-round and the GM has to wake it to open the vote.
+  wakeOn();
   newRound();
 }
 
@@ -961,6 +975,18 @@ function maybeAllVotesIn() {
   }, 600);
 }
 
+/* The word, kept on screen wherever a player is deciding or watching.
+   It used to appear on GM_DASH, BLUFF and WAIT and then vanish — so you chose
+   which explanation fitted an obscure Norwegian word with the word itself no
+   longer in front of you, and watched the truth land the same way. That asks the
+   player to hold state the game is perfectly able to hold, and it costs Åse (62,
+   Dynamic Type XL, half-listening to the room) far more than it costs anyone
+   else. Compact rather than the full hero card: at this point it is a reference,
+   not the headline. */
+const wordChip = () => !G?.card?.prompt ? "" : `
+   <div class="wordchip"><span class="eyebrow">${t("theWord")}</span>
+     <span class="w">${esc(G.card.prompt)}</span></div>`;
+
 SCREENS.VOTE = () => {
   const voter = party() ? mySeat() : voteOrder()[U.voteIdx];
   const p = G.players[voter];
@@ -968,6 +994,7 @@ SCREENS.VOTE = () => {
   shell(`
    <div class="banner" style="background:${p.color};color:var(--color-text-on-surface)">
      ${party() ? t("yourVote") : t("votingTime", esc(p.name))}</div>
+   ${wordChip()}
    <p class="small">${t("cantOwn")}</p>
    ${clockHtml("clockVote")}
    ${G.options.map((o, i) => !visible.includes(o) ? "" : `
@@ -997,6 +1024,7 @@ SCREENS.VOTEWAIT = () => {
   const n = netVotesIn(G), total = voteOrder().length;
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
+   ${wordChip()}
    ${userIsGm() ? "" : `<div class="banner green">${t("youVoted")}</div>`}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
@@ -1032,6 +1060,7 @@ SCREENS.REVEAL = () => {
   const hostIsBot = party() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
+   ${wordChip()}
    ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
    ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
@@ -1045,12 +1074,16 @@ SCREENS.REVEAL = () => {
        <div style="flex:1">
          ${isT ? `<b style="color:var(--color-accent-truth)">✓ ${t("theTruth")}</b><br>` : ""}
          ${esc(o.text)}
-         <div class="votedots">${voters.map((v) => `<span class="dot" title="${esc(v.name)}" style="background:${v.color}"></span>`).join("")}
+         <div class="votedots">${voters.map((v) => `<span class="dot${isLast ? " land" : ""}" title="${esc(v.name)}" style="background:${v.color}"></span>`).join("")}
            <span class="small">${voters.length} ${t("votes")}</span></div>
          ${!isT ? `<div class="author">
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
-              return `${face({ color: pl.color, notch: voters.length, grow: true, tone: gmA ? "violet" : "" })}
+              // .face.smug was written for exactly this and never used: the GM who
+              // just took the round finally smirks about it. Only once the truth is
+              // out — before that nobody knows they stole anything.
+              const mood = gmA && done && G.gmStole ? "smug" : "";
+              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "violet" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
@@ -1156,6 +1189,9 @@ SCREENS.BOARD = () => {
   }
 };
 
+// A board space by target number — spaces carry data-i (drawBoard, :1146).
+const spaceEl = (n) => document.querySelector(`.space[data-i="${n}"]`);
+
 function pawnEl(i) {
   let el = document.getElementById("pw" + i);
   if (!el) {
@@ -1203,20 +1239,65 @@ function markLeader() {
   G.players.forEach((p, i) => pawnEl(i).classList.toggle("leader", p.score === max && max > 0));
 }
 
+// Motion durations live in DesignSystem/tokens.json and reach us as CSS custom
+// properties. Reading them back beats re-declaring the number in JS: the audit
+// found 330 and 70 hardcoded here as silent duplicates of tokens that already
+// held the same values, which is exactly how the two drift apart later.
+function msToken(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? (raw.endsWith("ms") || !raw.endsWith("s") ? n : n * 1000) : fallback;
+}
+
 function animateBoard() {
   const earners = G.players.map((_, i) => i).filter((i) => G.deltas?.[i] > 0);
+  const lead = 300, gap = 250;
+  const totalHops = earners.reduce((s, i) => s + G.deltas[i], 0);
+
+  /* PRD §11 makes "board phase ≤ 20 s" a success criterion and tokens.json says
+     the hop "compresses under the 20 s board cap" — but nothing read the cap, so
+     a big round with several earners simply ran as long as it ran. Now the
+     cadence is whatever fits: the ceremony keeps its shape and loses its
+     slowness, rather than being truncated mid-hop. Floored at 90 ms because
+     below that the squash-and-stretch stops reading as a hop at all. */
+  const cap = msToken("--motion-dur-board-phase-cap", 20000);
+  const want = msToken("--motion-dur-pawn-hop-cadence", 330);
+  const budget = cap - lead - gap * earners.length;
+  const cadence = totalHops > 0
+    ? Math.max(90, Math.min(want, Math.floor(budget / totalHops)))
+    : want;
+
   let e = 0;
   const nextEarner = () => {
     if (e >= earners.length) return finishRound();
     const i = earners[e++];
     let steps = G.deltas[i];
+    play("points");                    // one cha-ching as this player's points land
     const hop = () => {
-      if (steps-- <= 0) { markLeader(); return setTimeout(nextEarner, 250); }
+      if (steps-- <= 0) { markLeader(); return setTimeout(nextEarner, gap); }
       const before = G.players[i].score;
       G.players[i].score++;
       const after = G.players[i].score;
       play("pawnHop");
-      if (navigator.vibrate) navigator.vibrate(10);
+      // DESIGN.md §3 gives every theme a ⅓ and a ⅔ landmark (coffee table and
+      // grandfather clock · treeline and snowline · satellite and asteroid belt).
+      // They were drawn on the board as emoji badges and then never fired.
+      // Once per game each, on the FIRST pawn to pass them — a landmark you reach
+      // twice is scenery, not a milestone.
+      for (const frac of [1 / 3, 2 / 3]) {
+        const at = Math.floor(G.target * frac);
+        const key = "lm" + Math.round(frac * 100);
+        if (at > 0 && before < at && after >= at && !G[key]) {
+          G[key] = true;
+          play("doubleHit");           // a small bright sparkle, not a celebration
+          haptic("light");
+          const el = spaceEl(at);
+          if (el && !reduceMotion()) {
+            el.classList.remove("landmark"); void el.offsetWidth; el.classList.add("landmark");
+            setTimeout(() => el.classList.remove("landmark"), 900);
+          }
+        }
+      }
       // Mål landmark: first pawn to reach the goal triggers the themed celebration.
       if (after >= G.target && !G.goalCelebrated) {
         G.goalCelebrated = true;
@@ -1231,8 +1312,8 @@ function animateBoard() {
           { transform: "translateY(-16px) scale(.92,1.12)", offset: .5 },
           { transform: "translateY(0) scale(1.08,.92)", offset: .82 },
           { transform: "translateY(0) scale(1,1)" },
-        ], { duration: 330, easing: "cubic-bezier(0.34,1.405,0.64,1)" });
-        setTimeout(() => el.classList.remove("hopping"), 350);
+        ], { duration: cadence, easing: "cubic-bezier(0.34,1.405,0.64,1)" });  // never outlast its own cadence
+        setTimeout(() => el.classList.remove("hopping"), cadence + 20);
         // Overtake: any stationary pawn this hop just passed does an indignant wobble.
         G.players.forEach((p, j) => {
           if (j !== i && before <= p.score && after > p.score) {
@@ -1244,11 +1325,11 @@ function animateBoard() {
       }
       const sc = document.getElementById("sc" + i);
       if (sc) sc.textContent = after + " " + t("pts");
-      setTimeout(hop, 330); // pawn-hop cadence (tokens: motion-dur-pawn-hop-cadence)
+      setTimeout(hop, cadence);   // from the token, compressed to fit the 20 s cap
     };
     hop();
   };
-  setTimeout(nextEarner, 300);
+  setTimeout(nextEarner, lead);
 }
 
 function finishRound() {
@@ -1328,6 +1409,7 @@ SCREENS.WINNER = () => {
    </div>
    <button class="btn" id="replay">${t("playAgain")}</button>`);
   settleRating();
+  wakeOff();          // the game is over; stop holding the screen awake
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
@@ -1612,11 +1694,28 @@ SCREENS.CONNLOST = () => {
   shell(`
    <h2>${t("lostTitle")}</h2>
    <div class="card">
-     <p>${hostGone ? t("lostHostGone") : t("lostSub", Math.ceil(left / 1000))}</p>
+     <p>${hostGone ? t("lostHostGone") : t("lostSub", `<span id="lostsec">${Math.ceil(left / 1000)}</span>`)}</p>
    </div>
    <div style="flex:1"></div>
    ${hostGone ? "" : `<button class="btn" id="retrynow">${t("lostRetry")}</button>`}
    <button class="btn secondary" id="tohotseat">${t("lostHotseat")}</button>`);
+
+  /* The number used to be computed once at render and never again, so a player
+     watched a frozen "30" and had no idea whether reconnecting was still being
+     attempted. Surgical, like ckPaint: writes one textContent, never render() —
+     this screen owns a live text field and a re-render would fight the buttons.
+     Not on the shared clock interval because that one is scoped to phase
+     deadlines and this is not a phase. */
+  const secEl = document.getElementById("lostsec");
+  if (secEl && U.fxLostLeft === undefined) {
+    const tick = setInterval(() => {
+      if (!document.getElementById("lostsec") || U.screen !== "CONNLOST") { clearInterval(tick); return; }
+      const s = Math.max(0, Math.ceil((NET_CONFIG.RECONNECT_MS - (Date.now() - (U.lostAt ?? 0))) / 1000));
+      secEl.textContent = String(s);
+      if (s === 0) clearInterval(tick);
+    }, 500);
+  }
+
   const r = document.getElementById("retrynow");
   if (r) r.onclick = () => { NET.reconnect?.(); play("confirm"); };
   document.getElementById("tohotseat").onclick = () => {
@@ -1792,6 +1891,24 @@ if (bootFx) { U = bootFx.u; G = bootFx.g; }
 PROFILE = ratingLoad();
 U.myPid = PROFILE.pid ?? newPid();
 if (PROFILE.name) U.uname = PROFILE.name;
+
+// Mute rides along in the profile rather than taking a second localStorage key,
+// so CLAUDE.md's "one versioned key" stays literally true. ratingLoad() spreads
+// unknown fields through, so this persists without touching the schema version.
+setMuted(!!PROFILE.muted);
+hapticsBindMute(isMuted);
+
+// Autoplay policy starts the AudioContext suspended, and iOS re-suspends it every
+// time the tab loses focus WITHOUT resuming on return — which is why the game used
+// to go permanently silent after the first app switch. resume() only works from
+// inside a real gesture, so hang it off the first touch and every wake-up.
+for (const evt of ["pointerdown", "keydown"]) {
+  window.addEventListener(evt, audioUnlock, { passive: true });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") audioUnlock();
+});
+
 netLoopback();          // local play is its own host; online replaces this transport
 
 // A shared link drops you straight at the join screen with the code filled in.

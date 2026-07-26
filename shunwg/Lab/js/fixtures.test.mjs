@@ -19,6 +19,7 @@ const G_KEYS = [
   "joinOpenUntil", "lateJoin",
   "timers", "inOmkamp", "omkampParticipants",
   "preOmkampScores", "goalCelebrated", "celebrated", "awaitingNext", "ratingDone",
+  "lm33", "lm66",
 ];
 const NEEDS_G = SCREEN_IDS.slice(SCREEN_IDS.indexOf("GM_INTRO"), SCREEN_IDS.indexOf("WINNER") + 1);
 

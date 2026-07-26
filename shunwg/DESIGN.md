@@ -66,6 +66,18 @@ Rules: identical space geometry and pawn physics; only layers, sprites, particle
 
 **In play:** the nose grows one springy notch per vote a lie collected (rising "boing" pitch per notch). GM decoys grow a **violet** nose — the room learns to fear it. The game's best liar takes the **Gullnese** badge on the winner screen, separate from winning on points, so there are two things to brag about. Reduced Motion: crossfade to final length.
 
+**Mark geometry** *(amended 2026-07-27 — was unspecified, which let the drawing drift)*. One drawing serves the logo and every avatar, so it is pinned here rather than left to each implementation:
+
+| | |
+|---|---|
+| Head | Bevelled cream disc — outer `#E8D5AE` ring, inner `#FFF6E8` face, `2.8`-unit `inkText` outline on a 32-unit head. Hard offset shadow, no blur. |
+| Eyes | Two dots at 35% height, 26% in from each side. |
+| Brows | Flat, short, high (20% height, 18% wide, ±8°). Long or steep reads as angry, not sly. |
+| Smirk | A single tilted arc (−9°), lower-left of centre. Never a symmetric smile, and never an upward hook — it tangles with the nose's cap. |
+| Nose | A **full capsule lying across** the face at 43% height, `bluffPink`, ink-outlined, jutting ~50% of a head-width past the rim. Not a half-capsule bolted to the edge: that reads as a spout. |
+
+**Data vs decoration.** The same drawing has two jobs and they must stay visibly separate. A nose marked *decorative* (logo, mascots, app icon) is a fixed length. A nose that **reports a vote count** is `0.5 + 0.33 × notch` head-widths and must be exact — a decorative nose on a reporting face would be a lie about the score. Every feature dimension is a ratio of one size property so proportions hold from 34 px to 512 px, and the ink outline is an inset ring rather than a border (a border shrinks the padding box and silently drifts every child percentage). The app icon is `Lab/icon.svg`, rastered by `node Tools/make-icons.mjs`.
+
 ## 5. Signature 2: the Board ceremony
 - Pawns hop **one space at a time** (interpolatingSpring ~0.35 s/hop, `.soft` haptic + theme hop-sound per space). Multiple earners animate in submission order, never simultaneously — the room watches each fortune change.
 - Camera gently follows the active pawn; the leader wears a subtle crown.
