@@ -3682,8 +3682,12 @@ function benched(seat = mySeat()) {
   return !!(G?.timedOut?.bluff?.includes(seat) || G?.timedOut?.vote?.includes(seat));
 }
 
-// The spectator's version of the green tick: same slot, opposite claim.
-const watchingBanner = () => `<div class="banner" role="status">👀 ${t("watchingRound")}</div>`;
+// The spectator's version of the green tick: same slot, opposite claim. Takes the
+// caller's inline style rather than sitting in a wrapper div — .banner carries
+// margin-bottom:11px, and wrapping it let that through where the original inline
+// `margin:10px 0 0` had zeroed it, growing the word card by 11px.
+const watchingBanner = (style = "") =>
+  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>👀 ${t("watchingRound")}</div>`;
 
 function lateNoteHtml() {
   const lj = G?.lateJoin;
@@ -4326,7 +4330,7 @@ SCREENS.WAIT = () => {
   shell(`
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
-     <div style="margin:10px 0 0">${watching ? watchingBanner() : `<div class="banner green">✓</div>`}</div></div>
+     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner green" style="margin:10px 0 0">✓</div>`}</div>
    ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
