@@ -1,6 +1,6 @@
 ---
 name: motion-designer
-description: Author ORIGINAL Lottie JSON celebration assets for Cocky Monk and preview them in the Lab. Use when the user asks for a motion asset, confetti, fanfare, award shimmer, celebration, landmark moment, "lottie", or when the game-director motion pass decides an overlay asset is warranted. Not for game-state motion — that stays native (springs from tokens.json).
+description: Author ORIGINAL Lottie JSON celebration assets for Snifferoo and preview them in the Lab. Use when the user asks for a motion asset, confetti, fanfare, award shimmer, celebration, landmark moment, "lottie", or when the game-director motion pass decides an overlay asset is warranted. Not for game-state motion — that stays native (springs from tokens.json).
 ---
 
 # Motion Designer

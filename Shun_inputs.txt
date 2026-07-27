@@ -1,0 +1,290 @@
+# Addendum — Art direction guardrails minimal, human, and lightly rat-themed
+
+This is a direction constraint, not a locked art specification.
+
+The Snifferoo theme must be clean, minimal, and contemporary. The rat, maze,
+trail, and cheese ideas are a lightweight visual frame for a human social word
+game—not a literal cartoon world that appears in every component.
+
+The intended feeling is
+- A clever, social word game for adults and mixed-age groups
+- Lighthearted and occasionally funny
+- Calm enough to read, think, bluff, and vote
+- Warm enough to invite table talk and playful accusations
+- Visually confident, with space for the words and player names to lead
+
+The intended feeling is NOT
+- “Cute mouse game”
+- “Cheese game”
+- A children’s app
+- Animal role-play
+- A rodent cartoon, mascot universe, or character comedy
+- A busy themed interface where every button has ears, tails, cheese, or maze art
+- A fixed visual recipe that prevents design exploration
+
+## 1. Open-ended art direction
+
+Do not lock the final palette, texture, rendering technique, mascot style, or
+illustration treatment in this PRD.
+
+The implementation team may explore
+- Warm or cool dark base palettes
+- Flat graphic, lightly tactile, illustrated, or restrained 3D-inspired surfaces
+- Geometric, hand-drawn, or abstract maze motifs
+- Minimal rat tokens, symbolic pawns, or very simplified rat silhouettes
+- Quiet paper, stone, space, or terrain material cues
+- A restrained amount of motion and sound polish
+
+All exploration must preserve the functional visual contract below.
+
+The design should aim for “minimal but memorable,” not “maximally themed.”
+When uncertain, remove decoration before adding decoration.
+
+## 2. Theme is a seasoning, not the interface
+
+Use the rat-and-maze theme selectively.
+
+### Strong thematic moments
+The theme may be most visible in
+- App icon and launch identity
+- Board view
+- Pawnavatar tokens
+- Small transition moments between round phases
+- Board movement, overtakes, landmarks, and winner screen
+- Optional ambient details in Fjellet and Verdensrommet
+- Small score-reward moments, where cheese represents earned points
+
+### Quiet functional moments
+The theme must be subdued in
+- Bluff writing
+- Game Master truthdecoy composer
+- Voting
+- Rules
+- Settings
+- Reconnection
+- Profile
+- Accessibility interfaces
+- Any screen where long text, timing, privacy, or a consequential choice matters
+
+A player should be able to use these screens comfortably even if all decorative
+art, animation, and sound are removed.
+
+## 3. Rat usage rules
+
+Rats are player tokens, not a recurring cast.
+
+Requirements
+- Show rats primarily where player identity, board position, movement, or
+  social comparison benefits from an avatar.
+- Keep rats small, stylised, and readable rather than expressive cartoon
+  characters.
+- Prefer a simple pawnsilhouette treatment over faces, poses, dialogue, or
+  personality animation.
+- Use player names and colouraccessibility markers as the primary identity;
+  the rat is secondary.
+- In Verdensrommet, rats wear space helmets. In Fjellet, they may read as
+  mountain mice through silhouette or environment, not through costumes.
+- Do not make rats speak, narrate, react in speech bubbles, make jokes, or
+  explain rules.
+- Do not create a named rat protagonist, mascot, helper, villain, or host.
+
+Avoid repeated rat imagery in
+- Buttons
+- Form fields
+- Navigation
+- Every empty state
+- Every notification
+- Every answer card
+- Every piece of instructional copy
+
+If a screen still works and feels like Snifferoo after removing a rat illustration,
+that is usually the correct amount of rat imagery.
+
+## 4. Cheese usage rules
+
+Cheese is a score metaphor, not the dominant visual material.
+
+Requirements
+- Keep numeric points visible alongside any cheese representation.
+- Use cheese mostly for score gain, milestone, board-goal, and end-of-game
+  feedback.
+- Prefer a small, abstract, graphic reward treatment over oversized cheese
+  illustrations.
+- Use cheese as an occasional payoff a crumb, token, marker, glow, or
+  destination—not wallpaper.
+
+Do not
+- Fill backgrounds with cheese
+- Add cheese to ordinary buttons or menus
+- Make every point counter a pile of cheese
+- Use cheese puns in every string
+- Let cheese obscure score readability
+
+## 5. Humour rules
+
+Humour must come primarily from the players’ own believable bluffs, wrong
+guesses, accusation, reveal, and social reactions.
+
+The UI may support this with
+- Dry, short supporting lines
+- Good timing around reveals
+- Small unexpected-but-subtle visual beats
+- A satisfying overtake or score movement
+- One restrained celebratory moment for a great bluff or Game Master win
+
+The UI must not try to be funny all the time.
+
+Avoid
+- Constant puns about rats, cheese, smells, tails, holes, crumbs, or vermin
+- “Lol random” animation
+- Loud cartoon sound effects
+- Slapstick rat reactions
+- Insulting players for choosing incorrectly
+- Overly childish phrases
+- Long flavour text that slows the table down
+
+Copy rule
+ Core instruction first. Optional flavour second. If the flavour makes the
+ action less clear, delete the flavour.
+
+Examples of acceptable restraint
+
+ Context  Norwegian primary  English primary  Optional flavour, only if space permits 
+------------
+ Bluff entry  `Skriv en løgn`  `Write a bluff`  `Gjør den troverdig.`  `Make it believable.` 
+ Vote  `Hva er sannheten`  `Which one is true`  None required 
+ Correct answer  `Du fant sannheten. +2`  `You found the truth. +2`  `God nese.`  `Good instinct.` 
+ Bluff success  `3 stemte på løgnen din. +3`  `3 players chose your bluff. +3`  `Pent spilt.`  `Nicely played.` 
+ GM win  `Spillmesteren vant runden.`  `The Game Master won the round.`  `Ingen fant sannheten.`  `Nobody found the truth.` 
+
+Examples to avoid
+- `Cheese! You smell like victory!`
+- `Squeak! Another silly mouse fell for it!`
+- `Rat-tastic bluff!`
+- `Oopsie, you took the stinky trail!`
+- Any copy that makes an adult player feel they are using a children’s app
+
+## 6. Minimalism and hierarchy
+
+The game must retain generous negative space and a strong reading hierarchy.
+
+For every screen
+1. Make the current phase unmistakable.
+2. Make the one primary action unmistakable.
+3. Make the word, answer, player name, score, or timer that matters now easy
+   to find.
+4. Add thematic decoration only after the first three are successful.
+
+Hard limits
+- One dominant visual idea per screen.
+- One main CTA per screen.
+- One primary semantic accent colour per state.
+- Avoid multiple competing textures, illustrations, borders, shadows, and
+  badges in the same viewport.
+- Never add theme decoration behind answer text or input text.
+- Avoid using card-within-card-within-card layouts.
+- Keep maze lines thin, low contrast, and away from critical text.
+- Keep backgrounds quiet enough that screenshots remain readable at a glance.
+
+The word game is the visual hero. The theme should frame it, not compete with it.
+
+## 7. Colour and material flexibility
+
+Do not prescribe a final colour palette in the PRD beyond accessibility and semantic
+requirements.
+
+The visual designer may explore colour and material direction, provided that
+- Text contrast meets accessibility requirements.
+- Semantic feedback remains consistent during a game.
+- Player identity colours remain distinguishable without relying solely on hue.
+- Themes remain recognisably different without changing the board’s functional
+  layout.
+- The interface does not become visually noisy or overly saturated.
+- The main reading surfaces remain calm and legible.
+- Goldcheese-like reward treatment, if used, is restrained and not required
+  on every screen.
+
+The codebase should use semantic design tokens, not hard-coded aesthetic colour
+names. Example token categories
+
+- `background.primary`
+- `surface.reading`
+- `surface.secret`
+- `text.primary`
+- `text.secondary`
+- `action.primary`
+- `state.confirmed`
+- `state.pending`
+- `state.private`
+- `state.warning`
+- `player.one` through `player.eight`
+- `board.path`
+- `board.goal`
+
+Exact values and visual treatments are intentionally open for the design pass.
+
+## 8. Motion and sound restraint
+
+Motion, haptics, and sound should make state changes feel physical and satisfying,
+not constantly demand attention.
+
+Use stronger feedback only at
+- Vote submitted
+- All bluffs received
+- Voting opens
+- Truth reveal
+- A bluff receives votes
+- Game Master round win
+- Pawn advancement
+- Overtake
+- Board milestone
+- Final win
+
+Keep feedback quiet or absent at
+- Typing
+- Ordinary navigation
+- Waiting
+- Reading instructions
+- Repeated list interactions
+
+A single well-timed motion, sound, and haptic is preferable to layered,
+continuous effects. Effects must remain meaningful and consistent across both
+board themes.
+
+## 9. Visual review test
+
+Before accepting a new screen, ask
+
+1. Could someone understand the current action without recognizing the rat theme
+2. Does the screen still feel like Snifferoo if the rats are only tiny player
+   tokens
+3. Is the joke or charm coming from player interaction, rather than decorative
+   animal content
+4. Is the wordanswerplayer state more visually prominent than the maze,
+   cheese, or rat art
+5. Is there one clear primary action
+6. Would an adult feel comfortable putting this on a table with friends
+7. Can a player using large text, VoiceOver, Reduced Motion, mute, or high
+   contrast still complete the action
+8. Have we removed at least one decorative element that was not doing useful
+   work
+
+If any answer is “no,” simplify before adding new art or copy.
+
+## 10. Definition of done
+
+The Snifferoo visual direction succeeds when players describe it as
+- “A clever word game with a great board”
+- “Funny because of what we said to each other”
+- “Clean and easy to follow”
+- “The little rats are a nice touch”
+- “It feels like a proper game night”
+
+It has failed if players describe it as
+- “The mouse game”
+- “A cheese app”
+- “A cute kids’ game”
+- “A maze game”
+- “Busy”
+- “Hard to read”
+- “Trying too hard to be funny”

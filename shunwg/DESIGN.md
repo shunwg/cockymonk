@@ -1,4 +1,4 @@
-# DESIGN.md v3 — Cocky Monk design system
+# DESIGN.md v3 — Snifferoo design system
 
 **Subject:** a living-room quiz-show where one player runs the stage and everyone else lies for points, progress told by pawns on a board.
 **Job:** legible across a table, delicious to lie in, and a board that makes every point *felt*.
@@ -75,7 +75,7 @@ One `BoardLayout` (a winding serpentine of *target* spaces, Start → Mål) rend
 Rules: identical space geometry and pawn physics; only layers, sprites, particles, and sounds differ. A theme is one config struct + assets — a 4th theme must be a one-file job.
 
 ## 4. Signature 1: **Nesen** — the mark and the mechanic
-**The logo** (SVG in the reference demo): a round paper face, two dot eyes, a sly open smile, and a long pink ink-outlined nose reaching right. This IS the app icon (face on `turnYellow`), the top-bar brand, the loader, and every empty state — Cocky Monk personified without a word.
+**The logo** (SVG in the reference demo): a round paper face, two dot eyes, a sly open smile, and a long pink ink-outlined nose reaching right. This IS the app icon (face on `turnYellow`), the top-bar brand, the loader, and every empty state — Snifferoo personified without a word.
 
 **In play:** the nose grows one springy notch per vote a lie collected (rising "boing" pitch per notch). GM decoys grow a **violet** nose — the room learns to fear it. The game's best liar takes the **Gullnese** badge on the winner screen, separate from winning on points, so there are two things to brag about. Reduced Motion: crossfade to final length.
 

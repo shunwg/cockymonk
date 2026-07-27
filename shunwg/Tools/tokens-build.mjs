@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tokens-build.mjs — Cocky Monk design-token pipeline (LANES.md seam 2).
+// tokens-build.mjs — Snifferoo design-token pipeline (LANES.md seam 2).
 //
 // Reads DesignSystem/tokens.json (single source of truth) and emits:
 //   1. Lab/css/tokens.css              — CSS custom properties for the Lab
@@ -409,7 +409,7 @@ function buildMarkdown() {
 
   L.push(`<!-- ${HEADER} -->`);
   L.push("");
-  L.push("# Cocky Monk design tokens");
+  L.push("# Snifferoo design tokens");
   L.push("");
   L.push(`Source of truth: \`DesignSystem/tokens.json\` (v${tokens.meta.version}) — ${tokens.meta.source}.`);
   L.push(`Generated outputs: ${tokens.meta.generatedOutputs.map((p) => `\`${p}\``).join(" · ")}.`);

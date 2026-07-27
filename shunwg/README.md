@@ -1,4 +1,4 @@
-# Cocky Monk
+# Snifferoo
 
 A game-master-led bluffing party game in Norwegian bokmål and English. One player draws an obscure
 word and its real meaning; everyone else invents a definition convincing enough to steal votes. The
@@ -10,7 +10,7 @@ Team map in bokmål: **[TEAM.md](TEAM.md)**. Segment matrix and interface contra
 
 | | |
 |---|---|
-| **Locally, no install** | Double-click `Play Cocky Monk.cmd`, or open `dist/CockyMonk.html` in any browser |
+| **Locally, no install** | Double-click `Play Snifferoo.cmd`, or open `dist/Snifferoo.html` in any browser |
 | **Online** | https://shunwg.github.io/cockymonk/ — deployed from `main` by `.github/workflows/pages.yml` |
 
 The bundle is one self-contained file: game, decks, fonts, Lottie celebrations, all inlined. No Node,
@@ -55,7 +55,7 @@ and never hand-resolve one in a merge conflict; take either side and regenerate.
 |---|---|
 | `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, `DesignSystem/DESIGN-TOKENS.md` | `DesignSystem/tokens.json` via `Tools/tokens-build.mjs` |
 | `Specs/SCORING.md` | `Tools/engine-vectors.json` via `Tools/rules-sheet.mjs` |
-| `dist/CockyMonk.html` | the whole Lab via `Tools/build-standalone.mjs` |
+| `dist/Snifferoo.html` | the whole Lab via `Tools/build-standalone.mjs` |
 | `Screens/png/*` | fixtures via `Tools/snap-screens.mjs` |
 
 `Reference/cocky-monk-demo.html` is **frozen** — the canonical prototype, never edited. The Lab
@@ -109,7 +109,7 @@ git tag -a v0.2 -m "Segments + screens"
 git push origin v0.2
 ```
 
-GitHub Releases turns a tag into a download page — the right home for `dist/CockyMonk.html` when
+GitHub Releases turns a tag into a download page — the right home for `dist/Snifferoo.html` when
 handing the game to a tester who doesn't use git.
 
 **Never commit secrets.** Nothing here needs one today; when Mac day brings signing certificates

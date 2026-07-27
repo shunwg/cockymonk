@@ -1,4 +1,4 @@
-# CLAUDE.md — Cocky Monk project constitution
+# CLAUDE.md — Snifferoo project constitution
 
 A Norwegian bluffing party game. **PRD.md is the spec, DESIGN.md is the look,
 `Reference/cocky-monk-demo.html` is the canonical prototype, and this file is the law.** When they

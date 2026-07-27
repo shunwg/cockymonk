@@ -1,6 +1,6 @@
 ---
 name: game-director
-description: Phase-gated orchestrator for building Cocky Monk features end-to-end. Use when the user says /director, "orchestrate", "next feature", "build X", "run the flow", or any multi-step design/build/content task spanning more than one file or lane. Routes each phase to the best installed skill, enforces QA gates and a simulated playtest panel, writes artifacts to .design/<slug>/.
+description: Phase-gated orchestrator for building Snifferoo features end-to-end. Use when the user says /director, "orchestrate", "next feature", "build X", "run the flow", or any multi-step design/build/content task spanning more than one file or lane. Routes each phase to the best installed skill, enforces QA gates and a simulated playtest panel, writes artifacts to .design/<slug>/.
 ---
 
 # Game Director

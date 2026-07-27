@@ -1,6 +1,6 @@
 ---
 name: qa-gate
-description: Unified validator battery for Cocky Monk. Use before any commit, when the user says "qa", "gate", "check everything", "is this shippable", or as the game-director QA phase. Pass --ship for release gating.
+description: Unified validator battery for Snifferoo. Use before any commit, when the user says "qa", "gate", "check everything", "is this shippable", or as the game-director QA phase. Pass --ship for release gating.
 ---
 
 # QA Gate

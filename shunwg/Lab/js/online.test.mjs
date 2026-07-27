@@ -119,9 +119,9 @@ test("room codes avoid characters people mishear", () => {
 });
 
 test("share links round-trip, and file:// honestly has none", () => {
-  const loc = { protocol: "https:", origin: "https://example.test", pathname: "/cockymonk/", search: "" };
+  const loc = { protocol: "https:", origin: "https://example.test", pathname: "/snifferoo/", search: "" };
   const link = netShareLink("ABC234", loc);
-  assert.equal(link, "https://example.test/cockymonk/?room=ABC234");
+  assert.equal(link, "https://example.test/snifferoo/?room=ABC234");
   assert.equal(netRoomFromUrl({ search: "?room=abc234" }), "ABC234", "case-insensitive, normalised");
   assert.equal(netRoomFromUrl({ search: "" }), null);
   assert.equal(netRoomFromUrl({ search: "?room=<script>" }), null, "rejects junk");
@@ -373,6 +373,43 @@ test("a corrupt or absent profile reseeds instead of throwing", () => {
     ratingSave(saved);
     assert.equal(ratingLoad().rating, saved.rating, "round-trips");
     assert.equal(ratingReset().games, 0, "reset wipes the career");
+  } finally { globalThis.localStorage = orig; }
+});
+
+// The rename from Snifferoo to Snifferoo moved the storage key. A player who
+// had a rating, a career nose and 40 games behind them must not open the app to
+// a blank slate — that is the app throwing away the only thing it ever asked to
+// keep, and it would look exactly like a bug nobody could reproduce.
+test("a pre-rename profile survives the rename, and only travels one way", () => {
+  const store = {};
+  const orig = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => store[k] ?? null,
+    setItem: (k, v) => { store[k] = v; },
+    removeItem: (k) => { delete store[k]; },
+  };
+  try {
+    const old = { ...ratingFresh("Ingrid"), rating: 1337, games: 42, v: RATING.VERSION };
+    store[RATING.LEGACY_KEY] = JSON.stringify(old);
+
+    const adopted = ratingLoad();
+    assert.equal(adopted.rating, 1337, "the old rating is adopted, not reseeded");
+    assert.equal(adopted.games, 42, "and so is the career");
+    assert.equal(adopted.name, "Ingrid");
+
+    // A CURRENT profile always wins. Otherwise someone who reset their profile
+    // would find the old one resurrected on their next visit.
+    store[RATING.KEY] = JSON.stringify({ ...ratingFresh("Ny"), rating: 900, v: RATING.VERSION });
+    assert.equal(ratingLoad().rating, 900, "current key beats legacy");
+
+    // Saving never writes the legacy key back.
+    ratingSave(ratingApply(ratingFresh("Bo"), 5));
+    assert.equal(JSON.parse(store[RATING.LEGACY_KEY]).rating, 1337, "legacy is read-only");
+
+    // "Slett profilen" has to clear BOTH, or the deleted profile comes back.
+    ratingReset();
+    assert.equal(store[RATING.LEGACY_KEY], undefined, "reset clears the legacy key too");
+    assert.equal(ratingLoad().games, 0, "and nothing is left to adopt");
   } finally { globalThis.localStorage = orig; }
 });
 

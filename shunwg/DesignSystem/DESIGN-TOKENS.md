@@ -1,6 +1,6 @@
 <!-- GENERATED from DesignSystem/tokens.json — do not edit (run: node Tools/tokens-build.mjs) -->
 
-# Cocky Monk design tokens
+# Snifferoo design tokens
 
 Source of truth: `DesignSystem/tokens.json` (v1) — DESIGN.md v3 + frozen demo (Reference/cocky-monk-demo.html — demo wins on conflict).
 Generated outputs: `Lab/css/tokens.css` · `Sources/DesignSystem/Theme.swift` · `DesignSystem/DESIGN-TOKENS.md`.

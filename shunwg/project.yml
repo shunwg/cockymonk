@@ -1,5 +1,5 @@
 # EDIT-ME: bundleIdPrefix + DEVELOPMENT_TEAM, then run `xcodegen generate`
-name: CockyMonk
+name: Snifferoo
 options:
   bundleIdPrefix: com.EDITME
   deploymentTarget:
@@ -13,7 +13,7 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
-  CockyMonk:
+  Snifferoo:
     type: application
     platform: iOS
     sources: [Sources]
@@ -22,9 +22,9 @@ targets:
       base:
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         CODE_SIGN_STYLE: Automatic
-  CockyMonkTests:
+  SnifferooTests:
     type: bundle.unit-test
     platform: iOS
     sources: [Tests]
     dependencies:
-      - target: CockyMonk
+      - target: Snifferoo

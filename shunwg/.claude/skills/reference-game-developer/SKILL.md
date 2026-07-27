@@ -1,6 +1,6 @@
 ---
 name: reference-game-developer
-description: "REFERENCE ONLY — Unity and Unreal Engine patterns (C#/C++, ECS, colliders, object pooling, lag compensation, GPU profiling). Cocky Monk uses none of these: no game engine, no physics engine, no WebGL. Do NOT load for Cocky Monk work — use the game-feel skill instead. Read this only when the user explicitly asks about Unity, Unreal, ECS, or engine-side optimisation."
+description: "REFERENCE ONLY — Unity and Unreal Engine patterns (C#/C++, ECS, colliders, object pooling, lag compensation, GPU profiling). Snifferoo uses none of these: no game engine, no physics engine, no WebGL. Do NOT load for Snifferoo work — use the game-feel skill instead. Read this only when the user explicitly asks about Unity, Unreal, ECS, or engine-side optimisation."
 license: MIT
 ---
 

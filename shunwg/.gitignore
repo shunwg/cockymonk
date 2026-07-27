@@ -21,7 +21,7 @@ node_modules/
 .design/*/scratch/
 
 # The claude.ai Artifact variant of the bundle (~850 KB, generated). The MAIN
-# bundle dist/CockyMonk.html IS tracked, because "Play Cocky Monk.cmd" opens it
+# bundle dist/Snifferoo.html IS tracked, because "Play Snifferoo.cmd" opens it
 # directly and double-click-to-play must work with no Node and no build step.
 # This variant only exists to be pasted into an Artifact — regenerate on demand
 # with `node Tools/build-standalone.mjs`.

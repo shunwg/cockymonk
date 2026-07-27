@@ -37,7 +37,12 @@ export const NET = {
 // bandwidth, so a small share of hostile networks simply won't connect, and we
 // say so out loud instead of hanging.
 export const NET_CONFIG = Object.freeze({
-  PREFIX: "cm-",                 // namespaces us on the shared public broker
+  // Namespaces us on the shared PUBLIC broker, so it has to be ours alone.
+  // Changing this invalidates every share-link already in the wild: a room id is
+  // PREFIX + code, and a guest on an old link asks the broker for a peer that no
+  // longer exists. Done once here, deliberately, at the rename (2026-07-28) and
+  // before the open room starts handing out links people keep.
+  PREFIX: "sn-",
   CODE_LEN: 6,
   CODE_ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",  // no 0/O/1/I — read aloud
   CONNECT_TIMEOUT_MS: 8000,

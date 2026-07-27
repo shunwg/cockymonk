@@ -1,6 +1,6 @@
 ---
 name: card-author
-description: Author, expand, review, or fix cards in the Cocky Monk deck (Resources/deck_nb.json, deck_en.json) and the practice-mode bot fake pools (fakes_nb.json, fakes_en.json). Use this skill whenever the user asks for new cards, more cards, deck content, obscure words, card ideas, deck cleanup, difficulty balancing, or anything touching deck_nb.json — even if they don't say "card-author". Also use it when validate_deck.sh fails.
+description: Author, expand, review, or fix cards in the Snifferoo deck (Resources/deck_nb.json, deck_en.json) and the practice-mode bot fake pools (fakes_nb.json, fakes_en.json). Use this skill whenever the user asks for new cards, more cards, deck content, obscure words, card ideas, deck cleanup, difficulty balancing, or anything touching deck_nb.json — even if they don't say "card-author". Also use it when validate_deck.sh fails.
 ---
 
 # Card Author

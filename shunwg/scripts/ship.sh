@@ -4,7 +4,7 @@
 #   export ASC_KEY_ID=XXXXXXXX  ASC_ISSUER_ID=xxxx-xxxx  ASC_KEY_PATH=~/.appstoreconnect/AuthKey_XXXXXXXX.p8
 # Create the key in App Store Connect -> Users and Access -> Integrations -> App Store Connect API.
 set -euo pipefail
-SCHEME="${1:-CockyMonk}"
+SCHEME="${1:-Snifferoo}"
 : "${ASC_KEY_ID:?Set ASC_KEY_ID (see header of this script)}"
 : "${ASC_ISSUER_ID:?Set ASC_ISSUER_ID}"
 : "${ASC_KEY_PATH:?Set ASC_KEY_PATH}"

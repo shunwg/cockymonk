@@ -12,7 +12,7 @@
 
 445 lines of HLSL/CG and GLSL: Unity surface shaders, a toon shader with an inverted-hull outline pass, a dissolve shader, a screen-space vignette, GPU cost tables, and a variant-stripping guide. Targets Unity URP/HDRP, Unreal, Godot, OpenGL, DirectX and Vulkan.
 
-**Cocky Monk has no shader stage at all.** The Lab is DOM + CSS; iOS is SwiftUI. This is worth stating plainly because the confusion is easy to make: CSS `filter`, `backdrop-filter`, `mask-image`, `mix-blend-mode` and SVG `feTurbulence`/`feDisplacementMap` are *shader-adjacent in effect* but are not shaders — no vertex stage, no fragment program, no precision qualifiers, no variant compilation. Nothing in this file translates. Installed as background reading only, at the user's explicit request.
+**Snifferoo has no shader stage at all.** The Lab is DOM + CSS; iOS is SwiftUI. This is worth stating plainly because the confusion is easy to make: CSS `filter`, `backdrop-filter`, `mask-image`, `mix-blend-mode` and SVG `feTurbulence`/`feDisplacementMap` are *shader-adjacent in effect* but are not shaders — no vertex stage, no fragment program, no precision qualifiers, no variant compilation. Nothing in this file translates. Installed as background reading only, at the user's explicit request.
 
 The auto-trigger was therefore removed. The body is byte-identical to upstream; only the frontmatter was replaced, and the original is preserved verbatim in `UPSTREAM-FRONTMATTER.txt`. The upstream description —
 

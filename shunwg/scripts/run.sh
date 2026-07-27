@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build, install, and launch on the iPhone 16 simulator.
 set -euo pipefail
-SCHEME="${1:-CockyMonk}"
+SCHEME="${1:-Snifferoo}"
 scripts/build.sh "$SCHEME"
 APP=$(find .build/Build/Products -name "$SCHEME.app" -maxdepth 3 | head -1)
 [ -n "$APP" ] || { echo "App bundle not found under .build/"; exit 1; }

@@ -4,7 +4,7 @@ Ny i mappa? Tre dører inn:
 
 | Vil du … | Gjør |
 |---|---|
-| **Spille spillet** | dobbeltklikk `Play Cocky Monk.cmd` |
+| **Spille spillet** | dobbeltklikk `Play Snifferoo.cmd` |
 | **Se alle skjermene (01–23)** | dobbeltklikk `Open Screen Gallery.cmd` |
 | **Jobbe på spillet** | les videre — 5 minutter — og finn segmentet ditt |
 
@@ -56,7 +56,7 @@ Alle 23 skjermer har permanent nummer. «Nesen overlapper navnet på 13» er en 
 alle (og Claude) vet nøyaktig hvor det er.
 
 - **Se alt:** `node Tools/serve-lab.mjs` → <http://localhost:8787/Lab/gallery.html> (eller dobbeltklikk `Open Screen Gallery.cmd`)
-- **Én skjerm:** `…/Lab/index.html?fixture=07` — også `dist/CockyMonk.html?fixture=07` rett fra disk
+- **Én skjerm:** `…/Lab/index.html?fixture=07` — også `dist/Snifferoo.html?fixture=07` rett fra disk
 - **Stillbilder:** `Screens/png/` — regenerer med `node Tools/snap-screens.mjs` etter UI-endringer
 
 ## Sånn jobber vi (protokollen for generalister)
@@ -81,7 +81,7 @@ Grener, pull requests og konflikthåndtering står i `README.md`.
 
 | Vil du … | Gjør |
 |---|---|
-| Spille lokalt | Dobbeltklikk `Play Cocky Monk.cmd` (eller `dist/CockyMonk.html`) |
+| Spille lokalt | Dobbeltklikk `Play Snifferoo.cmd` (eller `dist/Snifferoo.html`) |
 | Se alle skjermene | `Open Screen Gallery.cmd` |
 | Spille med andre over nett | Åpne <https://shunwg.github.io/cockymonk/> og del rom-lenka |
 | Utvikle med live-reload | `node Tools/serve-lab.mjs` → <http://localhost:8787/Lab/> |

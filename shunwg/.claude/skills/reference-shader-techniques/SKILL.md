@@ -1,6 +1,6 @@
 ---
 name: reference-shader-techniques
-description: "REFERENCE ONLY — HLSL/CG and GLSL shader authoring for Unity, Unreal, Godot, OpenGL, DirectX and Vulkan. Cocky Monk has no shader stage: the Lab is DOM + CSS and iOS is SwiftUI. Do NOT load for Cocky Monk work — CSS filters, masks and blend modes are not shaders. Read this only when the user explicitly asks about HLSL, GLSL, or engine rendering pipelines."
+description: "REFERENCE ONLY — HLSL/CG and GLSL shader authoring for Unity, Unreal, Godot, OpenGL, DirectX and Vulkan. Snifferoo has no shader stage: the Lab is DOM + CSS and iOS is SwiftUI. Do NOT load for Snifferoo work — CSS filters, masks and blend modes are not shaders. Read this only when the user explicitly asks about HLSL, GLSL, or engine rendering pipelines."
 ---
 
 

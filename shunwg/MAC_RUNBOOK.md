@@ -19,7 +19,7 @@ packages:
     url: https://github.com/airbnb/lottie-ios
     from: 4.5.0
 targets:
-  CockyMonk:
+  Snifferoo:
     # ...existing...
     dependencies:
       - package: Lottie
@@ -67,7 +67,7 @@ Reduced Motion: the Lab no-ops the overlay (static UI is the poster) — the Swi
 Per milestone: `scripts/build.sh` → playtest-loop (simulator screenshots — CLAUDE.md workflow) → `scripts/test.sh` → commit `M<n>: … (PRD §…)`.
 
 ## TestFlight (release-captain skill drives this)
-1. App Store Connect: create the app record (bundle id from project.yml, name **Cocky Monk**, primary language nb).
+1. App Store Connect: create the app record (bundle id from project.yml, name **Snifferoo**, primary language nb).
 2. Create an ASC API key (Users and Access → Integrations) → `export ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_PATH=…` (ship.sh header).
 3. `bash scripts/ship.sh` (runs tests + deck validation first, then archive → export → upload).
 4. Internal testers first; external group after a weekend of survival. What-to-test notes: 2–4 bullets, Norwegian, playful.
@@ -77,7 +77,7 @@ Per milestone: `scripts/build.sh` → playtest-loop (simulator screenshots — C
 - [ ] Privacy label: **Data Not Collected** (CLAUDE.md guardrail — no analytics, no network beyond local MPC)
 - [ ] Export compliance: uses only standard OS encryption → exempt (answer "No" to proprietary crypto)
 - [ ] Age rating questionnaire (expect 9+/12+ — mild "cheeky" humor, no gambling despite casino-audio *sounds*)
-- [ ] **Trademark search evidence**: 30 min on Patentstyret + EUIPO for "Cocky Monk" — save PDFs of the search results with the release notes (PRD §13)
+- [ ] **Trademark search evidence**: 30 min on Patentstyret + EUIPO for "Snifferoo" — save PDFs of the search results with the release notes (PRD §13)
 - [ ] Credits in About: Kenney (CC0, "because class"), Fredoka (OFL), lottie-ios (Apache-2.0) — per ASSETS.md
 - [ ] Screenshots from **device/simulator only** (Lab browser screenshots are not App Store legal), all 3 themes represented
 - [ ] `Resources/Audio/CREDITS.md` complete for every shipped sound; the 8 `TODO:original` sound events resolved or cut

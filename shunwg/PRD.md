@@ -1,4 +1,4 @@
-# PRD v3 — Cocky Monk
+# PRD v3 — Snifferoo
 ### A game-master-led bluffing party game for iOS · board-race scoring · Norwegian + English
 
 > **How to use this document:** single source of truth; Claude Code reads it before planning any feature.
@@ -25,7 +25,7 @@
 | Sound, haptics, board animation | Ads, IAP, analytics, tracking |
 
 ### 2.1 Amendment — online rooms in the browser Lab (v1.1, 2026-07-25)
-The **web build only** (`Lab/`, `dist/CockyMonk.html`, GitHub Pages) gains three features. The iOS app in `Sources/` is untouched by this amendment and keeps every rule above.
+The **web build only** (`Lab/`, `dist/Snifferoo.html`, GitHub Pages) gains three features. The iOS app in `Sources/` is untouched by this amendment and keeps every rule above.
 
 | Added to scope — **web build only** | Still out of scope, everywhere |
 |---|---|
@@ -196,7 +196,7 @@ As v1 PRD §7 (original, verifiable, ≤140 chars, cheeky-never-crude), now per 
 | M10 | TestFlight via release-captain | 5 external testers, one real game night |
 
 ## 13. Open questions *(answer, then delete)*
-- [x] Name: **Cocky Monk** — run a Patentstyret + EUIPO trademark search before any public App Store release (the name is deliberately phonetically adjacent to the Norwegian original; fine for TestFlight)
+- [x] Name: **Snifferoo** — run a Patentstyret + EUIPO trademark search before any public App Store release (the name is deliberately phonetically adjacent to the Norwegian original; fine for TestFlight)
 - [ ] `EDIT-ME` English deck in v1 or v1.1?
 - [ ] `EDIT-ME` Default theme: Salongen?
 - [x] **Bluff timer (60 s)** — **yes, as a host-set room option, not a per-GM toggle.** Default ON online and in practice, OFF in hotseat. `Specs/FLOW.md` **Option B** (the clock advances the game), web build only, specified in §5.2a. Two questions FLOW.md left open are answered there too: the timer is *not* hidden in practice (that is where players learn it exists — bots finish around 12 s against a 60 s window), and a reconnecting player is never counted as a laggard (§5.5).

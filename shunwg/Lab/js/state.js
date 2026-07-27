@@ -3,7 +3,7 @@
 
 export const STR = {
   nb: {
-    title: "Cocky Monk", demo: "lab", pickLang: "Velg språk",
+    title: "Snifferoo", demo: "lab", pickLang: "Velg språk",
     mode: "Hvordan vil du spille?", hotseatName: "Én telefon", hotseatSub: "Send telefonen rundt bordet — ekte folk",
     partyName: "Hver sin telefon", partySub: "Lab: motspillerne er roboter. Du starter som spillmester.",
     players: "Hvem spiller?", addPlayer: "+ Legg til spiller", namePh: "Navn…", needPlayers: "3–8 spillere",
@@ -55,7 +55,7 @@ export const STR = {
     rulesScore3: "Ingen fant sannheten — til mesteren",
     rulesScore4: "Dobbeltreff: du skrev nesten sannheten",
     rulesBack: "Tilbake",
-    aboutTitle: "Om Cocky Monk",
+    aboutTitle: "Om Snifferoo",
     aboutBlurb: "Et selskapsspill om å lyve med stil. Dere lager moroa rundt bordet — appen holder bare i nesen.",
     aboutCredits: "Skrifter og lyder: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
     // Honest, not reassuring: the moment a profile is persisted, "vi lagrer
@@ -109,7 +109,7 @@ export const STR = {
     setupForRoom: "Du er vert. Dette gjelder hele rommet.",
   },
   en: {
-    title: "Cocky Monk", demo: "lab", pickLang: "Choose language",
+    title: "Snifferoo", demo: "lab", pickLang: "Choose language",
     mode: "How do you want to play?", hotseatName: "One phone", hotseatSub: "Pass the phone around — real people",
     partyName: "A phone each", partySub: "Lab: your opponents are bots. You start as game master.",
     players: "Who's playing?", addPlayer: "+ Add player", namePh: "Name…", needPlayers: "3–8 players",
@@ -161,7 +161,7 @@ export const STR = {
     rulesScore3: "Nobody found the truth — to the master",
     rulesScore4: "Double hit: you nearly wrote the truth",
     rulesBack: "Back",
-    aboutTitle: "About Cocky Monk",
+    aboutTitle: "About Snifferoo",
     aboutBlurb: "A party game about lying with style. You make the fun around the table — the app just holds the nose.",
     aboutCredits: "Fonts and audio: Fredoka (OFL), lottie-web (MIT), Kenney (CC0).",
     // Honest, not reassuring — see the nb note above.

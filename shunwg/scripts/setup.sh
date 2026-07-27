@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time environment setup for the Cocky Monk project. Safe to re-run.
+# One-time environment setup for the Snifferoo project. Safe to re-run.
 set -euo pipefail
 say(){ printf "\n\033[1m== %s ==\033[0m\n" "$*"; }
 
