@@ -131,6 +131,7 @@
   --motion-dur-overtake-wobble: 420ms;
   --motion-dur-count-up: 280ms;
   --motion-dur-screen-in: 240ms;
+  --motion-dur-siren-half-cycle: 330ms;
 
   /* ---- motion.springs (duration in s + cubic-bezier approximation) ---- */
   --spring-button-press-duration: 0.08s;

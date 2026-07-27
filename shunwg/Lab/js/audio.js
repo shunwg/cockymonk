@@ -122,6 +122,14 @@ const VOICES = {
   back:     () => tone(360, { type: "triangle", dur: 0.07, gain: 0.035 }),
   error:    () => { tone([320, 180], { type: "sawtooth", dur: 0.18, gain: 0.045 }); },
 
+  // The last five seconds. Ordkrig's countdown is silent — visual siren plus one
+  // haptic — which leaves a player looking away with nothing at all. Two soft
+  // falling sines, a fourth apart, deliberately quiet: this fires while someone
+  // is mid-sentence writing a lie, so it must read as a nudge from the room, not
+  // an alarm. One shot on ENTERING urgency; the pulse itself is a state, not a
+  // beat, and a tone every 660 ms for five seconds would be unbearable.
+  urgent:   () => { tone([620, 470], { type: "sine", dur: 0.34, gain: 0.045 }); tone([466, 350], { type: "sine", dur: 0.42, gain: 0.032, when: 0.16 }); },
+
   // — round —
   cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
   tickIn:   () => { tone(880, { type: "triangle", dur: 0.05, gain: 0.05 }); tone(1180, { type: "sine", dur: 0.06, gain: 0.035, when: 0.03 }); },

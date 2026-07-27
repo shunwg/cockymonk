@@ -166,6 +166,7 @@ enum Theme {
         static let overtakeWobble: TimeInterval = 0.42
         static let countUp: TimeInterval = 0.28
         static let screenIn: TimeInterval = 0.24
+        static let sirenHalfCycle: TimeInterval = 0.33
     }
 
     /// Apple springs (duration, bounce). Reduced Motion: fall back per DESIGN.md §9.

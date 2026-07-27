@@ -54,6 +54,7 @@ Disse ligger *oppå* skjermene og refereres med navn:
 | Handover | «Gi telefonen til X» — personvernskjold i hotseat | `ui.js hand()` |
 | Avslutt-bekreftelse | «Avslutte spillet?» — vises når tilbake-knappen trykkes midt i et spill. Teksten er ulik for lokalt spill, gjest og vert (verten river rommet for alle) | `ui.js confirmQuit()` |
 | Sent-inn-varsel | Grønt banner øverst: «X tok over plassen — og poengene — til Kåre 🤖». Den som kom inn ser i tillegg at hen sitter over denne runden. Varer runden ut | `ui.js lateNoteHtml()` |
+| Sirene | Siste 5 sekunder: skjermkantene pulserer i bluffPink, ett mykt tofonet varsel og én vibrasjon idet den starter. Vises KUN når du fortsatt skylder et svar (09/11/08) — aldri på en venteskjerm | `ui.js sirenSet()` |
 | Blits | Gult lysglimt ved «Åpne avstemning» | `ui.js flashScreen()` |
 | GM-slør | Lilla puls + risting ved GM-steal | `ui.js doRevealStep()` |
 | Feiringer | Lottie-konfetti, Gullnese-glitter, Mål-landemerker | `Lab/js/lottie.js` + `Resources/Lottie/` |

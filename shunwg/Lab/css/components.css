@@ -333,3 +333,40 @@
   .wordchip { flex-direction: column; gap: 0; }
   .wordchip .w { font-size: 20px; }
 }
+
+/* ---------- the last-five-seconds siren (Ordkrig's, adapted) --------------
+   Ordkrig wails the whole screen for the final 5 s and it is the single most
+   effective thing in that build: you feel the deadline in your chest rather
+   than reading it off a number. Three of their four decisions ported as-is —
+   a sine in AND out (a linear ramp reads as a strobe), a half-cycle of 330 ms,
+   and a trough that NEVER returns to zero. That last one is the whole trick:
+   something that keeps breathing is a siren, something that blinks off is a
+   warning light.
+
+   What we changed, and why. Theirs is a flat fill at 0.5 opacity over a
+   monochrome app. Ours is a dark layered background with paper cards on top, and
+   a half-opaque wash across it would put the option text under 4.5:1 — failing
+   DESIGN.md §9 exactly when the player most needs to read. So this is an inset
+   vignette: the edges pulse, the middle stays clear, and nothing the player is
+   reading is ever tinted.
+
+   Reduced Motion: base.css kills the animation, so `.siren.on` deliberately
+   RESTS at the trough — a steady dim edge glow rather than nothing at all. The
+   beat still lands, with the sound and the haptic carrying more of it
+   (game-feel skill, principle 10). It is also why the peak is what it is:
+   ~1.5 flashes/second, comfortably under WCAG 2.3.1's three. */
+.siren {
+  position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  opacity: 0;
+  box-shadow: inset 0 0 90px 18px var(--color-timer-urgent);
+}
+.siren.on { opacity: .10; }                    /* the trough — and the RM resting state */
+@media (prefers-reduced-motion: no-preference) {
+  .siren.on {
+    animation: sirenWail calc(var(--motion-dur-siren-half-cycle) * 2) ease-in-out infinite;
+  }
+}
+@keyframes sirenWail {
+  0%, 100% { opacity: .10; }                   /* never black: a siren breathes */
+  50%      { opacity: .55; }
+}

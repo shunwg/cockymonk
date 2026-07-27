@@ -23,6 +23,8 @@ Run every check below, in order, and report **one** verdict table. Never report 
 | 10 | Screen fixtures | `node --test Lab/js/fixtures.test.mjs` — the numbered-screen registry (Screens/SCREENS.md) must stay renderable and engine-shaped. |
 | 11 | Online, clock & rating | `node --test Lab/js/online.test.mjs` — the segment-5 gate. Covers state projection (**the truth must never reach a non-GM seat**), deadline arithmetic, and the Elo math. |
 | 12 | Bundle budget | `node Tools/build-standalone.mjs` prints the size and exits non-zero past **1.0 MB**. The standalone must stay double-clickable, offline, and small enough to send to a friend. |
+| 13 | Bluff surface parity | `node Tools/check-fake-parity.mjs --check` — can a player who speaks no Norwegian win by reading option *shape*? Simulates the shipped selector on the real deck; the best surface-only strategy must stay under 40% on a 4-option lineup (chance is 25%). This was 87.2% before `Lab/js/fakepool.js` (PRD §9.1). |
+| 14 | Game-feel conformance | `node Tools/check-game-feel.mjs --check` — the checkable half of the **game-feel** skill: per-tick paints stay `render()`-free, every haptic the tokens name is declared and fired, Reduced-Motion rescues exist for anything an animation reveals. Judgement rules (does the beat land? is the effect's claim true?) are **not** checkable — read the skill. |
 
 ## Verdict table format
 

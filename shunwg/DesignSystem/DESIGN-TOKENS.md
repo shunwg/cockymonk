@@ -168,6 +168,7 @@ Unit: ms. Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfa
 | `overtakeWobble` | 420 |
 | `countUp` | 280 |
 | `screenIn` | 240 |
+| `sirenHalfCycle` | 330 |
 
 ## Motion — springs
 

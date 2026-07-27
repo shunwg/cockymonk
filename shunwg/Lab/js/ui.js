@@ -129,7 +129,12 @@ async function loadContent(lang) {
    AND the countdown together. The countdown then re-arms itself for the phase
    it just entered, if timers are on at all. */
 
-const resetTimers = () => { clearTimers(); clockClear(); };
+// Every phase change goes through here, so the siren dies here too. It has to:
+// the element lives on document.body (shell() replaces app.innerHTML and would
+// otherwise leave it stranded), and ckPaint — the only thing that turns it off —
+// stops running the moment the clock is cleared. Without this line a phase that
+// ends inside the last five seconds leaves the screen wailing into the next one.
+const resetTimers = () => { clearTimers(); clockClear(); sirenClear(); };
 const timersOn = () => Boolean(G?.timers?.on);
 
 // The countdown's markup. Rendered inside a normal screen render; from then on
@@ -150,7 +155,52 @@ function clockHtml(labelKey) {
 // wholesale and would destroy the bluff textarea and the GM's half-typed
 // decoys once a second. Same discipline as refreshGmAction()/botTickUI().
 let ckSaid = null;
+/* The last-five-seconds siren, ported from Ordkrig.
+
+   GATED ON INACTION, NEVER ON THE CLOCK ALONE. This is principle 2 of the
+   game-feel skill in its sharpest form: the effect claims "time is nearly up AND
+   you have not acted". Fire it at someone who already submitted and it is
+   telling them a lie about their own state, which is worse than not firing at
+   all. The screen a player is on IS that fact — BLUFF/VOTE means they still owe
+   an answer, WAIT/VOTEWAIT means they don't — so no extra bookkeeping, and a
+   timed-out or late-joining spectator is excluded for free because they are
+   already parked on a waiting screen.
+
+   Surgical, like the rest of ckPaint: toggles one class on one fixed element and
+   NEVER calls render(). This fires while someone is mid-sentence writing a lie
+   (principle 3, defend the real-time moments) — a re-render here would eat the
+   textarea, which is the whole reason ckPaint exists.
+
+   The sound and the haptic are edge-triggered on ENTERING urgency, once. The
+   pulse that follows is a state, not a beat. */
+const ACTING_SCREENS = ["BLUFF", "VOTE", "GM_DASH"];
+let sirenOn = false;
+
+function sirenSet(active) {
+  if (active === sirenOn) return;                 // edge only — no per-tick work
+  sirenOn = active;
+  let el = document.getElementById("siren");
+  if (!el && active) {
+    el = document.createElement("div");
+    el.id = "siren";
+    // Mounted with the class already on. A CSS *animation* plays from its own
+    // keyframes the first time style is computed, so the usual
+    // append-then-rAF-then-add-class dance buys nothing here — that trick exists
+    // for transitions, which need a previous computed value to interpolate from.
+    // Dropping it removes a frame of dependency on rAF running at all.
+    el.className = "siren on";
+    el.setAttribute("aria-hidden", "true");       // the countdown already announces itself
+    document.body.appendChild(el);
+  } else if (el) {
+    el.classList.toggle("on", active);
+  }
+  if (active) { play("urgent"); haptic("warning"); }
+}
+
+function sirenClear() { sirenSet(false); document.getElementById("siren")?.remove(); }
+
 function ckPaint(leftMs, level) {
+  sirenSet(level === "urgent" && ACTING_SCREENS.includes(U.screen));
   const el = document.getElementById("clockring");
   if (!el) return;
   el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
@@ -1318,7 +1368,10 @@ function animateBoard() {
         G.players.forEach((p, j) => {
           if (j !== i && before <= p.score && after > p.score) {
             const pj = pawnEl(j); pj.classList.remove("wobble"); void pj.offsetWidth; pj.classList.add("wobble");
-            setTimeout(() => pj.classList.remove("wobble"), 420);
+            // Read the token the .wobble animation itself runs on. Hardcoding it
+            // here means retuning the wobble silently leaves the class attached
+            // (too short) or strips it mid-animation (too long).
+            setTimeout(() => pj.classList.remove("wobble"), msToken("--motion-dur-overtake-wobble", 420));
             play("overtake");
           }
         });
