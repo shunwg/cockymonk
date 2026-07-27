@@ -309,6 +309,48 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
   .stagger, .opt.stagger { opacity: 1 !important; }
 }
 
+/* ---------- numbers that change ----------
+   Proportional digits re-flow the line every tick, so a counting score visibly
+   jitters and a countdown wobbles between 0:19 and 0:11. Tabular figures give
+   every digit the same advance width. Ordkrig sets fontVariant:['tabular-nums']
+   on ten styles for the same reason. */
+.clock .clocknum, .scoreline, .scoreline b, .pchip, .tally, .ratingnum,
+.board .pawn, .space, input[type="number"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---------- mobile-web feel primitives ----------
+   None of this is styling; each line removes a way the browser breaks the game.
+
+   dvh: with height:100% the layout jumps every time iOS Safari shows or hides
+   the address bar, which on a bottom-pinned CTA means the button moves under
+   your thumb as you reach for it.
+
+   overscroll-behavior: the important one. Pull-to-refresh RELOADS the page, and
+   all game state lives in memory — one over-enthusiastic scroll during a round
+   and the evening is gone. `contain` stops the gesture reaching the browser.
+
+   safe-area: the CTA sits at the bottom edge, which on a notched iPhone is
+   exactly where the home indicator lives. */
+html, body { overscroll-behavior-y: contain; }
+
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+  #app { min-height: 100dvh; }
+}
+
+#app {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+
+/* Buttons and options: suppress the double-tap-zoom wait without relying on
+   user-scalable=no alone, so a press state appears the instant a finger lands. */
+.btn, .opt, .iconbtn, .modebtn, .seg button, .linkbtn, .pchip { touch-action: manipulation; }
+
 /* components.css */
 /* components.css — chips, segments, options, faces/noses, banners, mode buttons,
  * handover hold-button, confetti. Lane B. Token-pure. */
@@ -526,11 +568,18 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
   transform-origin: left center;
   box-shadow: inset 0 1px 0 #ffffff66, inset 0 -1px 0 #00000022;   /* inked-on-paper */
 }
-/* The Nesen boings out per vote — mount keyframe (the element is rebuilt at final width each
-   reveal beat, so a transition can't fire; a stronger vote count boings harder). DESIGN §4. */
+/* The Nesen boings out per vote — mount keyframe (the element is rebuilt at final
+   width each reveal beat, so a transition can't fire). DESIGN §4.
+
+   The start scale FALLS as the vote count rises, so a nose that collected four
+   votes travels further than one that collected one — which is what "a stronger
+   vote count boings harder" was always supposed to mean. It previously read
+   0.25 + 0.12 × notch, i.e. the opposite: notch 1 started at 0.37 and notch 5 at
+   0.85, so the biggest lie of the round got the smallest flourish.
+   Floored at 0.12 so a long nose still starts as a visible stub, not nothing. */
 .nose.grow { animation: noseBoing var(--spring-nose-grow-duration) var(--spring-nose-grow-ease) both; }
 @keyframes noseBoing {
-  0%   { transform: scaleX(calc(0.25 + 0.12 * var(--notch, 1))); }
+  0%   { transform: scaleX(max(0.12, calc(0.55 - 0.09 * var(--notch, 1)))); }
   100% { transform: scaleX(1); }
 }
 /* Mascot length, matching LOGO() exactly (34.2 of a 34.8-unit head). Decorative
@@ -556,7 +605,11 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
   border: 2.5px solid var(--color-border); border-radius: var(--radius-chip);
   padding: 8px 12px; margin-bottom: 10px; font-weight: 700; font-size: 14px; text-align: center;
   box-shadow: 0 3px 0 var(--color-border);
-  animation: lateIn var(--motion-dur-bob-loop, 400ms) cubic-bezier(.34,1.4,.64,1) both;
+  /* Was --motion-dur-bob-loop with a 400ms fallback — but that token exists and
+     resolves to 2400ms, so the fallback was dead and this banner took 2.4 s to
+     arrive. option-rise (400ms) is the token that actually means "an element
+     rises into place". */
+  animation: lateIn var(--motion-dur-option-rise) cubic-bezier(.34,1.4,.64,1) both;
 }
 @keyframes lateIn { 0% { transform: translateY(-8px) scale(.96); opacity: 0; } 100% { transform: none; opacity: 1; } }
 
@@ -610,6 +663,29 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
 /* Keyboard / Switch-Control focus on every interactive tile (DESIGN §9) */
 .opt:focus-visible, .seg button:focus-visible, .modebtn:focus-visible {
   outline: 3px solid var(--color-accent-turn); outline-offset: 2px;
+}
+
+/* The word, kept present through voting and the reveal (ui.js wordChip()).
+   A card, not a banner: it is the same object the GM and the bluffers saw, just
+   quieter — same paper, same ink border, one line. The eyebrow keeps it from
+   reading as one of the answer options. */
+.wordchip {
+  display: flex; align-items: baseline; gap: 10px;
+  background: var(--color-surface); color: var(--color-text-on-surface);
+  border: 2.5px solid var(--color-border); border-radius: var(--radius-button);
+  box-shadow: var(--shadow-hard);
+  padding: 8px 14px; margin-bottom: 10px;
+  min-width: 0;
+}
+.wordchip .eyebrow { flex: none; }
+.wordchip .w {
+  font-weight: 700; font-size: 22px; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+/* At Dynamic Type XL the eyebrow and a long compound word cannot share a line. */
+@media (max-width: 380px) {
+  .wordchip { flex-direction: column; gap: 0; }
+  .wordchip .w { font-size: 20px; }
 }
 
 /* screens.css */
@@ -723,6 +799,24 @@ input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outli
 .pt.pink   { background: var(--color-accent-bluff); }
 .pt.violet { background: var(--color-accent-gm); color: #fff; }
 .pt.gold   { background: var(--color-accent-turn); }
+
+/* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
+   badges were drawn from the first commit and nothing ever triggered them, so
+   the milestone was scenery. A short gold flare on the space the pawn just
+   passed — deliberately quieter than the Mål medallion's Lottie, because these
+   are waypoints and that is the destination. */
+.space.landmark { animation: landmarkFlare var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease) both; }
+.space.landmark .mark { animation: landmarkMark var(--motion-dur-overtake-wobble) var(--spring-tally-pop-ease) both; }
+@keyframes landmarkFlare {
+  0%   { box-shadow: 0 0 0 0 var(--color-accent-turn), inset 0 0 0 rgba(0,0,0,0); }
+  45%  { box-shadow: 0 0 16px 5px var(--color-accent-turn), inset 0 0 12px rgba(255,197,61,.55); }
+  100% { box-shadow: 0 0 0 0 rgba(255,197,61,0), inset 0 0 0 rgba(0,0,0,0); }
+}
+@keyframes landmarkMark {
+  0%   { transform: scale(1) rotate(0deg); }
+  40%  { transform: scale(1.55) rotate(-12deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
 
 /* themes.css */
 /* themes.css — the three boards. Background layers, space skin, pawn flavor ONLY
@@ -1757,6 +1851,12 @@ function ratingFresh(name = "") {
     nose: 0,
     best: RATING.START,
     history: [],
+    // Not a rating field, and it rides here on purpose: mute is the one setting
+    // players expect to survive a reload, and CLAUDE.md promises the web build
+    // keeps exactly ONE versioned localStorage key. A second key for a boolean
+    // would make that line false. audio.js stays storage-free; ui.js does the
+    // reading and writing at the two points that already touch this file.
+    muted: false,
   };
 }
 
@@ -1847,6 +1947,316 @@ function takeFake(pool, used, rng) {
 }
 
 
+/* ===== fakepool.js ===== */
+// fakepool.js — where a bot's lie comes from. Pure, DOM-free, no imports.
+//
+// THE PROBLEM THIS SOLVES
+// The deck's truths (PRD §9: ≤140 chars, written to surprise) and the old bot
+// fake pools ("generic-but-plausible", ≤120) were authored to different specs.
+// Nobody chose the consequence: nb truths average 75 characters and the fakes
+// average 48. So "vote for the longest option" won 87.2% of a 4-option practice
+// lineup against 25% chance. A player who noticed that never had to learn a
+// Norwegian word again. Tools/check-fake-parity.mjs is the gate that measures it.
+//
+// THE FIX, borrowed from Edvard's Ordkrig (src/bots/answerPool.ts)
+// A fake explanation for word X is a REAL explanation — of some other word Y.
+// Length, punctuation, register, clause shape and voice then match the truth by
+// CONSTRUCTION rather than by tuning, because both sides came out of the same
+// pen. There is no synthetic tell to detect because nothing is synthetic.
+//
+// Ordkrig harvests ~9,000 such rows from Bokmålsordboka. We don't need to: we
+// already own 150 nb / 100 en definitions, and the definition of card A is a
+// perfect fake for card B. We ported the method, not their data — their corpus
+// is CC BY 4.0 and carries attribution obligations.
+//
+// WHY ONLY HALF THE FAKES ARE "CLOSE"
+// The non-obvious half of the idea, and Ordkrig's own comment makes the point:
+// if every decoy is close to the truth, the truth becomes the one that ISN'T
+// like the others, and you have rebuilt the leak with the sign flipped. So
+// CLOSE_SHARE of the lineup is chosen by a similarity score and the rest at
+// random. See the game-feel skill, principle 8 ("half-close, never all-close").
+
+const FAKEPOOL = Object.freeze({
+  CLOSE_SHARE: 0.5,        // fraction of a lineup picked by closeness; rest random
+  LEN_RATIO_LO: 0.6,       // "near the truth's length" band, as a ratio
+  LEN_RATIO_HI: 1.6,
+  SHORT_BAND: 60,          // chars. Our nb p25 is 68, so this is genuinely "short"
+  DRAW_LOOKAHEAD: 16,      // upcoming cards barred as fakes — longer than any game
+  MIN_POOL: 12,            // below this, relax the lookahead rather than starve (file:// mini-deck is 6 cards)
+
+  // Closeness weights. Deliberately small integers: this is a preference order,
+  // not a calibrated model, and rng() jitter in [0,1) is a term of its own so
+  // the same word does not draw the same lineup twice.
+  W_FIRST_LETTER: 1.5,     // source word shares the target's initial
+  W_PREFIX2: 1.0,          // ...and its first two letters
+  W_SHORT_PAIR: 2.5,       // short truth + short fake sharing an initial (bavle→bable)
+  W_LEN_NEAR: 1.0,         // explanation length inside the ratio band
+  W_LEARNED: 0.5,          // same register: latinate/greek vs. folk
+  W_THEME: 1.1,            // per shared content word, capped
+  THEME_CAP: 2,
+});
+
+// Latin/Greek-flavoured morphology. A word wearing one of these suffixes reads
+// learned and should be lied about in a learned voice; a folk compound should be
+// lied about in a folk voice. Register is half of why a bluff is believable.
+//
+// Endings are chosen to be WRONG rarely rather than RIGHT often. Ordkrig's nb
+// list included -ikk, -isk, -ur and -at, which on this deck tagged boknafisk,
+// havblikk, aur and lur as latinate — those are ordinary Norwegian endings
+// (fisk, blikk), not learned ones, and a signal that misfires most of the time
+// is worse than no signal. MIN_LEN then excludes short native words outright.
+//
+// Honest limitation: after tightening, only ~1% of the nb deck reads as learned,
+// so for Norwegian this term is close to a constant and contributes almost
+// nothing to the ranking. It earns its place on the en deck (~9%) and it is
+// cheap. Do not widen it to raise the hit rate — that is how it broke before.
+const LEARNED_MIN_LEN = 6;
+const LEARNED = {
+  nb: /(sjon|isme|itet|logi|ium|ase|ose|yse|ent|ant)$/i,
+  en: /(tion|sion|ism|ity|ology|ium|ent|ant|ase|osis|ysis|ure|ate)$/i,
+};
+
+// Function words plus the lexicographer's own filler. "brukt", "betegnelse",
+// "especially" and friends appear in half the deck and would make every pair
+// look thematically related, which would make the theme term meaningless.
+const STOP = {
+  nb: new Set(("og i på som til av for med den det de en et er at om fra har hadde ble blir bli seg sin sitt sine der når hvor ikke kan må skal vil var ved etter over under mot mellom uten eller men så bare noe noen alle hver hele slags brukt bruk gammel gammelt gamle ord uttrykk betegnelse særlig gjerne person ting man én ens selv annen andre samme mye lite stor liten små").split(" ")),
+  en: new Set(("the a an of to in on for with that which who whom whose is are was were be been being by as at from or and but not no it its this these those when where while someone somebody something one any used use especially usually often kind sort thing person people other another same much little large small very more most").split(" ")),
+};
+
+/** Lowercased 4+ character non-stopword tokens — the words that carry meaning. */
+function contentWords(text, lang = "nb") {
+  const stop = STOP[lang] ?? STOP.nb;
+  const out = new Set();
+  for (const raw of String(text ?? "").toLowerCase().split(/[^a-zæøåäöéèüA-Z]+/)) {
+    if (raw.length >= 4 && !stop.has(raw)) out.add(raw);
+  }
+  return out;
+}
+
+const isLearned = (word, lang = "nb") => {
+  const w = String(word ?? "");
+  return w.length >= LEARNED_MIN_LEN && (LEARNED[lang] ?? LEARNED.nb).test(w);
+};
+
+/**
+ * Which deck cards may donate their explanation as a fake this round.
+ *
+ * Barred: the card in play, every card already played, and the next
+ * DRAW_LOOKAHEAD cards. That last one is the interesting exclusion — without
+ * it a bluff could resurface two rounds later AS the truth, which is worse than
+ * the leak we set out to fix. `remaining` is ui.js's U.deck, popped from the
+ * END, so the imminent draws are its tail.
+ *
+ * The lookahead RELAXES rather than starving. state.js's file:// mini-deck is
+ * six cards, so a fixed 16-card exclusion would empty the pool and silently
+ * drop the whole game back to the hand-written filler — the exact bug this
+ * module exists to remove, reappearing only in the one build nobody tests.
+ * A smaller guarantee on a tiny deck beats no pool at all.
+ */
+function safePool({ deck, remaining = [], card, lookahead = FAKEPOOL.DRAW_LOOKAHEAD,
+                          minPool = FAKEPOOL.MIN_POOL }) {
+  const alive = new Set((remaining ?? []).map((c) => c.prompt));
+  const usable = (deck ?? []).filter((c) =>
+    c && c.prompt !== card?.prompt &&   // never the word we are defining
+    alive.has(c.prompt));               // never a word already played
+
+  const tail = (n) => new Set((remaining ?? []).slice(-n).map((c) => c.prompt));
+  for (let look = Math.max(0, lookahead); look > 0; look--) {
+    const soon = tail(look);
+    const pool = usable.filter((c) => !soon.has(c.prompt));
+    if (pool.length >= minPool) return pool;
+  }
+  return usable;   // deck too small to promise anything — hand back what there is
+}
+
+/** Similarity of one candidate to the card in play. Higher = better camouflage. */
+function closeness(cand, { card, lang = "nb", rng = Math.random }) {
+  const word = String(card?.prompt ?? "").toLowerCase();
+  const truth = String(card?.truth ?? "");
+  const cw = String(cand.prompt ?? "").toLowerCase();
+  const cd = String(cand.truth ?? "");
+
+  let s = rng();                                                     // jitter
+  if (cw[0] && cw[0] === word[0]) s += FAKEPOOL.W_FIRST_LETTER;
+  if (cw.slice(0, 2) === word.slice(0, 2)) s += FAKEPOOL.W_PREFIX2;
+  if (truth.length < FAKEPOOL.SHORT_BAND && cd.length < FAKEPOOL.SHORT_BAND
+      && cd[0]?.toLowerCase() === word[0]) s += FAKEPOOL.W_SHORT_PAIR;
+
+  const ratio = cd.length / Math.max(1, truth.length);
+  if (ratio > FAKEPOOL.LEN_RATIO_LO && ratio < FAKEPOOL.LEN_RATIO_HI) s += FAKEPOOL.W_LEN_NEAR;
+  if (isLearned(cw, lang) === isLearned(word, lang)) s += FAKEPOOL.W_LEARNED;
+
+  const theme = contentWords(truth, lang);
+  if (theme.size) {
+    let shared = 0;
+    for (const w of contentWords(cd, lang)) if (theme.has(w)) shared++;
+    s += Math.min(FAKEPOOL.THEME_CAP, shared) * FAKEPOOL.W_THEME;
+  }
+  return s;
+}
+
+/**
+ * n fake explanations for the card in play, as plain strings.
+ *
+ * Half by closeness, half at random from what's left (never all-close). Falls
+ * back to `filler` — the hand-written fakes_*.json — only when the deck cannot
+ * supply enough, which for a 150-card deck means the mini-deck on file://.
+ * Duplicates are impossible: candidates are consumed as they are chosen.
+ */
+function pickFakes({ n, card, pool, filler = [], lang = "nb", rng = Math.random }) {
+  const want = Math.max(0, n | 0);
+  if (!want) return [];
+
+  const left = [...(pool ?? [])];
+  const out = [];
+  const closeCount = Math.min(left.length, Math.ceil(want * FAKEPOOL.CLOSE_SHARE));
+
+  if (closeCount) {
+    const scored = left
+      .map((c) => ({ c, s: closeness(c, { card, lang, rng }) }))
+      .sort((a, b) => b.s - a.s)
+      .slice(0, closeCount);
+    for (const { c } of scored) {
+      out.push(c.truth);
+      left.splice(left.indexOf(c), 1);
+    }
+  }
+
+  while (out.length < want && left.length) {
+    out.push(left.splice(Math.floor(rng() * left.length), 1)[0].truth);
+  }
+
+  // Emergency fill. Shuffled so a short deck doesn't always show the same tail.
+  const spare = [...filler];
+  while (out.length < want && spare.length) {
+    out.push(spare.splice(Math.floor(rng() * spare.length), 1)[0]);
+  }
+  while (out.length < want) out.push("…");   // never hand the UI undefined
+
+  // One last shuffle: without it the close picks always arrive first, and
+  // whoever notices that the earliest bot answers are the plausible ones has a
+  // new exploit. Bot submission order is a tell too.
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+
+/* ===== haptics.js ===== */
+// haptics.js — the phone itself, not the screen. Vibration and the screen-wake
+// lock. Segment 7 (LANES.md), alongside audio.js and bots.js.
+//
+// This is the ONLY file that may touch navigator.vibrate or the Wake Lock API.
+// Same shape as Ordkrig's src/lib/sfx.ts, which is the model worth copying: the
+// rest of the app imports named intents and never an API, every intent has a
+// degraded path, and nothing here can ever throw into game logic.
+//
+// WHAT IT REPLACES
+// DesignSystem/tokens.json names a haptic on four springs (chipFlip → light,
+// pawnHop → soft, truthReveal → success, gmStealPulse → heavy) and PRD §10
+// promises "every meaningful beat has one". The Lab shipped exactly one: a bare
+// navigator.vibrate(10) inlined in animateBoard(), neither mute-guarded nor
+// named. Five intents, one file, wired to the beats the tokens already annotate.
+//
+// HONEST LIMITATION, stated once so nobody re-discovers it as a bug:
+// Safari does not implement the Vibration API — on iPhone every call here is a
+// no-op, and iOS gets its real haptics from the SwiftUI app via
+// UIImpactFeedbackGenerator. So this layer is Android-web only. It is still
+// worth having (Android is most of the shared-link audience), but a beat must
+// never DEPEND on the haptic leg: see the game-feel skill, principle 4 — where a
+// platform cannot deliver one leg, the other two get stronger.
+
+// Durations in ms. An array is a vibrate/pause/vibrate pattern.
+//
+// The point of separating these is that the DURATION carries the semantic weight
+// even though the web has no impact-style API to carry it — Ordkrig does the
+// same thing with 100/150/300 in its fallback path. Ours are much shorter
+// because these fire mid-tap, several times a second during a board ceremony,
+// and a 100 ms buzz per pawn hop reads as a malfunction rather than a beat.
+const HAPTICS = Object.freeze({
+  light: 10,              // chip flips in, a vote lands — the lightest possible ack
+  soft: 14,               // one pawn hop. Fires up to 5× at 330 ms, so it must stay tiny
+  success: [12, 30, 24],  // the truth. Two pulses: an event, not a tick
+  heavy: 40,              // the GM stole the round. The only one meant to feel like a thud
+  warning: [24, 48, 24],  // the clock has gone urgent and you have not acted
+});
+
+// Suppressed by mute, and ONLY by mute. A muted party game means "be discreet",
+// and a phone buzzing on a hard table is audible across a room — so mute has to
+// cover this too or the setting does not do what it says.
+//
+// Deliberately NOT gated on prefers-reduced-motion. That setting is about
+// vestibular comfort, not sensory volume, and killing the haptic there would
+// leave a Reduced-Motion player with the weakest version of every beat — the
+// opposite of what the game-feel skill requires (principle 10: a variant lands
+// the beat with sound and haptics carrying MORE, never by removing things).
+let mutedFn = () => false;
+
+/** Called once at boot so this module can ask about mute without importing audio.js. */
+function hapticsBindMute(fn) { if (typeof fn === "function") mutedFn = fn; }
+
+const hapticsSupported = () =>
+  typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+
+/**
+ * Fire a named intent. Unknown names are a silent no-op, matching play() in
+ * audio.js — a typo must never break a round.
+ */
+function haptic(intent) {
+  const pattern = HAPTICS[intent];
+  if (pattern === undefined || mutedFn() || !hapticsSupported()) return;
+  try { navigator.vibrate(pattern); } catch { /* some engines throw on rapid calls */ }
+}
+
+/** Stop any pattern mid-flight — used when a phase is cut short. */
+function hapticsCancel() {
+  if (!hapticsSupported()) return;
+  try { navigator.vibrate(0); } catch { /* nothing to undo */ }
+}
+
+/* ---------- screen wake lock ----------
+   A party game gets passed around a table for twenty minutes and stared at
+   between taps. Without this the screen dims mid-round and the GM has to wake
+   the phone to open the vote. Chromium-only for now (Safari has no Wake Lock
+   API), acquired on game start and released on exit.
+
+   The visibilitychange re-acquire is not optional: the browser drops the
+   sentinel whenever the tab is backgrounded, and it does NOT come back on its
+   own — so without this, one glance at a notification silently ends the lock
+   for the rest of the evening. */
+
+let sentinel = null;
+let reacquire = null;
+
+const wakeSupported = () =>
+  typeof navigator !== "undefined" && "wakeLock" in navigator;
+
+async function wakeOn() {
+  if (!wakeSupported() || sentinel) return;
+  try {
+    sentinel = await navigator.wakeLock.request("screen");
+    sentinel.addEventListener?.("release", () => { sentinel = null; });
+  } catch { sentinel = null; return; }   // denied on an inactive tab or by policy
+
+  if (!reacquire) {
+    reacquire = () => {
+      if (document.visibilityState === "visible" && !sentinel) wakeOn();
+    };
+    document.addEventListener("visibilitychange", reacquire);
+  }
+}
+
+async function wakeOff() {
+  if (reacquire) { document.removeEventListener("visibilitychange", reacquire); reacquire = null; }
+  const s = sentinel;
+  sentinel = null;
+  try { await s?.release(); } catch { /* already gone */ }
+}
+
+
 /* ===== audio.js ===== */
 // audio.js — sound grammar for the Lab. Lane B may restyle voices; event NAMES
 // are the contract (LANES.md seam #4) and mirror tokens.json → sound.grammar.
@@ -1858,9 +2268,11 @@ function takeFake(pool, used, rng) {
 // rising boing per liar's-nose notch, a comedic wah-wah when the GM steals, a
 // triumphant chord for the truth. Everything ducks quiet; nothing screeches.
 
+
 let ctx = null;
 let muted = false;
 let noiseBuf = null;
+let bus = null;
 
 function setMuted(m) { muted = m; }
 function isMuted() { return muted; }
@@ -1869,7 +2281,52 @@ function ac() {
   if (!ctx) ctx = new (window.AudioContext ?? window.webkitAudioContext)();
   return ctx;
 }
-function now() { return ac().currentTime; }
+
+/* One master bus, and every voice goes through it. Two reasons, both real:
+
+   1. HEADROOM. voteOpen fires five oscillators inside 200 ms and truthReveal
+      four; wired straight to destination those sum past 1.0 and clip, which on a
+      phone speaker is a crackle exactly on the game's biggest beat. The
+      compressor catches the sum instead of us hand-balancing every gain.
+   2. DESIGN.md §7 says "all audio ducks under, never over, the room". That was
+      an unimplemented sentence while there was no bus to duck. Now it is one
+      gain node.
+
+   Threshold/ratio are gentle: this is a limiter for peaks, not a pumping
+   loudness effect. Cheap enough to build once and leave in the graph. */
+function master() {
+  if (bus) return bus;
+  const a = ac();
+  const comp = a.createDynamicsCompressor();
+  comp.threshold.value = -14;
+  comp.knee.value = 12;
+  comp.ratio.value = 6;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.18;
+  const g = a.createGain();
+  g.gain.value = 0.9;                 // a hair below unity: the room is louder than us
+  comp.connect(g).connect(a.destination);
+  bus = comp;
+  return bus;
+}
+
+/* iOS suspends the AudioContext whenever the tab loses focus and does NOT resume
+   it on return, so before this the game went permanently silent the first time
+   you switched apps — and stayed silent through every later round. Autoplay
+   policy also starts the context suspended until a gesture touches it.
+
+   Called from a real event handler in ui.js (a bare resume() outside a gesture
+   is ignored), and again on visibilitychange. Safe to call repeatedly. */
+function audioUnlock() {
+  try {
+    const a = ac();
+    if (a.state !== "running") a.resume?.();
+  } catch { /* no audio on this device; the game is still playable */ }
+}
+
+function audioSuspended() {
+  try { return !!ctx && ctx.state !== "running"; } catch { return false; }
+}
 
 // A short white-noise buffer, reused for whooshes/riffles.
 function noise() {
@@ -1895,7 +2352,7 @@ function tone(freq, { dur = 0.12, type = "triangle", gain = 0.05, when = 0, atta
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(gain, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(a.destination);
+  o.connect(g).connect(master());
   o.start(t); o.stop(t + dur + 0.03);
 }
 
@@ -1910,7 +2367,7 @@ function whoosh({ dur = 0.18, when = 0, gain = 0.05, from = 1200, to = 400, q = 
   const g = a.createGain();
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f).connect(g).connect(a.destination);
+  src.connect(f).connect(g).connect(master());
   src.start(t); src.stop(t + dur + 0.02);
 }
 
@@ -1945,14 +2402,43 @@ const VOICES = {
   gmSting:  () => { tone([300, 150], { type: "sawtooth", dur: 0.5, gain: 0.06 }); tone([260, 130], { type: "sawtooth", dur: 0.55, gain: 0.05, when: 0.28 }); }, // wah-wah
 
   // — board —
+  // The cha-ching, ported from Ordkrig's scripts/make-coin-sound.mjs (which
+  // synthesises a 48 kB WAV; we skip the file and keep the recipe). Two sines a
+  // fourth apart — B5 then E6 — and the 90 ms offset on the second is the whole
+  // trick: struck together they are a chord, struck late it is a coin landing.
+  points:   () => { tone(987.77, { type: "sine", dur: 0.28, gain: 0.05, attack: 0.004 }); tone(1318.51, { type: "sine", dur: 0.46, gain: 0.055, when: 0.09, attack: 0.004 }); },
   pawnHop:  () => tone([300, 520], { type: "sine", dur: 0.09, gain: 0.055 }),
   overtake: () => tone([700, 300], { type: "triangle", dur: 0.14, gain: 0.05 }),
   win:      () => { [523, 659, 784, 1046, 1319].forEach((f, i) => tone(f, { type: "triangle", dur: 0.4, gain: 0.05, when: i * 0.08 })); },
 };
 
+/* Sound and haptic are two legs of one beat (game-feel skill, principle 4), so
+   they are paired HERE rather than at ~40 call sites where they would drift. The
+   map is deliberately sparse — a buzz on every play() would be a malfunction.
+
+   Two exclusion rules, both learned from Ordkrig's restraint:
+   - Not for someone ELSE's action. tickIn fires when a bot or a peer submits;
+     three buzzes a round for things you did not do is noise, not feedback.
+   - Not for navigation. confirm/toggle/back fire on nearly every tap.
+
+   What is left is this device's own moments (voteCast) plus the room-wide beats
+   everyone is supposed to feel together (voteOpen, truthReveal, gmSting, win). */
+const HAPTIC_FOR = Object.freeze({
+  voteOpen: "heavy",        // the showstopper — PRD §11 wants the room to react
+  voteCast: "light",        // your own vote landing
+  truthReveal: "success",   // tokens.json names .success on the truthReveal spring
+  gmSting: "heavy",         // ...and .heavy on gmStealPulse
+  pawnHop: "soft",          // ...and .soft per hop
+  points: "light",
+  win: "success",
+  error: "warning",
+});
+
 function play(event, arg) {
   const voice = VOICES[event];
   if (voice) voice(arg);
+  const h = HAPTIC_FOR[event];
+  if (h) haptic(h);
 }
 
 const EVENTS = Object.freeze(Object.keys(VOICES));
@@ -2454,6 +2940,7 @@ function fxMakeG(overrides = {}) {
     timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
     ...overrides,
   };
 }
@@ -2656,6 +3143,8 @@ function getFixture(id) {
 // Renders state; NEVER computes rules. Every scoring/option/win decision comes
 // from engine.js (Lane A). Bot behavior comes from bots.js. Sounds from audio.js.
 // Port of the frozen demo's flow + the PRD §5.4 omkamp the demo left out.
+
+
 
 
 
@@ -2934,6 +3423,7 @@ function backExit(b) {
   U.backConfirm = false;
   if (b.leave) {
     resetTimers();                 // a live deadline must not tick on into the menu
+    hapticsCancel(); wakeOff();    // no pattern mid-flight, no lock held over the menu
     if (online()) NET.close?.();   // net.js close() restores loopback for us
     G = null;
   }
@@ -3014,7 +3504,15 @@ function shell(inner, { gm = false } = {}) {
   if (tb) tb.onclick = () => { U.theme = nextTheme(U.theme); play("toggle"); render(); };
   const help = document.getElementById("helpbtn");
   if (help) help.onclick = () => { U.rulesReturn = U.screen; play("confirm"); U.screen = "RULES"; render(); };
-  document.getElementById("mutebtn").onclick = () => { setMuted(!isMuted()); render(); };
+  document.getElementById("mutebtn").onclick = () => {
+    setMuted(!isMuted());
+    // Persist, and confirm audibly on the way BACK ON — otherwise unmuting is the
+    // one control in the app that gives no feedback that it worked.
+    if (!isMuted()) { audioUnlock(); play("toggle"); }
+    PROFILE = { ...PROFILE, muted: isMuted() };
+    ratingSave(PROFILE);
+    render();
+  };
   const bb = document.getElementById("backbtn");
   if (bb) bb.onclick = () => goBack();
   // Re-attach after every repaint: shell() replaces app.innerHTML wholesale, and
@@ -3246,6 +3744,7 @@ function startGame() {
     timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
     // The door stays open this long for people who had the link but were slow.
     // Absolute time, like G.deadline, so it survives the hop to a client with a
     // differently-set clock. Only the HOST ever judges it (netSeatLate).
@@ -3255,6 +3754,9 @@ function startGame() {
     // who most needs to hear that they inherited a bot's points.
     lateJoin: null,
   };
+  // A phone passed round a table is stared at between taps; without this the
+  // screen dims mid-round and the GM has to wake it to open the vote.
+  wakeOn();
   newRound();
 }
 
@@ -3311,7 +3813,17 @@ function newRound() {
   G.round++;
   if (!U.deck.length) U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   G.card = U.deck.pop();
-  U.fakePool = shuffled(CONTENT.fakes ?? MINI_FAKES[U.lang]);
+  // Bot lies are REAL explanations of OTHER deck words (fakepool.js), so they
+  // match the truth's length and voice by construction instead of by tuning.
+  // Drawn once per round for the whole lineup, because the close/random split
+  // is a property of the SET — picking one at a time cannot express it.
+  U.fakePool = pickFakes({
+    n: G.players.length + 2,                 // every seat could be a bot, plus the GM decoy and a spare
+    card: G.card,
+    pool: safePool({ deck: CONTENT.deck ?? MINI_DECK[U.lang], remaining: U.deck, card: G.card }),
+    filler: CONTENT.fakes ?? MINI_FAKES[U.lang],
+    lang: U.lang,
+  });
   G.bluffs = {}; G.votes = {}; G.decoys = ["", ""]; G.doubles = []; G.deltas = null; G.gmStole = false;
   G.options = null;
   G.timedOut = { bluff: [], vote: [] };     // a missed deadline never outlives its round (D4)
@@ -3589,6 +4101,18 @@ function maybeAllVotesIn() {
   }, 600);
 }
 
+/* The word, kept on screen wherever a player is deciding or watching.
+   It used to appear on GM_DASH, BLUFF and WAIT and then vanish — so you chose
+   which explanation fitted an obscure Norwegian word with the word itself no
+   longer in front of you, and watched the truth land the same way. That asks the
+   player to hold state the game is perfectly able to hold, and it costs Åse (62,
+   Dynamic Type XL, half-listening to the room) far more than it costs anyone
+   else. Compact rather than the full hero card: at this point it is a reference,
+   not the headline. */
+const wordChip = () => !G?.card?.prompt ? "" : `
+   <div class="wordchip"><span class="eyebrow">${t("theWord")}</span>
+     <span class="w">${esc(G.card.prompt)}</span></div>`;
+
 SCREENS.VOTE = () => {
   const voter = party() ? mySeat() : voteOrder()[U.voteIdx];
   const p = G.players[voter];
@@ -3596,6 +4120,7 @@ SCREENS.VOTE = () => {
   shell(`
    <div class="banner" style="background:${p.color};color:var(--color-text-on-surface)">
      ${party() ? t("yourVote") : t("votingTime", esc(p.name))}</div>
+   ${wordChip()}
    <p class="small">${t("cantOwn")}</p>
    ${clockHtml("clockVote")}
    ${G.options.map((o, i) => !visible.includes(o) ? "" : `
@@ -3625,6 +4150,7 @@ SCREENS.VOTEWAIT = () => {
   const n = netVotesIn(G), total = voteOrder().length;
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
+   ${wordChip()}
    ${userIsGm() ? "" : `<div class="banner green">${t("youVoted")}</div>`}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
@@ -3660,6 +4186,7 @@ SCREENS.REVEAL = () => {
   const hostIsBot = party() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
+   ${wordChip()}
    ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
    ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
@@ -3673,12 +4200,16 @@ SCREENS.REVEAL = () => {
        <div style="flex:1">
          ${isT ? `<b style="color:var(--color-accent-truth)">✓ ${t("theTruth")}</b><br>` : ""}
          ${esc(o.text)}
-         <div class="votedots">${voters.map((v) => `<span class="dot" title="${esc(v.name)}" style="background:${v.color}"></span>`).join("")}
+         <div class="votedots">${voters.map((v) => `<span class="dot${isLast ? " land" : ""}" title="${esc(v.name)}" style="background:${v.color}"></span>`).join("")}
            <span class="small">${voters.length} ${t("votes")}</span></div>
          ${!isT ? `<div class="author">
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
-              return `${face({ color: pl.color, notch: voters.length, grow: true, tone: gmA ? "violet" : "" })}
+              // .face.smug was written for exactly this and never used: the GM who
+              // just took the round finally smirks about it. Only once the truth is
+              // out — before that nobody knows they stole anything.
+              const mood = gmA && done && G.gmStole ? "smug" : "";
+              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "violet" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
@@ -3784,6 +4315,9 @@ SCREENS.BOARD = () => {
   }
 };
 
+// A board space by target number — spaces carry data-i (drawBoard, :1146).
+const spaceEl = (n) => document.querySelector(`.space[data-i="${n}"]`);
+
 function pawnEl(i) {
   let el = document.getElementById("pw" + i);
   if (!el) {
@@ -3831,20 +4365,65 @@ function markLeader() {
   G.players.forEach((p, i) => pawnEl(i).classList.toggle("leader", p.score === max && max > 0));
 }
 
+// Motion durations live in DesignSystem/tokens.json and reach us as CSS custom
+// properties. Reading them back beats re-declaring the number in JS: the audit
+// found 330 and 70 hardcoded here as silent duplicates of tokens that already
+// held the same values, which is exactly how the two drift apart later.
+function msToken(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? (raw.endsWith("ms") || !raw.endsWith("s") ? n : n * 1000) : fallback;
+}
+
 function animateBoard() {
   const earners = G.players.map((_, i) => i).filter((i) => G.deltas?.[i] > 0);
+  const lead = 300, gap = 250;
+  const totalHops = earners.reduce((s, i) => s + G.deltas[i], 0);
+
+  /* PRD §11 makes "board phase ≤ 20 s" a success criterion and tokens.json says
+     the hop "compresses under the 20 s board cap" — but nothing read the cap, so
+     a big round with several earners simply ran as long as it ran. Now the
+     cadence is whatever fits: the ceremony keeps its shape and loses its
+     slowness, rather than being truncated mid-hop. Floored at 90 ms because
+     below that the squash-and-stretch stops reading as a hop at all. */
+  const cap = msToken("--motion-dur-board-phase-cap", 20000);
+  const want = msToken("--motion-dur-pawn-hop-cadence", 330);
+  const budget = cap - lead - gap * earners.length;
+  const cadence = totalHops > 0
+    ? Math.max(90, Math.min(want, Math.floor(budget / totalHops)))
+    : want;
+
   let e = 0;
   const nextEarner = () => {
     if (e >= earners.length) return finishRound();
     const i = earners[e++];
     let steps = G.deltas[i];
+    play("points");                    // one cha-ching as this player's points land
     const hop = () => {
-      if (steps-- <= 0) { markLeader(); return setTimeout(nextEarner, 250); }
+      if (steps-- <= 0) { markLeader(); return setTimeout(nextEarner, gap); }
       const before = G.players[i].score;
       G.players[i].score++;
       const after = G.players[i].score;
       play("pawnHop");
-      if (navigator.vibrate) navigator.vibrate(10);
+      // DESIGN.md §3 gives every theme a ⅓ and a ⅔ landmark (coffee table and
+      // grandfather clock · treeline and snowline · satellite and asteroid belt).
+      // They were drawn on the board as emoji badges and then never fired.
+      // Once per game each, on the FIRST pawn to pass them — a landmark you reach
+      // twice is scenery, not a milestone.
+      for (const frac of [1 / 3, 2 / 3]) {
+        const at = Math.floor(G.target * frac);
+        const key = "lm" + Math.round(frac * 100);
+        if (at > 0 && before < at && after >= at && !G[key]) {
+          G[key] = true;
+          play("doubleHit");           // a small bright sparkle, not a celebration
+          haptic("light");
+          const el = spaceEl(at);
+          if (el && !reduceMotion()) {
+            el.classList.remove("landmark"); void el.offsetWidth; el.classList.add("landmark");
+            setTimeout(() => el.classList.remove("landmark"), 900);
+          }
+        }
+      }
       // Mål landmark: first pawn to reach the goal triggers the themed celebration.
       if (after >= G.target && !G.goalCelebrated) {
         G.goalCelebrated = true;
@@ -3859,8 +4438,8 @@ function animateBoard() {
           { transform: "translateY(-16px) scale(.92,1.12)", offset: .5 },
           { transform: "translateY(0) scale(1.08,.92)", offset: .82 },
           { transform: "translateY(0) scale(1,1)" },
-        ], { duration: 330, easing: "cubic-bezier(0.34,1.405,0.64,1)" });
-        setTimeout(() => el.classList.remove("hopping"), 350);
+        ], { duration: cadence, easing: "cubic-bezier(0.34,1.405,0.64,1)" });  // never outlast its own cadence
+        setTimeout(() => el.classList.remove("hopping"), cadence + 20);
         // Overtake: any stationary pawn this hop just passed does an indignant wobble.
         G.players.forEach((p, j) => {
           if (j !== i && before <= p.score && after > p.score) {
@@ -3872,11 +4451,11 @@ function animateBoard() {
       }
       const sc = document.getElementById("sc" + i);
       if (sc) sc.textContent = after + " " + t("pts");
-      setTimeout(hop, 330); // pawn-hop cadence (tokens: motion-dur-pawn-hop-cadence)
+      setTimeout(hop, cadence);   // from the token, compressed to fit the 20 s cap
     };
     hop();
   };
-  setTimeout(nextEarner, 300);
+  setTimeout(nextEarner, lead);
 }
 
 function finishRound() {
@@ -3956,6 +4535,7 @@ SCREENS.WINNER = () => {
    </div>
    <button class="btn" id="replay">${t("playAgain")}</button>`);
   settleRating();
+  wakeOff();          // the game is over; stop holding the screen awake
   // Celebration fires once per game (guard survives mute/theme re-renders).
   if (!G.celebrated) {
     G.celebrated = true;
@@ -4240,11 +4820,28 @@ SCREENS.CONNLOST = () => {
   shell(`
    <h2>${t("lostTitle")}</h2>
    <div class="card">
-     <p>${hostGone ? t("lostHostGone") : t("lostSub", Math.ceil(left / 1000))}</p>
+     <p>${hostGone ? t("lostHostGone") : t("lostSub", `<span id="lostsec">${Math.ceil(left / 1000)}</span>`)}</p>
    </div>
    <div style="flex:1"></div>
    ${hostGone ? "" : `<button class="btn" id="retrynow">${t("lostRetry")}</button>`}
    <button class="btn secondary" id="tohotseat">${t("lostHotseat")}</button>`);
+
+  /* The number used to be computed once at render and never again, so a player
+     watched a frozen "30" and had no idea whether reconnecting was still being
+     attempted. Surgical, like ckPaint: writes one textContent, never render() —
+     this screen owns a live text field and a re-render would fight the buttons.
+     Not on the shared clock interval because that one is scoped to phase
+     deadlines and this is not a phase. */
+  const secEl = document.getElementById("lostsec");
+  if (secEl && U.fxLostLeft === undefined) {
+    const tick = setInterval(() => {
+      if (!document.getElementById("lostsec") || U.screen !== "CONNLOST") { clearInterval(tick); return; }
+      const s = Math.max(0, Math.ceil((NET_CONFIG.RECONNECT_MS - (Date.now() - (U.lostAt ?? 0))) / 1000));
+      secEl.textContent = String(s);
+      if (s === 0) clearInterval(tick);
+    }, 500);
+  }
+
   const r = document.getElementById("retrynow");
   if (r) r.onclick = () => { NET.reconnect?.(); play("confirm"); };
   document.getElementById("tohotseat").onclick = () => {
@@ -4420,6 +5017,24 @@ if (bootFx) { U = bootFx.u; G = bootFx.g; }
 PROFILE = ratingLoad();
 U.myPid = PROFILE.pid ?? newPid();
 if (PROFILE.name) U.uname = PROFILE.name;
+
+// Mute rides along in the profile rather than taking a second localStorage key,
+// so CLAUDE.md's "one versioned key" stays literally true. ratingLoad() spreads
+// unknown fields through, so this persists without touching the schema version.
+setMuted(!!PROFILE.muted);
+hapticsBindMute(isMuted);
+
+// Autoplay policy starts the AudioContext suspended, and iOS re-suspends it every
+// time the tab loses focus WITHOUT resuming on return — which is why the game used
+// to go permanently silent after the first app switch. resume() only works from
+// inside a real gesture, so hang it off the first touch and every wake-up.
+for (const evt of ["pointerdown", "keydown"]) {
+  window.addEventListener(evt, audioUnlock, { passive: true });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") audioUnlock();
+});
+
 netLoopback();          // local play is its own host; online replaces this transport
 
 // A shared link drops you straight at the join screen with the code filled in.
