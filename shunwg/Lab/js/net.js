@@ -42,11 +42,6 @@ export const NET_CONFIG = Object.freeze({
   CODE_ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",  // no 0/O/1/I — read aloud
   CONNECT_TIMEOUT_MS: 8000,
   RECONNECT_MS: 30000,           // PRD §5.5
-  // The room stays open this long AFTER the host presses start, so the friend who
-  // was still parking gets seated into the running game instead of a dead end.
-  // Not matchmaking: you still need the code or the link (PRD §2 excludes
-  // matchmaking with strangers), this only widens the door in time.
-  LATE_JOIN_MS: 180000,          // 3 minutes
   ID_RETRIES: 3,
   ICE: [{ urls: "stun:stun.l.google.com:19302" }],
   MIN_PLAYERS: 3,
@@ -54,15 +49,69 @@ export const NET_CONFIG = Object.freeze({
 });
 
 /**
- * Is the late-join door still open? Room policy, so it lives here beside
- * LATE_JOIN_MS rather than in the UI — and pure, so it is testable.
- * `g.joinOpenUntil` is an absolute epoch ms stamped by startGame(). Only the HOST
- * ever calls this: a client cannot be trusted to judge its own lateness.
+ * Is the door open? Room policy, so it lives here rather than in the UI — and
+ * pure, so it is testable. Only the HOST ever calls this: a client cannot be
+ * trusted to judge its own lateness.
+ *
+ * It used to be a three-minute clock stamped by startGame(). That was the wrong
+ * shape for a party game: the whole point is that people wander in — someone
+ * parks the car, someone arrives at half past nine — and a door that slams at
+ * minute three turns a normal social arrival into "sorry, we already started".
+ * A game runs 20 minutes and a friend with the link should be able to sit down
+ * at minute eighteen.
+ *
+ * The only thing that closes it is the game being OVER. Everything else that
+ * used to matter — is a round in flight, is there a chair free — is handled
+ * where it belongs, by seating rather than by refusing (see netSeatLate).
+ *
+ * Still not matchmaking: the code or the link is required, so PRD §2's "no
+ * matchmaking with strangers" holds and no moderation surface opens. `now` is
+ * kept in the signature because callers pass it and a future policy (a host
+ * toggle, a quiet-hours rule) would want it back.
  */
-export function netJoinOpen(g, now = Date.now()) {
+export function netJoinOpen(g, now = Date.now()) {   // eslint-disable-line no-unused-vars
   if (!g) return false;
-  if (g.phase === "winner") return false;   // nothing left to join
-  return now <= (g.joinOpenUntil ?? 0);
+  return g.phase !== "winner";                       // nothing left to join
+}
+
+/**
+ * WHICH way into a running game? Room policy, so it lives here with the rest of
+ * it — and pure, so the arithmetic that makes it non-obvious is testable without
+ * a browser. ui.js netSeatLate() carries it out.
+ *
+ *   "bot"     — a bot is sitting; take its chair now, inherit its score.
+ *               G.players.length does not move, which is the whole point.
+ *   "pending" — no bot to displace. Wait for the round boundary.
+ *   "full"    — eight is eight, counting the people already queued.
+ *
+ * Why "pending" rather than just pushing a chair: three engine functions read
+ * players.length and all three change meaning if it moves mid-round —
+ * gmForRound() re-maps every remaining GM, winCheck() gates on
+ * `round % playerCount`, and scoreRound() sizes Array(playerCount) for the
+ * deltas. So a new chair may only appear between rounds. The waiting room the
+ * player experiences and the invariant the engine needs are the same rule.
+ */
+export function netSeatKind(g, max = NET_CONFIG.MAX_PLAYERS) {
+  if (!g?.players?.length) return "full";
+  if (g.players.some((p) => p.kind === "bot" && !p.dropped)) return "bot";
+  if (g.players.length + (g.pendingSeats?.length ?? 0) >= max) return "full";
+  return "pending";
+}
+
+/**
+ * What a newcomer's pawn starts on when they get a fresh chair (no bot to
+ * inherit from). Level with the current last place, not zero.
+ *
+ * Zero is the honest-looking answer and the wrong one: join a 15-space game at
+ * round nine on zero and you are not playing, you are watching with extra steps
+ * — the table is eight points up and cannot be caught. Last place is the honest
+ * floor instead. Nobody already playing is overtaken by someone who just walked
+ * in, and the newcomer has a real game. The banner says so out loud, the same
+ * way taking a bot's chair announces the inherited score.
+ */
+export function netStartScore(players = []) {
+  const scores = players.map((p) => p?.score ?? 0);
+  return scores.length ? Math.min(...scores) : 0;
 }
 
 export function netRoomCode(rng = Math.random) {
@@ -92,7 +141,12 @@ export function netRoomFromUrl(loc = globalThis.location) {
  */
 export function netProject(G, seat) {
   if (!G) return null;
-  const isGm = seat === G.gm;
+  // A watcher with no chair yet (seat -1, waiting in G.pendingSeats) is never the
+  // GM. Written as an explicit floor rather than relying on -1 !== G.gm, because
+  // this one comparison is the only thing standing between a spectator and the
+  // truth, and it should not depend on G.gm never being undefined.
+  const seated = Number.isInteger(seat) && seat >= 0;
+  const isGm = seated && seat === G.gm;
   const phase = G.phase ?? "card";
   const preReveal = phase === "card" || phase === "bluffing" || phase === "voting";
   const p = { ...G };
@@ -317,7 +371,12 @@ export function netBroadcastState(G, U) {
   for (const p of NET.peers) {
     if (p.pid === NET.myPid || !p.connected) continue;
     const seat = G.players.findIndex((x) => x.pid === p.pid);
-    if (seat < 0) continue;
+    // seat < 0 used to `continue`, which was right when the only seatless peer
+    // was a bug. Now it is a person waiting for the next round (G.pendingSeats),
+    // and skipping them rebuilds the exact dead end late join was written to
+    // kill: connected, told nothing, staring at a stale screen. They get the
+    // same redacted projection as any non-GM — netProject floors seat < 0 to
+    // "not the GM", so the truth still cannot reach them.
     NET.sendTo(p.pid, { t: "state", g: netProject(G, seat), screenHint: U?.screen ?? null });
   }
 }

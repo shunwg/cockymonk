@@ -39,7 +39,7 @@ function fxMakeG(overrides = {}) {
     revealIdx: 0,
     timedOut: { bluff: [], vote: [] },
     deadline: null,            // null keeps every posed screen static for snap-screens
-    joinOpenUntil: 0,          // posed: the late-join door is shut, so no clock is implied
+    pendingSeats: [],          // posed: nobody waiting in the doorway
     lateJoin: null,            // no joiner banner on a posed screen
     timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,

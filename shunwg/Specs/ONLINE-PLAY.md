@@ -49,6 +49,38 @@ Verten lager et rom, deler en **kode på 6 tegn** eller en **lenke**, og starter
 
 Regelen er kodet én gang og testet først i `Lab/js/online.test.mjs`.
 
+### Å komme inn i et spill som alt er i gang *(PRD §5.5, 2026-07-27b)*
+
+Døra står **åpen hele spillet**. Bare et ferdigspilt rom sier nei — eller et fullt et
+(åtte er maks, og de som venter i døra telles med). Den gamle tremmintuttersfristen
+er borte: et festspill varer i tjue minutter, folk kommer når de kommer, og en venn
+med lenka skal kunne sette seg ned på attende minutt.
+
+Det finnes nøyaktig **to veier inn**, og det er regnestykket som bestemmer hvilken:
+
+| Situasjon | Hva skjer | Hvorfor |
+|---|---|---|
+| Det sitter en robot | Du tar robotens plass med én gang — og poengene dens, som banneret sier høyt | `players.length` rører seg ikke |
+| Ingen robot å skyve ut | Du venter i venterommet og blir med fra neste ord, på **samme poengsum som sisteplassen** | En ny stol kan ikke dukke opp midt i en runde |
+
+Den nederste raden er ikke en nødløsning. `gmForRound()`, `winCheck()` og
+`scoreRound()` leser alle `playerCount`: endrer tallet seg midt i en runde, blir
+spillmesterrekkefølgen stokket om, vinnersjekken forskjøvet, og poengtabellen
+endrer størrelse mellom avstemning og oppgjør. Rundeskiftet er det eneste trygge
+øyeblikket — så venterommet spilleren opplever og kravet motoren har, er samme regel.
+
+Sisteplass og ikke null: å bli med i et spill til 15 på runde ni med null poeng er
+ikke en frisk start, det er en tilskuerplass med ekstra steg. Ingen som alt spiller
+blir forbigått av en som nettopp kom inn.
+
+**Den som ser på, får se på.** Ordet, brikkene, klokka og den løpende tellingen —
+et tomt venteskjermbilde er et dårlig førsteinntrykk, og ingenting av det hjelper
+deg neste runde uansett (da er ordet et annet). Men skjermen må si hvem du er:
+det grønne ✓-et («løgnen din er inne») og «du stemte» vises nå bare til den som
+faktisk har svart. Den som ennå ikke har stol, blir aldri sendt til et
+skriveskjermbilde, og verten sender aldri sannheten dit — `netProject()` regner
+«ingen plass» som «ikke spillmester».
+
 ### Somling og frafall
 
 - **Fasefrister** (PRD §5.2a) gjør at ingen kan fryse rommet: 60 s bløffing, 45 s lokkemat, 45 s avstemning, 25 s per avsløringsbeat. Bare verten fyrer av utløpet, så to klokker kan aldri krangle. Detaljert flyt i `FLOW.md`.
