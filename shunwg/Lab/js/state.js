@@ -69,7 +69,11 @@ export const STR = {
     profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
     // Nett-rom (PRD §2.1)
-    modeOnline: "Spill over nett", modeOnlineSub: "Del en kode med venner — hver sin skjerm, hvor som helst",
+    modeFriends: "Spill med venner", modeFriendsSub: "Del en kode. Alle spiller fra sin egen telefon.",
+    modeOpen: "Spill over nett", modeOpenSub: "Hopp rett inn i et spill som er i gang. Roboter holder plassene til folk kommer.",
+    openConnecting: "Finner rommet…",
+    openBotsOnly: "Du spiller mot roboter akkurat nå. Første som kommer inn, tar plassen til en av dem.",
+    openHostLeft: "Verten dro. Vi starter en ny runde her.",
     lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
     lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
     lobbyPlayers: (n) => `${n} inne`,
@@ -174,7 +178,11 @@ export const STR = {
     profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
     // Online rooms (PRD §2.1)
-    modeOnline: "Play online", modeOnlineSub: "Share a code with friends — own screen, anywhere",
+    modeFriends: "Play with friends", modeFriendsSub: "Share a code. Everyone plays from their own phone.",
+    modeOpen: "Play online", modeOpenSub: "Drop into a game already running. Bots hold the seats until people arrive.",
+    openConnecting: "Finding the room…",
+    openBotsOnly: "You're playing against bots right now. The next person in takes one of their seats.",
+    openHostLeft: "The host left. Starting a fresh round here.",
     lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
     lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
     lobbyPlayers: (n) => `${n} in`,
@@ -307,6 +315,11 @@ export function freshUi() {
     // Online rooms (PRD §2.1). The roster itself lives in net.js NET.peers;
     // these are only what the join/lobby SCREENS need to draw.
     joinCode: "", joinError: null, joining: false,
+    // The open room (no code). Kept separate from mode because it survives a
+    // role change: an orphaned client that re-claims the well-known id becomes
+    // the host of the SAME room, and the screens must not start calling it a
+    // private one.
+    openRoom: false,
     lostAt: 0,              // when the connection dropped, for the 30 s countdown
     backConfirm: false,     // the quit overlay is up (back pressed mid-game)
     netSeats: null,         // pids to seat as real peers, in order, at startGame

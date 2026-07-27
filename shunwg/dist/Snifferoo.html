@@ -1096,7 +1096,11 @@ const STR = {
     profilePrivacy: "Alt dette ligger kun på denne enheten. Sletter du det, er det borte — vi har ingen kopi.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
     // Nett-rom (PRD §2.1)
-    modeOnline: "Spill over nett", modeOnlineSub: "Del en kode med venner — hver sin skjerm, hvor som helst",
+    modeFriends: "Spill med venner", modeFriendsSub: "Del en kode. Alle spiller fra sin egen telefon.",
+    modeOpen: "Spill over nett", modeOpenSub: "Hopp rett inn i et spill som er i gang. Roboter holder plassene til folk kommer.",
+    openConnecting: "Finner rommet…",
+    openBotsOnly: "Du spiller mot roboter akkurat nå. Første som kommer inn, tar plassen til en av dem.",
+    openHostLeft: "Verten dro. Vi starter en ny runde her.",
     lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
     lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
     lobbyPlayers: (n) => `${n} inne`,
@@ -1201,7 +1205,11 @@ const STR = {
     profilePrivacy: "All of this lives on this device only. Delete it and it's gone — we hold no copy.",
     ratingDelta: (n) => `${n >= 0 ? "+" : ""}${n} rating`,
     // Online rooms (PRD §2.1)
-    modeOnline: "Play online", modeOnlineSub: "Share a code with friends — own screen, anywhere",
+    modeFriends: "Play with friends", modeFriendsSub: "Share a code. Everyone plays from their own phone.",
+    modeOpen: "Play online", modeOpenSub: "Drop into a game already running. Bots hold the seats until people arrive.",
+    openConnecting: "Finding the room…",
+    openBotsOnly: "You're playing against bots right now. The next person in takes one of their seats.",
+    openHostLeft: "The host left. Starting a fresh round here.",
     lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
     lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
     lobbyPlayers: (n) => `${n} in`,
@@ -1334,6 +1342,11 @@ function freshUi() {
     // Online rooms (PRD §2.1). The roster itself lives in net.js NET.peers;
     // these are only what the join/lobby SCREENS need to draw.
     joinCode: "", joinError: null, joining: false,
+    // The open room (no code). Kept separate from mode because it survives a
+    // role change: an orphaned client that re-claims the well-known id becomes
+    // the host of the SAME room, and the screens must not start calling it a
+    // private one.
+    openRoom: false,
     lostAt: 0,              // when the connection dropped, for the 30 s countdown
     backConfirm: false,     // the quit overlay is up (back pressed mid-game)
     netSeats: null,         // pids to seat as real peers, in order, at startGame
@@ -2713,6 +2726,22 @@ const NET_CONFIG = Object.freeze({
   ICE: [{ urls: "stun:stun.l.google.com:19302" }],
   MIN_PLAYERS: 3,
   MAX_PLAYERS: 8,
+
+  // The well-known room. "Spill over nett" has no code to share: everyone asks
+  // the broker for this one id, the first to arrive gets it and hosts, and
+  // everyone after that connects to them.
+  //
+  // Cannot collide with a generated code: CODE_ALPHABET excludes O (and I, 0, 1)
+  // precisely because they are unreadable aloud, so netRoomCode() can never
+  // produce "OPEN" — the namespace is free by construction, not by luck.
+  OPEN_CODE: "OPEN",
+
+  // How long a client waits before trying to take over an empty open room.
+  // RANDOMISED: if every orphaned client retried on the same schedule they would
+  // collide on the claim, and the one that lost would have destroyed its peer
+  // for nothing. A spread means one wins quickly and the rest just join it.
+  RECLAIM_MIN_MS: 400,
+  RECLAIM_SPREAD_MS: 1600,
 });
 
 /**
@@ -2884,13 +2913,17 @@ function ntPeerCtor() {
  * nothing to look up and no host migration — if the host leaves, the room is
  * over, which we tell people rather than hide.
  */
-function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError, rng = Math.random }) {
+function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError, rng = Math.random, code: fixedCode = null }) {
   const Peer = ntPeerCtor();
   let attempt = 0;
   const conns = new Map();     // pid -> DataConnection
 
   const start = () => {
-    const code = netRoomCode(rng);
+    // A fixed code means "claim THIS room or tell me you couldn't" — the open
+    // room (NET_CONFIG.OPEN_CODE). Retrying with a fresh random id, which is
+    // right for a private room whose code nobody has yet seen, would silently
+    // strand the caller in a room of one that no one else can find.
+    const code = fixedCode ?? netRoomCode(rng);
     const peer = new Peer(NET_CONFIG.PREFIX + code, { config: { iceServers: NET_CONFIG.ICE } });
     const timeout = setTimeout(() => {
       peer.destroy();
@@ -2948,8 +2981,20 @@ function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError
 
     peer.on("error", (err) => {
       clearTimeout(timeout);
-      // A taken id is a collision on the shared broker, not a real failure.
-      if (err?.type === "unavailable-id" && ++attempt < NET_CONFIG.ID_RETRIES) { peer.destroy(); start(); return; }
+      // A taken id on a RANDOM code is a collision on the shared broker, not a
+      // real failure — roll another one.
+      if (err?.type === "unavailable-id" && !fixedCode && ++attempt < NET_CONFIG.ID_RETRIES) {
+        peer.destroy(); start(); return;
+      }
+      // A taken id on a FIXED code is the answer, not an error: somebody else
+      // got to the open room first, so the caller should go and join them. This
+      // IS the claim race, resolved by the broker rather than by any
+      // coordination of ours — exactly one peer can hold an id.
+      if (err?.type === "unavailable-id" && fixedCode) {
+        peer.destroy();                 // release before the caller opens a new one
+        onError?.("id-taken");
+        return;
+      }
       NET.error = err?.type ?? "error";
       onError?.(NET.error);
     });
@@ -2965,6 +3010,50 @@ function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError
 
   start();
   return NET;
+}
+
+/**
+ * Walk into the open room — "Spill over nett", no code to share.
+ *
+ * One door, two outcomes, and the caller does not choose between them: try to
+ * claim the well-known id; if the broker says it is taken, join whoever holds
+ * it. The broker guarantees exactly one peer per id, so two people pressing the
+ * button in the same instant cannot both become host, and the loser is already
+ * holding the information it needs — who to connect to.
+ *
+ * @param onRole  ("host" | "client") — fires once the outcome is known, so the
+ *                UI can seat bots (host) or wait for state (client). Separate
+ *                from onReady because the ROLE is the interesting fact here,
+ *                whereas the room code is always OPEN_CODE.
+ *
+ * What this deliberately does NOT do: keep the room alive when the last person
+ * leaves. There is no server, so "always running" can only ever mean "the first
+ * person to arrive starts it, and bots fill the table until humans show up".
+ * Anything else would be a claim the architecture cannot honour.
+ */
+function netOpen({ onRole, ...opts }) {
+  const code = NET_CONFIG.OPEN_CODE;
+  return netHost({
+    ...opts,
+    code,
+    onReady: (c) => { onRole?.("host"); opts.onReady?.(c); },
+    onError: (reason) => {
+      if (reason !== "id-taken") { opts.onError?.(reason); return; }
+      netJoin({
+        ...opts,
+        code,
+        onReady: (c) => { onRole?.("client"); opts.onReady?.(c); },
+      });
+    },
+  });
+}
+
+/**
+ * The randomised wait before trying to take over an orphaned open room.
+ * Pure and injectable so the spread is testable without a clock.
+ */
+function netReclaimDelay(rng = Math.random) {
+  return NET_CONFIG.RECLAIM_MIN_MS + Math.floor(rng() * NET_CONFIG.RECLAIM_SPREAD_MS);
 }
 
 /** Join a room by code. */
@@ -3767,8 +3856,12 @@ function backTarget() {
   if (s === "LANG" || s === "MODE") return { to: "HOME" };
   if (s === "PLAYERS" || s === "PARTYSETUP") return { to: "MODE" };
   if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (party() ? "PARTYSETUP" : "PLAYERS") };
-  if (s === "JOIN") return { to: "PARTYSETUP", leave: true };
-  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "PARTYSETUP", leave: true };
+  // Back out of a room and you land on the mode menu, not on the bots-setup
+  // screen. That used to point at PARTYSETUP because party was the neighbouring
+  // menu entry; now that it isn't on the menu, sending someone there would drop
+  // them on a screen they never chose and cannot get to any other way.
+  if (s === "JOIN") return { to: "MODE", leave: true };
+  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "MODE", leave: true };
   if (s === "CONNLOST") return { to: "HOME", leave: true };
   if (s === "WINNER") return { to: "HOME", leave: true };   // the game is over; nothing to confirm
   if (IN_GAME.includes(s)) return { to: "HOME", leave: true, confirm: true };
@@ -3993,22 +4086,31 @@ SCREENS.LANG = () => {
   });
 };
 
+/* Three doors, in the order they get chosen.
+
+   "Hver sin telefon" (local play against bots) is deliberately NOT here any
+   more. It has not disappeared: it is the fallback when the network cannot be
+   reached — `joinPlayBots` on a failed join, `lostHotseat` when a host vanishes
+   — and the open room already gives you bots when you are the only one in it.
+   As a MENU entry it asked the player to pick their opponents' species before
+   they had picked a game, which is a question nobody arrives wanting to answer. */
 SCREENS.MODE = () => {
   shell(`<h2>${t("mode")}</h2>
    <button class="btn modebtn" data-mode="hotseat">
      <span class="phones"><span class="phoneico"></span></span>
      <span><b>${t("hotseatName")}</b><small>${t("hotseatSub")}</small></span></button>
-   <button class="btn modebtn" data-mode="party">
+   <button class="btn modebtn" data-mode="friends">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("partyName")}</b><small>${t("partySub")}</small></span></button>
-   <button class="btn modebtn" data-mode="online">
+     <span><b>${t("modeFriends")}</b><small>${t("modeFriendsSub")}</small></span></button>
+   <button class="btn modebtn" data-mode="open">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("modeOnline")}</b><small>${t("modeOnlineSub")}</small></span></button>
+     <span><b>${t("modeOpen")}</b><small>${t("modeOpenSub")}</small></span></button>
    <div style="flex:1"></div>`);
   app.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
     play("confirm");
-    if (b.dataset.mode === "online") { netDoHost(); return; }   // creates the room, then the lobby
-    U.mode = b.dataset.mode; U.screen = party() ? "PARTYSETUP" : "PLAYERS"; render();
+    if (b.dataset.mode === "friends") { netDoHost(); return; }  // a private room with a code
+    if (b.dataset.mode === "open") { netDoOpen(); return; }     // the one shared room
+    U.mode = b.dataset.mode; U.screen = "PLAYERS"; render();
   });
 };
 
@@ -5352,6 +5454,46 @@ function netDoHost() {
     onMessage: netHandle,
     onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
     onReady: () => { play("confirm"); if (U.screen === "HOST_LOBBY") render(); },
+    onError: (reason) => {
+      U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
+      U.screen = "JOIN"; render();
+    },
+  });
+}
+
+/* Walk into the open room — "Spill over nett", no code, no lobby to wait in.
+   One press resolves into either hosting or joining, and which one you got is
+   not a choice the player makes or needs to understand.
+
+   HOST: seated immediately with bots, and the game starts on its own. There is
+   no server, so "a room that is always running" can only honestly mean "the
+   first person through the door starts it and bots hold the table until people
+   arrive". Real arrivals then displace those bots (netSeatKind prefers a bot
+   chair), which is the whole reason the bots are there.
+
+   CLIENT: somebody is already playing. Straight into their game via the same
+   late-join path a shared link uses — a bot's chair if one is free, otherwise
+   the pendingSeats queue until the round boundary. */
+function netDoOpen() {
+  if (typeof globalThis.Peer !== "function") { U.joinError = "netNoPeer"; U.screen = "JOIN"; render(); return; }
+  PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+  U.mode = "open";
+  U.openRoom = true;
+  U.screen = "LOBBY_WAIT"; render();          // "kobler til…" until the role is known
+  netOpen({
+    pid: U.myPid, name: U.uname || PROFILE.name || "?", profile: PROFILE,
+    onMessage: netHandle,
+    onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
+    onRole: (role) => {
+      play("confirm");
+      if (role !== "host") return;            // a client just waits for state
+      // Nobody was here, so open the table rather than showing a lobby with one
+      // name in it and a Start button that is the only thing to press.
+      U.botCount = Math.max(2, NET_CONFIG.MIN_PLAYERS - 1);
+      U.names = [U.uname || PROFILE.name || "?", ...BOT_NAMES[U.lang].slice(0, U.botCount)];
+      startGame();
+    },
+    onReady: () => { if (U.screen === "HOST_LOBBY") render(); },
     onError: (reason) => {
       U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
       U.screen = "JOIN"; render();

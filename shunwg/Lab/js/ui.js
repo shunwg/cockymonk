@@ -22,7 +22,7 @@ import {
   ratingNoseCap, ratingTier,
 } from "./rating.js";
 import {
-  NET, NET_CONFIG, netLoopback, netHost, netJoin, netProject, netShareLink,
+  NET, NET_CONFIG, netLoopback, netHost, netJoin, netOpen, netProject, netShareLink,
   netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby, netJoinOpen,
   netSeatKind, netStartScore,
 } from "./net.js";
@@ -381,8 +381,12 @@ function backTarget() {
   if (s === "LANG" || s === "MODE") return { to: "HOME" };
   if (s === "PLAYERS" || s === "PARTYSETUP") return { to: "MODE" };
   if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (party() ? "PARTYSETUP" : "PLAYERS") };
-  if (s === "JOIN") return { to: "PARTYSETUP", leave: true };
-  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "PARTYSETUP", leave: true };
+  // Back out of a room and you land on the mode menu, not on the bots-setup
+  // screen. That used to point at PARTYSETUP because party was the neighbouring
+  // menu entry; now that it isn't on the menu, sending someone there would drop
+  // them on a screen they never chose and cannot get to any other way.
+  if (s === "JOIN") return { to: "MODE", leave: true };
+  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "MODE", leave: true };
   if (s === "CONNLOST") return { to: "HOME", leave: true };
   if (s === "WINNER") return { to: "HOME", leave: true };   // the game is over; nothing to confirm
   if (IN_GAME.includes(s)) return { to: "HOME", leave: true, confirm: true };
@@ -607,22 +611,31 @@ SCREENS.LANG = () => {
   });
 };
 
+/* Three doors, in the order they get chosen.
+
+   "Hver sin telefon" (local play against bots) is deliberately NOT here any
+   more. It has not disappeared: it is the fallback when the network cannot be
+   reached — `joinPlayBots` on a failed join, `lostHotseat` when a host vanishes
+   — and the open room already gives you bots when you are the only one in it.
+   As a MENU entry it asked the player to pick their opponents' species before
+   they had picked a game, which is a question nobody arrives wanting to answer. */
 SCREENS.MODE = () => {
   shell(`<h2>${t("mode")}</h2>
    <button class="btn modebtn" data-mode="hotseat">
      <span class="phones"><span class="phoneico"></span></span>
      <span><b>${t("hotseatName")}</b><small>${t("hotseatSub")}</small></span></button>
-   <button class="btn modebtn" data-mode="party">
+   <button class="btn modebtn" data-mode="friends">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("partyName")}</b><small>${t("partySub")}</small></span></button>
-   <button class="btn modebtn" data-mode="online">
+     <span><b>${t("modeFriends")}</b><small>${t("modeFriendsSub")}</small></span></button>
+   <button class="btn modebtn" data-mode="open">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("modeOnline")}</b><small>${t("modeOnlineSub")}</small></span></button>
+     <span><b>${t("modeOpen")}</b><small>${t("modeOpenSub")}</small></span></button>
    <div style="flex:1"></div>`);
   app.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
     play("confirm");
-    if (b.dataset.mode === "online") { netDoHost(); return; }   // creates the room, then the lobby
-    U.mode = b.dataset.mode; U.screen = party() ? "PARTYSETUP" : "PLAYERS"; render();
+    if (b.dataset.mode === "friends") { netDoHost(); return; }  // a private room with a code
+    if (b.dataset.mode === "open") { netDoOpen(); return; }     // the one shared room
+    U.mode = b.dataset.mode; U.screen = "PLAYERS"; render();
   });
 };
 
@@ -1966,6 +1979,46 @@ function netDoHost() {
     onMessage: netHandle,
     onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
     onReady: () => { play("confirm"); if (U.screen === "HOST_LOBBY") render(); },
+    onError: (reason) => {
+      U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
+      U.screen = "JOIN"; render();
+    },
+  });
+}
+
+/* Walk into the open room — "Spill over nett", no code, no lobby to wait in.
+   One press resolves into either hosting or joining, and which one you got is
+   not a choice the player makes or needs to understand.
+
+   HOST: seated immediately with bots, and the game starts on its own. There is
+   no server, so "a room that is always running" can only honestly mean "the
+   first person through the door starts it and bots hold the table until people
+   arrive". Real arrivals then displace those bots (netSeatKind prefers a bot
+   chair), which is the whole reason the bots are there.
+
+   CLIENT: somebody is already playing. Straight into their game via the same
+   late-join path a shared link uses — a bot's chair if one is free, otherwise
+   the pendingSeats queue until the round boundary. */
+function netDoOpen() {
+  if (typeof globalThis.Peer !== "function") { U.joinError = "netNoPeer"; U.screen = "JOIN"; render(); return; }
+  PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+  U.mode = "open";
+  U.openRoom = true;
+  U.screen = "LOBBY_WAIT"; render();          // "kobler til…" until the role is known
+  netOpen({
+    pid: U.myPid, name: U.uname || PROFILE.name || "?", profile: PROFILE,
+    onMessage: netHandle,
+    onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
+    onRole: (role) => {
+      play("confirm");
+      if (role !== "host") return;            // a client just waits for state
+      // Nobody was here, so open the table rather than showing a lobby with one
+      // name in it and a Start button that is the only thing to press.
+      U.botCount = Math.max(2, NET_CONFIG.MIN_PLAYERS - 1);
+      U.names = [U.uname || PROFILE.name || "?", ...BOT_NAMES[U.lang].slice(0, U.botCount)];
+      startGame();
+    },
+    onReady: () => { if (U.screen === "HOST_LOBBY") render(); },
     onError: (reason) => {
       U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
       U.screen = "JOIN"; render();

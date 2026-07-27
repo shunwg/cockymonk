@@ -20,6 +20,7 @@ import {
 import {
   NET, NET_CONFIG, netProject, netLoopback, netRoomCode, netShareLink,
   netRoomFromUrl, netTally, netVotesIn, netJoinOpen, netSeatKind, netStartScore,
+  netReclaimDelay,
 } from "./net.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -198,6 +199,40 @@ test("clockLevel thresholds", () => {
 
 // The closing pulse is a RATE, not a level: the ask is a heart rate that climbs
 // as the deadline approaches, and clockLevel only knows three values.
+// The open room has no code to share, so its id is a constant every client asks
+// for. That only works if a generated room code can never accidentally BE it.
+test("the open room's id can never collide with a generated room code", () => {
+  const code = NET_CONFIG.OPEN_CODE;
+  const excluded = [...code].filter((ch) => !NET_CONFIG.CODE_ALPHABET.includes(ch));
+  assert.ok(
+    excluded.length > 0 || code.length !== NET_CONFIG.CODE_LEN,
+    `"${code}" must be unreachable from CODE_ALPHABET — it contains only ${JSON.stringify(excluded)} outside it`,
+  );
+  // "O" is excluded from the alphabet because it is unreadable aloud next to 0.
+  // That accident of legibility is what makes the namespace safe, so assert it
+  // rather than trusting it to survive an edit to the alphabet.
+  assert.ok(!NET_CONFIG.CODE_ALPHABET.includes("O"), "O must stay out of the alphabet");
+
+  // And prove it empirically over a lot of draws.
+  let i = 0;
+  const rng = () => ((i = (i * 1103515245 + 12345) % 2147483648) / 2147483648);
+  for (let n = 0; n < 4000; n++) assert.notEqual(netRoomCode(rng), code);
+});
+
+test("the reclaim wait is randomised, so orphaned clients don't collide", () => {
+  assert.equal(netReclaimDelay(() => 0), NET_CONFIG.RECLAIM_MIN_MS, "floor");
+  assert.equal(
+    netReclaimDelay(() => 0.999999),
+    NET_CONFIG.RECLAIM_MIN_MS + NET_CONFIG.RECLAIM_SPREAD_MS - 1,
+    "ceiling stays inside the spread",
+  );
+  // A fixed delay would make every orphan race at the same instant and all but
+  // one destroy their peer for nothing. Spread is the whole point.
+  const seen = new Set();
+  for (let n = 0; n < 200; n++) seen.add(netReclaimDelay(() => n / 200));
+  assert.ok(seen.size > 50, `expected a real spread, got ${seen.size} distinct delays`);
+});
+
 test("clockPulseHz climbs over the closing window, and is capped for safety", () => {
   assert.equal(clockPulseHz(null), 0, "no deadline, no pulse");
   assert.equal(clockPulseHz(TIMERS.PULSE_MS + 1), 0, "silent outside the window");
