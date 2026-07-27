@@ -1055,13 +1055,16 @@ const STR = {
     joinFailNoRoom: "Fant ikke rommet. Sjekk koden — eller så er spillet over.",
     joinFailTimeout: "Fikk ikke kontakt. Nettet ditt slipper kanskje ikke gjennom.",
     joinFailGeneric: "Noe gikk galt med tilkoblingen.",
-    joinFailStarted: "Spillet er kommet for langt. Døra sto åpen i tre minutter etter start.",
+    joinFailOver: "Spillet er ferdig. Be om en ny kode.",
     joinFailFull: "Rommet er fullt — åtte er maks.",
     joinPlayBots: "Spill mot roboter i stedet",
-    lobbyLateWindow: "Døra står åpen i tre minutter etter start — den som kommer sent blir med likevel.",
+    lobbyLateWindow: "Døra står åpen hele spillet — den som kommer sent blir med likevel.",
     lateJoined: (n) => `${n} kom inn i spillet`,
     lateTookSeat: (n, bot) => `${n} tok over plassen — og poengene — til ${bot}`,
+    lateWaiting: (n) => `${n} venter på tur`,
+    lateSeated: (n) => `${n} er med fra nå — starter likt med sisteplassen`,
     lateNextRound: "Du er inne. Runden som går nå ser du på; du spiller fra neste.",
+    watchingRound: "Du ser på denne runden",
     back: "Tilbake",
     quitTitle: "Avslutte spillet?",
     quitBodyLocal: "Stillingen forsvinner. Ingen omkamp, ingen anger.",
@@ -1157,13 +1160,16 @@ const STR = {
     joinFailNoRoom: "Couldn't find that room. Check the code — or the game's over.",
     joinFailTimeout: "Couldn't get through. Your network may be blocking it.",
     joinFailGeneric: "Something went wrong connecting.",
-    joinFailStarted: "That game's too far along. The door was open for three minutes after the start.",
+    joinFailOver: "That game has finished. Ask for a new code.",
     joinFailFull: "That room is full — eight is the maximum.",
     joinPlayBots: "Play against bots instead",
-    lobbyLateWindow: "The door stays open for three minutes after the start — latecomers still get in.",
+    lobbyLateWindow: "The door stays open all game — latecomers still get in.",
     lateJoined: (n) => `${n} joined the game`,
     lateTookSeat: (n, bot) => `${n} took over ${bot}'s chair — and their points`,
+    lateWaiting: (n) => `${n} is waiting for a turn`,
+    lateSeated: (n) => `${n} is in from now — starting level with last place`,
     lateNextRound: "You're in. You'll watch this round out and play from the next one.",
+    watchingRound: "You're watching this round",
     back: "Back",
     quitTitle: "Quit the game?",
     quitBodyLocal: "The scores go with it. No rematch, no regrets.",
@@ -2576,11 +2582,6 @@ const NET_CONFIG = Object.freeze({
   CODE_ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",  // no 0/O/1/I — read aloud
   CONNECT_TIMEOUT_MS: 8000,
   RECONNECT_MS: 30000,           // PRD §5.5
-  // The room stays open this long AFTER the host presses start, so the friend who
-  // was still parking gets seated into the running game instead of a dead end.
-  // Not matchmaking: you still need the code or the link (PRD §2 excludes
-  // matchmaking with strangers), this only widens the door in time.
-  LATE_JOIN_MS: 180000,          // 3 minutes
   ID_RETRIES: 3,
   ICE: [{ urls: "stun:stun.l.google.com:19302" }],
   MIN_PLAYERS: 3,
@@ -2588,15 +2589,69 @@ const NET_CONFIG = Object.freeze({
 });
 
 /**
- * Is the late-join door still open? Room policy, so it lives here beside
- * LATE_JOIN_MS rather than in the UI — and pure, so it is testable.
- * `g.joinOpenUntil` is an absolute epoch ms stamped by startGame(). Only the HOST
- * ever calls this: a client cannot be trusted to judge its own lateness.
+ * Is the door open? Room policy, so it lives here rather than in the UI — and
+ * pure, so it is testable. Only the HOST ever calls this: a client cannot be
+ * trusted to judge its own lateness.
+ *
+ * It used to be a three-minute clock stamped by startGame(). That was the wrong
+ * shape for a party game: the whole point is that people wander in — someone
+ * parks the car, someone arrives at half past nine — and a door that slams at
+ * minute three turns a normal social arrival into "sorry, we already started".
+ * A game runs 20 minutes and a friend with the link should be able to sit down
+ * at minute eighteen.
+ *
+ * The only thing that closes it is the game being OVER. Everything else that
+ * used to matter — is a round in flight, is there a chair free — is handled
+ * where it belongs, by seating rather than by refusing (see netSeatLate).
+ *
+ * Still not matchmaking: the code or the link is required, so PRD §2's "no
+ * matchmaking with strangers" holds and no moderation surface opens. `now` is
+ * kept in the signature because callers pass it and a future policy (a host
+ * toggle, a quiet-hours rule) would want it back.
  */
-function netJoinOpen(g, now = Date.now()) {
+function netJoinOpen(g, now = Date.now()) {   // eslint-disable-line no-unused-vars
   if (!g) return false;
-  if (g.phase === "winner") return false;   // nothing left to join
-  return now <= (g.joinOpenUntil ?? 0);
+  return g.phase !== "winner";                       // nothing left to join
+}
+
+/**
+ * WHICH way into a running game? Room policy, so it lives here with the rest of
+ * it — and pure, so the arithmetic that makes it non-obvious is testable without
+ * a browser. ui.js netSeatLate() carries it out.
+ *
+ *   "bot"     — a bot is sitting; take its chair now, inherit its score.
+ *               G.players.length does not move, which is the whole point.
+ *   "pending" — no bot to displace. Wait for the round boundary.
+ *   "full"    — eight is eight, counting the people already queued.
+ *
+ * Why "pending" rather than just pushing a chair: three engine functions read
+ * players.length and all three change meaning if it moves mid-round —
+ * gmForRound() re-maps every remaining GM, winCheck() gates on
+ * `round % playerCount`, and scoreRound() sizes Array(playerCount) for the
+ * deltas. So a new chair may only appear between rounds. The waiting room the
+ * player experiences and the invariant the engine needs are the same rule.
+ */
+function netSeatKind(g, max = NET_CONFIG.MAX_PLAYERS) {
+  if (!g?.players?.length) return "full";
+  if (g.players.some((p) => p.kind === "bot" && !p.dropped)) return "bot";
+  if (g.players.length + (g.pendingSeats?.length ?? 0) >= max) return "full";
+  return "pending";
+}
+
+/**
+ * What a newcomer's pawn starts on when they get a fresh chair (no bot to
+ * inherit from). Level with the current last place, not zero.
+ *
+ * Zero is the honest-looking answer and the wrong one: join a 15-space game at
+ * round nine on zero and you are not playing, you are watching with extra steps
+ * — the table is eight points up and cannot be caught. Last place is the honest
+ * floor instead. Nobody already playing is overtaken by someone who just walked
+ * in, and the newcomer has a real game. The banner says so out loud, the same
+ * way taking a bot's chair announces the inherited score.
+ */
+function netStartScore(players = []) {
+  const scores = players.map((p) => p?.score ?? 0);
+  return scores.length ? Math.min(...scores) : 0;
 }
 
 function netRoomCode(rng = Math.random) {
@@ -2626,7 +2681,12 @@ function netRoomFromUrl(loc = globalThis.location) {
  */
 function netProject(G, seat) {
   if (!G) return null;
-  const isGm = seat === G.gm;
+  // A watcher with no chair yet (seat -1, waiting in G.pendingSeats) is never the
+  // GM. Written as an explicit floor rather than relying on -1 !== G.gm, because
+  // this one comparison is the only thing standing between a spectator and the
+  // truth, and it should not depend on G.gm never being undefined.
+  const seated = Number.isInteger(seat) && seat >= 0;
+  const isGm = seated && seat === G.gm;
   const phase = G.phase ?? "card";
   const preReveal = phase === "card" || phase === "bluffing" || phase === "voting";
   const p = { ...G };
@@ -2851,7 +2911,12 @@ function netBroadcastState(G, U) {
   for (const p of NET.peers) {
     if (p.pid === NET.myPid || !p.connected) continue;
     const seat = G.players.findIndex((x) => x.pid === p.pid);
-    if (seat < 0) continue;
+    // seat < 0 used to `continue`, which was right when the only seatless peer
+    // was a bug. Now it is a person waiting for the next round (G.pendingSeats),
+    // and skipping them rebuilds the exact dead end late join was written to
+    // kill: connected, told nothing, staring at a stale screen. They get the
+    // same redacted projection as any non-GM — netProject floors seat < 0 to
+    // "not the GM", so the truth still cannot reach them.
     NET.sendTo(p.pid, { t: "state", g: netProject(G, seat), screenHint: U?.screen ?? null });
   }
 }
@@ -2981,7 +3046,7 @@ function fxMakeG(overrides = {}) {
     revealIdx: 0,
     timedOut: { bluff: [], vote: [] },
     deadline: null,            // null keeps every posed screen static for snap-screens
-    joinOpenUntil: 0,          // posed: the late-join door is shut, so no clock is implied
+    pendingSeats: [],          // posed: nobody waiting in the doorway
     lateJoin: null,            // no joiner banner on a posed screen
     timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
@@ -3221,7 +3286,20 @@ const seatOfPid = (pid) => (G ? G.players.findIndex((p) => p.pid === pid) : -1);
 // Hotseat and practice put this device in seat 0, so this returns 0 and every
 // call site below behaves exactly as it did before pids existed.
 const mySeat = () => { const i = seatOfPid(U.myPid); return i === -1 ? 0 : i; };
-const userIsGm = () => G.gm === mySeat();
+/* Online-only: am I connected but NOT holding a chair? (waiting in
+   G.pendingSeats for the next round).
+
+   This has to be its own predicate rather than `mySeat() < 0`, because mySeat()
+   deliberately floors -1 to 0 for hotseat — where "no pid" means "this device is
+   whoever's turn it is", and forty call sites rely on that. Online the same
+   fallback would quietly hand a chairless watcher SEAT 0's screen, up to and
+   including GM_DASH. The host still redacts (netProject floors seat < 0 to
+   not-the-GM, so no truth is on the wire) but the watcher would be looking at
+   another player's controls. Ask the raw lookup instead. */
+const seatless = () => online() && !isHost() && seatOfPid(U.myPid) < 0;
+const userIsGm = () => !seatless() && G.gm === mySeat();
+// My pawn colour, safe for a watcher who has no pawn yet.
+const myColor = () => (seatless() ? "var(--color-text-secondary)" : G.players[mySeat()].color);
 const isBot = (i) => G?.players[i]?.kind === "bot";
 const order = () => G.players.map((_, i) => i).filter((i) => i !== G.gm && !G.players[i].dropped);
 // Both now come from engine.js so the timeout rule exists in exactly one place —
@@ -3565,6 +3643,24 @@ function backInstallHistory() {
 // The room event, plus a second line only on the device it happened to: being
 // told "you'll sit this round out" matters to exactly one person, and reads as
 // noise to everyone else.
+/* Am I watching this round rather than playing it? True for a latecomer who took
+   a chair after the card was drawn (in G.timedOut), for anyone who missed a
+   deadline, and for a watcher with no chair at all (seat -1, G.pendingSeats).
+
+   This exists because "benched" and "submitted" rendered IDENTICALLY: WAIT drew
+   a green ✓ meaning *your lie is in* and VOTEWAIT said *du stemte* — to someone
+   who had done neither and could not. That is the game-feel rule (principle 2)
+   broken in the plainest way available: an effect asserting a game state that is
+   not true, on the first screen a newcomer ever sees. */
+function benched(seat = mySeat()) {
+  if (seatless()) return true;                               // no chair yet
+  if (!Number.isInteger(seat) || seat < 0) return true;
+  return !!(G?.timedOut?.bluff?.includes(seat) || G?.timedOut?.vote?.includes(seat));
+}
+
+// The spectator's version of the green tick: same slot, opposite claim.
+const watchingBanner = () => `<div class="banner" role="status">👀 ${t("watchingRound")}</div>`;
+
 function lateNoteHtml() {
   const lj = G?.lateJoin;
   if (!lj?.note) return "";
@@ -3841,10 +3937,10 @@ function startGame() {
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
-    // The door stays open this long for people who had the link but were slow.
-    // Absolute time, like G.deadline, so it survives the hop to a client with a
-    // differently-set clock. Only the HOST ever judges it (netSeatLate).
-    joinOpenUntil: Date.now() + NET_CONFIG.LATE_JOIN_MS,
+    // People who arrived with the link but no chair yet. They watch the round in
+    // progress and are dealt in by newRound(), because G.players.length must not
+    // change mid-round — gmForRound, winCheck and scoreRound all read it.
+    pendingSeats: [],
     // { note, seat } for the last latecomer. In G, not U, because it is a ROOM
     // event: the person it happened to is on another device, and they are the one
     // who most needs to hear that they inherited a bot's points.
@@ -3856,35 +3952,54 @@ function startGame() {
   newRound();
 }
 
-/* ---------- late join (3-minute window after start) ----------
+/* ---------- walking into a running game (PRD §5.5) ----------
  * A friend who opens the link 40 seconds late used to reach a dead end: the host
  * seated them in NET.peers but G.players was already built, so netBroadcastState
  * skipped them (seat < 0) and they sat on "waiting for the host" forever.
  *
- * Taking a BOT's chair is the preferred outcome, not a fallback: it keeps
- * G.players.length stable — which is what every engine vector and scoreRound's
- * Array(playerCount) assume — and "du tok over Kåres plass" is a better story
- * than an extra chair appearing. They inherit the bot's score, which the banner
- * says out loud; silently resetting it to 0 would hop a pawn backwards and read
- * as a bug.
+ * There are exactly two ways in, and which one you get is not a preference —
+ * it is dictated by arithmetic.
+ *
+ * 1. TAKE A BOT'S CHAIR — immediate, any time. G.players.length does not move,
+ *    and "du tok over Kåres plass" is a better story than a chair appearing.
+ *    They inherit the bot's score, which the banner says out loud; silently
+ *    resetting it to 0 would hop a pawn backwards and read as a bug.
+ *
+ * 2. NO BOT TO DISPLACE — wait in the doorway until the next round.
+ *    A new chair CANNOT appear mid-round, because three separate things read
+ *    G.players.length and all of them would change meaning underneath the round
+ *    in flight:
+ *      · gmForRound(round, playerCount, firstGm) = (firstGm + round - 1) % count
+ *        — a new count re-maps who is GM for every remaining round.
+ *      · winCheck() returns early unless round % playerCount === 0 — a new count
+ *        moves when the game is allowed to be won.
+ *      · scoreRound() sizes Array(playerCount) for the deltas — growing the
+ *        roster between the vote and the score resizes it mid-flight.
+ *    So they go in G.pendingSeats and newRound() deals them in. This is not a
+ *    consolation prize: it IS the waiting room, and it is why the ask ("wait
+ *    until the next round starts") and the engine's constraint are the same
+ *    thing. They still receive state and watch the round play out.
  */
 function netSeatLate(msg) {
-  if (!netJoinOpen(G)) return { ok: false, reason: "started" };
-  const botSeat = G.players.findIndex((p) => p.kind === "bot" && !p.dropped);
+  if (!netJoinOpen(G)) return { ok: false, reason: "over" };
   const name = String(msg.name ?? "?").slice(0, 24) || "?";
-  let seat, tookFrom = null;
+  const kind = netSeatKind(G);                    // policy + the reasoning: net.js
 
-  if (botSeat >= 0) {
-    tookFrom = G.players[botSeat].name;
-    Object.assign(G.players[botSeat], { name, pid: msg.pid, kind: "remote" });
-    seat = botSeat;
-  } else if (G.players.length < NET_CONFIG.MAX_PLAYERS) {
-    seat = G.players.length;
-    G.players.push({
-      name, color: AVA[seat], score: 0, bluffVotes: 0, dropped: false,
-      pid: msg.pid, kind: "remote",
-    });
-  } else return { ok: false, reason: "full" };
+  if (kind === "full") return { ok: false, reason: "full" };
+
+  if (kind === "pending") {
+    if (!G.pendingSeats.some((s) => s.pid === msg.pid)) {   // a re-hello must not double-book
+      G.pendingSeats.push({ pid: msg.pid, name, rating: msg.rating, games: msg.games, nose: msg.nose });
+    }
+    G.lateJoin = { note: t("lateWaiting", esc(name)), seat: -1, pid: msg.pid };
+    play("tickIn");
+    return { ok: true, pending: true };
+  }
+
+  const botSeat = G.players.findIndex((p) => p.kind === "bot" && !p.dropped);
+  const tookFrom = G.players[botSeat].name;
+  Object.assign(G.players[botSeat], { name, pid: msg.pid, kind: "remote" });
+  const seat = botSeat;
 
   // Past the card reveal, this round is already in motion: they watch it out and
   // play from the next one. timedOut is exactly the right vehicle — it means "not
@@ -3895,17 +4010,46 @@ function netSeatLate(msg) {
     if (!G.timedOut.bluff.includes(seat)) G.timedOut.bluff.push(seat);
     if (!G.timedOut.vote.includes(seat)) G.timedOut.vote.push(seat);
   }
-  G.lateJoin = {
-    note: tookFrom ? t("lateTookSeat", esc(name), esc(tookFrom)) : t("lateJoined", esc(name)),
-    seat,
-  };
+  G.lateJoin = { note: t("lateTookSeat", esc(name), esc(tookFrom)), seat };
   play("tickIn");
   return { ok: true, seat, tookFrom };
+}
+
+/**
+ * Deal in everyone who was waiting in the doorway. Called by newRound() BEFORE
+ * anything else, so the new count is what gmForRound and pickFakes see.
+ *
+ * They start level with the current last place rather than at zero. Joining a
+ * 15-space game at round nine on zero is not a fresh start, it is a spectator
+ * seat with extra steps — you cannot catch a table that is eight points up, so
+ * the game is over for you before your first word. Last place is the honest
+ * floor: nobody is overtaken by someone who just arrived, and the newcomer is
+ * actually playing. The banner says so out loud, same rule as the bot chair.
+ */
+function seatPending() {
+  if (!G.pendingSeats?.length) return null;
+  const floor = netStartScore(G.players);       // policy + the reasoning: net.js
+  let last = null;
+  for (const s of G.pendingSeats) {
+    if (G.players.length >= NET_CONFIG.MAX_PLAYERS) break;
+    const seat = G.players.length;
+    G.players.push({
+      name: s.name, color: AVA[seat % AVA.length], score: floor, bluffVotes: 0,
+      dropped: false, pid: s.pid, kind: "remote",
+    });
+    last = { note: t("lateSeated", esc(s.name)), seat };
+  }
+  G.pendingSeats = [];
+  return last;
 }
 
 function newRound() {
   resetTimers();
   G.awaitingNext = false;                // this round's board starts locked until its ceremony ends
+  // FIRST, before anything reads G.players.length. Everyone waiting in the
+  // doorway takes their chair now, so gmForRound (below, via the caller) and
+  // pickFakes (a few lines down) both see the count they will be scored on.
+  const seated = seatPending();
   G.round++;
   if (!U.deck.length) U.deck = shuffled(CONTENT.deck ?? MINI_DECK[U.lang]);
   G.card = U.deck.pop();
@@ -3927,7 +4071,9 @@ function newRound() {
   G.phase = "card";
   G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
   U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
-  G.lateJoin = null;                        // a joiner announcement lasts its round, no longer
+  // A joiner announcement lasts its round, no longer — EXCEPT the one for a
+  // player who is being dealt in right now. They waited a whole round to hear it.
+  G.lateJoin = seated;
   U.screen = "GM_INTRO"; play("cardDraw"); render(); netPush();
   // Bot GM auto-advances. A REMOTE gm does not: that person taps on their own
   // device, and their tap arrives as a state broadcast.
@@ -4152,10 +4298,11 @@ SCREENS.BLUFF = () => {
 /* ---------- party waiting room ---------- */
 SCREENS.WAIT = () => {
   const gm = G.players[G.gm];
+  const watching = benched();
   shell(`
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
-     <div class="banner green" style="margin:10px 0 0">✓</div></div>
+     <div style="margin:10px 0 0">${watching ? watchingBanner() : `<div class="banner green">✓</div>`}</div></div>
    ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
@@ -4168,7 +4315,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     ${face({ color: G.players[mySeat()].color, size: 60, mood: "suspicious", brand: true, bob: true })}
+     ${face({ color: myColor(), size: 60, mood: watching ? "neutral" : "suspicious", brand: true, bob: true })}
    </div>`);
 };
 
@@ -4247,7 +4394,7 @@ SCREENS.VOTEWAIT = () => {
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${wordChip()}
-   ${userIsGm() ? "" : `<div class="banner green">${t("youVoted")}</div>`}
+   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner green">${t("youVoted")}</div>`)}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
      const c = netTally(G, o.id);
@@ -4665,6 +4812,22 @@ SCREENS.WINNER = () => {
 
 // Which screen this seat should be looking at, given what the room is doing.
 function screenForSeat(g, seat) {
+  // No chair yet — waiting in G.pendingSeats for the next round. Without this
+  // the bluffing case falls all the way through to "BLUFF" (seat -1 is not the
+  // gm, is not in timedOut, has no entry in bluffs) and hands a watcher an input
+  // screen whose submission the host throws away: the unwinnable box the comment
+  // below is about. They watch on the same screens a benched player does.
+  if (!Number.isInteger(seat) || seat < 0) {
+    switch (g.phase) {
+      case "bluffing": return "WAIT";
+      case "voting": return "VOTEWAIT";
+      case "reveal": return "REVEAL";
+      case "board": return "BOARD";
+      case "omkamp": return "OMKAMP";
+      case "winner": return "WINNER";
+      default: return "GM_INTRO";
+    }
+  }
   switch (g.phase) {
     case "card": return "GM_INTRO";
     // timedOut has to be consulted here, not just "did they submit". Otherwise the
@@ -4748,7 +4911,9 @@ function netOnHostState(msg) {
   U.cur = mySeat();
   if (G.theme) U.theme = G.theme;   // everyone sits at the same table
   NET.skewMs = clockSkew(msg.t0 ?? Date.now());
-  const seat = mySeat();
+  // -1, not mySeat(), when we have no chair: mySeat() floors to 0 for hotseat and
+  // would route a watcher onto seat 0's screen. screenForSeat handles -1.
+  const seat = seatless() ? -1 : mySeat();
   const next = screenForSeat(G, seat);
   // Never yank someone off a screen they're mid-input on unless the phase moved.
   const typing = U.screen === "BLUFF" && next === "BLUFF";
@@ -4768,13 +4933,16 @@ function netHandle(msg, conn) {
   if (msg.t === "rebind") { U.myPid = msg.pid; NET.myPid = msg.pid; return; }
   if (msg.t === "state") { netOnHostState(msg); return; }
   if (msg.t === "ratings") { netApplyRatings(msg); return; }
-  // "started"/"full" are not connection failures — the room simply said no. Send
+  // "over"/"full" are not connection failures — the room simply said no. Send
   // them back to JOIN with the real reason and the play-vs-bots way out, rather
   // than to CONNLOST, which offers a reconnect that will never succeed.
+  // ("started" was the old three-minute refusal and no longer exists: the door
+  // stays open until the game is won. Kept in the test below only as a guard
+  // that a stale host cannot strand a new client on an unmapped reason.)
   if (msg.t === "bye") {
-    if (msg.reason === "started" || msg.reason === "full") {
+    if (msg.reason === "over" || msg.reason === "started" || msg.reason === "full") {
       NET.close?.();
-      U.joinError = msg.reason === "started" ? "joinFailStarted" : "joinFailFull";
+      U.joinError = msg.reason === "full" ? "joinFailFull" : "joinFailOver";
       U.joining = false; U.screen = "JOIN"; render();
       return;
     }

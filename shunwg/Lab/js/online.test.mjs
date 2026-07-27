@@ -18,7 +18,7 @@ import {
 
 import {
   NET, NET_CONFIG, netProject, netLoopback, netRoomCode, netShareLink,
-  netRoomFromUrl, netTally, netVotesIn, netJoinOpen,
+  netRoomFromUrl, netTally, netVotesIn, netJoinOpen, netSeatKind, netStartScore,
 } from "./net.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -423,35 +423,113 @@ test("clock.js does not shadow state.js's timer registry", async () => {
   }
 });
 
-/* ---------------- late join: the 3-minute door (PRD §2 stays intact) ----------
- * This is a WINDOW, not matchmaking: you still need the code or the link. These
- * tests pin the window's edges and the one rule that keeps it from deadlocking a
- * round — a joiner who arrives after the card is drawn must not be *expected*.
+/* ---------------- walking into a running game (PRD §5.5, §2 stays intact) ------
+ * The door used to be a 3-minute clock. It is now open for the whole game: a
+ * party runs 20 minutes and a friend with the link should be able to sit down at
+ * minute eighteen. Still NOT matchmaking — the code or the link is required.
+ *
+ * The tests below pin the two halves of the promise: you can always get in while
+ * the game is live, and getting in never disturbs the round in flight.
  */
 
-test("late join: the door is open inside the window and shut outside it", () => {
+test("the door is open at any point in a live game", () => {
   const t0 = 1_000_000;
-  const g = { phase: "bluffing", joinOpenUntil: t0 + NET_CONFIG.LATE_JOIN_MS };
-  assert.equal(netJoinOpen(g, t0), true, "open at the moment of start");
-  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS - 1), true, "open 1 ms before the edge");
-  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS), true, "inclusive at the edge");
-  assert.equal(netJoinOpen(g, t0 + NET_CONFIG.LATE_JOIN_MS + 1), false, "shut 1 ms after");
+  for (const phase of ["card", "bluffing", "voting", "reveal", "board", "omkamp"]) {
+    assert.equal(netJoinOpen({ phase }, t0), true, `${phase}: open`);
+    // Time is no longer a factor — an hour in is as open as the first second.
+    assert.equal(netJoinOpen({ phase }, t0 + 3_600_000), true, `${phase}: still open an hour later`);
+  }
 });
 
-test("late join: the window is three minutes", () => {
-  assert.equal(NET_CONFIG.LATE_JOIN_MS, 180000);
+test("only a finished game shuts the door", () => {
+  assert.equal(netJoinOpen({ phase: "winner" }, 1), false, "nothing left to join");
+  assert.equal(netJoinOpen({ phase: "winner" }, Number.MAX_SAFE_INTEGER), false);
 });
 
-test("late join: a finished game never accepts anyone, even inside the window", () => {
-  const t0 = 1_000_000;
-  const g = { phase: "winner", joinOpenUntil: t0 + NET_CONFIG.LATE_JOIN_MS };
-  assert.equal(netJoinOpen(g, t0), false, "phase winner overrides an open clock");
-});
-
-test("late join: missing or absent state is never joinable", () => {
+test("missing state is never joinable", () => {
   assert.equal(netJoinOpen(null, 1), false);
   assert.equal(netJoinOpen(undefined, 1), false);
-  assert.equal(netJoinOpen({ phase: "bluffing" }, 1), false, "no joinOpenUntil → shut, never open-by-default");
+});
+
+/* The projection is the only thing between a chairless watcher and the answer.
+   A pending joiner has no seat, so netBroadcastState calls netProject(G, -1) —
+   and -1 must never be mistaken for the GM. This is the single most important
+   assertion in the file: everything else is a worse game, this is a broken one. */
+test("a seatless watcher never receives the truth", () => {
+  for (const phase of ["card", "bluffing", "voting"]) {
+    for (const seat of [-1, undefined, null, NaN, "0"]) {
+      const seen = netProject(gameAt(phase), seat);
+      assert.equal(seen.card.truth, null, `${phase}, seat ${String(seat)}: truth must be redacted`);
+      assert.deepEqual(seen.decoys, [], `${phase}, seat ${String(seat)}: decoys are the GM's private drafts`);
+    }
+  }
+});
+
+test("a seatless watcher still gets the word, so the waiting room is not blank", () => {
+  const seen = netProject(gameAt("bluffing"), -1);
+  assert.ok(seen.card.prompt, "the word itself is public — it is on everyone's screen");
+  assert.equal(seen.phase, "bluffing", "and enough state to render what the room is doing");
+});
+
+test("a seatless watcher never reads anyone's lie before the vote opens", () => {
+  const g = { ...gameAt("bluffing"), bluffs: { 1: "en løgn", 2: "enda en" } };
+  const seen = netProject(g, -1);
+  assert.deepEqual(seen.bluffs, {}, "no lie text");
+  assert.deepEqual(seen.bluffsIn, [1, 2], "only who is done, for the tick-in chips");
+});
+
+/* ---- which way in, and on what score ---------------------------------------
+   The interesting case is the SECOND one. Taking a bot's chair is free; making a
+   new chair is not, because gmForRound / winCheck / scoreRound all read
+   players.length. These tests pin that a new chair can never be conjured while a
+   round is in flight. */
+
+const seatFx = ({ bots = 0, humans = 3, pending = 0, scores = null } = {}) => ({
+  phase: "bluffing",
+  players: [
+    ...Array.from({ length: humans }, (_, i) => ({ name: `H${i}`, kind: "remote", score: scores?.[i] ?? 0 })),
+    ...Array.from({ length: bots }, (_, i) => ({ name: `B${i}`, kind: "bot", score: 0 })),
+  ],
+  pendingSeats: Array.from({ length: pending }, (_, i) => ({ pid: `p${i}`, name: `P${i}` })),
+});
+
+test("a bot's chair is taken whenever one is free", () => {
+  assert.equal(netSeatKind(seatFx({ bots: 1, humans: 3 })), "bot");
+  assert.equal(netSeatKind(seatFx({ bots: 3, humans: 1 })), "bot");
+  // ...but a bot that already dropped is not a chair anyone can sit in.
+  const g = seatFx({ bots: 1, humans: 3 });
+  g.players.at(-1).dropped = true;
+  assert.equal(netSeatKind(g), "pending", "a dropped bot is not a free chair");
+});
+
+test("no bot to displace means waiting for the round boundary, never a mid-round chair", () => {
+  assert.equal(netSeatKind(seatFx({ bots: 0, humans: 3 })), "pending");
+  assert.equal(netSeatKind(seatFx({ bots: 0, humans: 7 })), "pending", "one short of the cap still fits");
+});
+
+test("eight is eight, and the queue counts toward it", () => {
+  assert.equal(netSeatKind(seatFx({ bots: 0, humans: 8 })), "full");
+  // The subtle one: seven seated + one already queued IS full. Without counting
+  // the queue, two people could each be told "yes" and only one would fit.
+  assert.equal(netSeatKind(seatFx({ bots: 0, humans: 7, pending: 1 })), "full");
+  assert.equal(netSeatKind(seatFx({ bots: 0, humans: 6, pending: 1 })), "pending");
+  // A bot chair still wins over the cap — the roster does not grow.
+  assert.equal(netSeatKind(seatFx({ bots: 1, humans: 7 })), "bot");
+});
+
+test("a game with no players at all is never joinable", () => {
+  assert.equal(netSeatKind({ players: [] }), "full");
+  assert.equal(netSeatKind({}), "full");
+  assert.equal(netSeatKind(null), "full");
+});
+
+test("a fresh chair starts level with last place, not at zero", () => {
+  assert.equal(netStartScore([{ score: 7 }, { score: 3 }, { score: 11 }]), 3);
+  assert.equal(netStartScore([{ score: 5 }, { score: 5 }]), 5, "everyone level → join level");
+  assert.equal(netStartScore([]), 0, "no table yet → zero");
+  assert.equal(netStartScore([{ score: 0 }, { score: 9 }]), 0, "someone still on zero → zero is honest");
+  assert.equal(netStartScore([{}, { score: 4 }]), 0, "a missing score counts as zero, never NaN");
+  assert.ok(Number.isFinite(netStartScore([{ score: 2 }])), "never Infinity from an empty reduce");
 });
 
 test("late join: timedOut reaches the client, so a seated latecomer is not shown an input screen", () => {
