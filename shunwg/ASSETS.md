@@ -2,13 +2,24 @@
 
 Rule zero: **nothing enters the app without a license row in this file.** CC0 preferred; attribution licenses allowed if the credit lands in About/Credits. Unknown license = doesn't exist.
 
-## Bundled in this kit (`AssetsIncoming/`) — downloaded 2026-07-18, all CC0 1.0
-| Pack | Files | Use for | Source |
+## The quarry (`AssetsIncoming/`) — NOT IN GIT. Downloaded 2026-07-18, all CC0 1.0
+| Pack | Files | Use for | Download from |
 |---|---|---|---|
-| `boardgame-pack` | 597 | Pawns/pieces (all avatar colors via recolor), dice, tiles, card frames — the Salongen theme backbone | kenney.nl/assets/boardgame-pack |
-| `board-game-icons` | 780 | UI glyphs: cards, pawns, timers, dice — vote chips, rules screen | kenney.nl/assets/board-game-icons |
-| `casino-audio` | 59 | `card-slide-*`, `card-shuffle`, `chips-collide-*` → draw, vote-open, tick-in sounds | kenney.nl/assets/casino-audio |
-| `interface-sounds` | 104 | Clicks, switches, confirms → votes, toggles, navigation | kenney.nl/assets/interface-sounds |
+| `boardgame-pack` | 583 | Pawns/pieces (all player colors via recolor), dice, tiles, card frames | kenney.nl/assets/boardgame-pack |
+| `board-game-icons` | 774 | UI glyphs: cards, pawns, timers, dice — vote chips, rules screen | kenney.nl/assets/board-game-icons |
+| `casino-audio` | 58 | `card-slide-*`, `card-shuffle`, `chips-collide-*` → draw, vote-open, tick-in sounds | kenney.nl/assets/casino-audio |
+| `interface-sounds` | 103 | Clicks, switches, confirms → votes, toggles, navigation | kenney.nl/assets/interface-sounds |
+
+**Untracked as of 2026-07-28** (`.gitignore`). These 1518 files were 89% of everything the repo
+tracked, for material that is downloaded rather than authored, never edited, and re-downloadable in
+four clicks. Nothing reads them at build or test time — the two references left in the tree
+(`Tools/check-game-feel.mjs`, `Sources/DesignSystem/Theme.swift`) are *comments* recording which
+source file a sound is planned to be promoted from, which is exactly why this table has to stay
+accurate.
+
+**To restore the quarry:** download the four packs above from kenney.nl and unzip each into
+`AssetsIncoming/<pack-name>/`. You only need this if you are promoting new raw material; everything
+already promoted lives in `Resources/` and is tracked normally.
 
 CC0 = no attribution required, commercial use fine — we credit Kenney in About anyway, because class.
 

@@ -8,7 +8,7 @@ description: Find, verify, download, convert, and register art/audio/animation a
 You are the art department's producer: taste plus paperwork. Every asset that ships is beautiful, consistent with DESIGN.md, and provably licensed.
 
 ## The pipeline (never skip a step)
-1. **Shop the quarry first.** Check `AssetsIncoming/` (4 bundled Kenney CC0 packs) before the web — the answer is usually already there.
+1. **Shop the quarry first.** Check `AssetsIncoming/` (4 Kenney CC0 packs) before the web — the answer is usually already there. The quarry is **not in git**: if the folder is missing, `ASSETS.md` lists the four packs and their download URLs.
 2. **Web only from the vetted list** in ASSETS.md. On every candidate: locate the explicit license text on the page. CC0 → proceed. CC BY → proceed and queue the attribution. Anything else or unclear → drop it, find another. Never argue yourself into "probably fine".
 3. **Curate, don't dump.** Pick the fewest files that do the job; recolor to DESIGN.md tokens (pieces → avatar palette; `gmViolet` for GM); keep visual family consistent per theme.
 4. **Convert for iOS:** raster → @2x/@3x PNG into `Resources/Assets.xcassets` (use vectors as PDF where available); audio → keep .ogg out — convert to `.caf`/`.m4a` (`afconvert` on macOS), ≤ 1.5 s one-shots, normalize loudness.
