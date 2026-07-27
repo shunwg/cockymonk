@@ -139,6 +139,7 @@
   --motion-dur-overtake-wobble: 420ms;
   --motion-dur-count-up: 280ms;
   --motion-dur-screen-in: 240ms;
+  --motion-dur-siren-half-cycle: 330ms;
 
   /* ---- motion.springs (duration in s + cubic-bezier approximation) ---- */
   --spring-button-press-duration: 0.08s;
@@ -686,6 +687,43 @@ html, body { overscroll-behavior-y: contain; }
 @media (max-width: 380px) {
   .wordchip { flex-direction: column; gap: 0; }
   .wordchip .w { font-size: 20px; }
+}
+
+/* ---------- the last-five-seconds siren (Ordkrig's, adapted) --------------
+   Ordkrig wails the whole screen for the final 5 s and it is the single most
+   effective thing in that build: you feel the deadline in your chest rather
+   than reading it off a number. Three of their four decisions ported as-is —
+   a sine in AND out (a linear ramp reads as a strobe), a half-cycle of 330 ms,
+   and a trough that NEVER returns to zero. That last one is the whole trick:
+   something that keeps breathing is a siren, something that blinks off is a
+   warning light.
+
+   What we changed, and why. Theirs is a flat fill at 0.5 opacity over a
+   monochrome app. Ours is a dark layered background with paper cards on top, and
+   a half-opaque wash across it would put the option text under 4.5:1 — failing
+   DESIGN.md §9 exactly when the player most needs to read. So this is an inset
+   vignette: the edges pulse, the middle stays clear, and nothing the player is
+   reading is ever tinted.
+
+   Reduced Motion: base.css kills the animation, so `.siren.on` deliberately
+   RESTS at the trough — a steady dim edge glow rather than nothing at all. The
+   beat still lands, with the sound and the haptic carrying more of it
+   (game-feel skill, principle 10). It is also why the peak is what it is:
+   ~1.5 flashes/second, comfortably under WCAG 2.3.1's three. */
+.siren {
+  position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  opacity: 0;
+  box-shadow: inset 0 0 90px 18px var(--color-timer-urgent);
+}
+.siren.on { opacity: .10; }                    /* the trough — and the RM resting state */
+@media (prefers-reduced-motion: no-preference) {
+  .siren.on {
+    animation: sirenWail calc(var(--motion-dur-siren-half-cycle) * 2) ease-in-out infinite;
+  }
+}
+@keyframes sirenWail {
+  0%, 100% { opacity: .10; }                   /* never black: a siren breathes */
+  50%      { opacity: .55; }
 }
 
 /* screens.css */
@@ -2381,6 +2419,14 @@ const VOICES = {
   back:     () => tone(360, { type: "triangle", dur: 0.07, gain: 0.035 }),
   error:    () => { tone([320, 180], { type: "sawtooth", dur: 0.18, gain: 0.045 }); },
 
+  // The last five seconds. Ordkrig's countdown is silent — visual siren plus one
+  // haptic — which leaves a player looking away with nothing at all. Two soft
+  // falling sines, a fourth apart, deliberately quiet: this fires while someone
+  // is mid-sentence writing a lie, so it must read as a nudge from the room, not
+  // an alarm. One shot on ENTERING urgency; the pulse itself is a state, not a
+  // beat, and a tone every 660 ms for five seconds would be unbearable.
+  urgent:   () => { tone([620, 470], { type: "sine", dur: 0.34, gain: 0.045 }); tone([466, 350], { type: "sine", dur: 0.42, gain: 0.032, when: 0.16 }); },
+
   // — round —
   cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
   tickIn:   () => { tone(880, { type: "triangle", dur: 0.05, gain: 0.05 }); tone(1180, { type: "sine", dur: 0.06, gain: 0.035, when: 0.03 }); },
@@ -3255,7 +3301,12 @@ async function loadContent(lang) {
    AND the countdown together. The countdown then re-arms itself for the phase
    it just entered, if timers are on at all. */
 
-const resetTimers = () => { clearTimers(); clockClear(); };
+// Every phase change goes through here, so the siren dies here too. It has to:
+// the element lives on document.body (shell() replaces app.innerHTML and would
+// otherwise leave it stranded), and ckPaint — the only thing that turns it off —
+// stops running the moment the clock is cleared. Without this line a phase that
+// ends inside the last five seconds leaves the screen wailing into the next one.
+const resetTimers = () => { clearTimers(); clockClear(); sirenClear(); };
 const timersOn = () => Boolean(G?.timers?.on);
 
 // The countdown's markup. Rendered inside a normal screen render; from then on
@@ -3276,7 +3327,52 @@ function clockHtml(labelKey) {
 // wholesale and would destroy the bluff textarea and the GM's half-typed
 // decoys once a second. Same discipline as refreshGmAction()/botTickUI().
 let ckSaid = null;
+/* The last-five-seconds siren, ported from Ordkrig.
+
+   GATED ON INACTION, NEVER ON THE CLOCK ALONE. This is principle 2 of the
+   game-feel skill in its sharpest form: the effect claims "time is nearly up AND
+   you have not acted". Fire it at someone who already submitted and it is
+   telling them a lie about their own state, which is worse than not firing at
+   all. The screen a player is on IS that fact — BLUFF/VOTE means they still owe
+   an answer, WAIT/VOTEWAIT means they don't — so no extra bookkeeping, and a
+   timed-out or late-joining spectator is excluded for free because they are
+   already parked on a waiting screen.
+
+   Surgical, like the rest of ckPaint: toggles one class on one fixed element and
+   NEVER calls render(). This fires while someone is mid-sentence writing a lie
+   (principle 3, defend the real-time moments) — a re-render here would eat the
+   textarea, which is the whole reason ckPaint exists.
+
+   The sound and the haptic are edge-triggered on ENTERING urgency, once. The
+   pulse that follows is a state, not a beat. */
+const ACTING_SCREENS = ["BLUFF", "VOTE", "GM_DASH"];
+let sirenOn = false;
+
+function sirenSet(active) {
+  if (active === sirenOn) return;                 // edge only — no per-tick work
+  sirenOn = active;
+  let el = document.getElementById("siren");
+  if (!el && active) {
+    el = document.createElement("div");
+    el.id = "siren";
+    // Mounted with the class already on. A CSS *animation* plays from its own
+    // keyframes the first time style is computed, so the usual
+    // append-then-rAF-then-add-class dance buys nothing here — that trick exists
+    // for transitions, which need a previous computed value to interpolate from.
+    // Dropping it removes a frame of dependency on rAF running at all.
+    el.className = "siren on";
+    el.setAttribute("aria-hidden", "true");       // the countdown already announces itself
+    document.body.appendChild(el);
+  } else if (el) {
+    el.classList.toggle("on", active);
+  }
+  if (active) { play("urgent"); haptic("warning"); }
+}
+
+function sirenClear() { sirenSet(false); document.getElementById("siren")?.remove(); }
+
 function ckPaint(leftMs, level) {
+  sirenSet(level === "urgent" && ACTING_SCREENS.includes(U.screen));
   const el = document.getElementById("clockring");
   if (!el) return;
   el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
@@ -4444,7 +4540,10 @@ function animateBoard() {
         G.players.forEach((p, j) => {
           if (j !== i && before <= p.score && after > p.score) {
             const pj = pawnEl(j); pj.classList.remove("wobble"); void pj.offsetWidth; pj.classList.add("wobble");
-            setTimeout(() => pj.classList.remove("wobble"), 420);
+            // Read the token the .wobble animation itself runs on. Hardcoding it
+            // here means retuning the wobble silently leaves the class attached
+            // (too short) or strips it mid-animation (too long).
+            setTimeout(() => pj.classList.remove("wobble"), msToken("--motion-dur-overtake-wobble", 420));
             play("overtake");
           }
         });
