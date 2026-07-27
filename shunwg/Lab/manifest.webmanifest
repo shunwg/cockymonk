@@ -1,0 +1,20 @@
+{
+  "name": "Cocky Monk",
+  "short_name": "Cocky Monk",
+  "description": "Et norsk bløffespill for stua. En spillmester, ett obskurt ord, og alle andre lyver.",
+  "lang": "nb",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1B1B2E",
+  "theme_color": "#1B1B2E",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

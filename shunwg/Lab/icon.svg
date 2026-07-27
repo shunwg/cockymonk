@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Cocky Monk">
+  <title>Cocky Monk</title>
+  <!-- The Munken, same drawing as LOGO() in Lab/js/ui.js and .face in
+       components.css: bevelled cream head, flat brows, dot eyes, tilted smirk,
+       and the Nose lying across the face and jutting past the rim. Literal hexes
+       rather than tokens — an app icon is rendered by the OS, outside any
+       stylesheet, and must look identical on every theme.
+       Composed on a 512 square with the head off-centre left so the Nose has
+       room to jut right without touching the edge. -->
+  <defs>
+    <!-- The glows below are big circles that hang past the corner radius. Without
+         this clip they render as hard shoulders OUTSIDE the rounded rect, which on
+         a home screen reads as a broken icon rather than a soft wash. -->
+    <clipPath id="squircle"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect width="512" height="512" fill="#1B1B2E"/>
+    <!-- soft corner glows, matching the app background's two radial washes -->
+    <circle cx="470" cy="52" r="150" fill="#9B6DFF" opacity=".20"/>
+    <circle cx="40" cy="470" r="140" fill="#FF5C97" opacity=".16"/>
+  </g>
+
+  <g transform="translate(256 256) scale(6.1) translate(-24 -19)">
+    <!-- hard offset shadow, drawn once under both head and nose -->
+    <g fill="#141425">
+      <circle cx="22.8" cy="21.3" r="16"/>
+      <rect x="22" y="20.2" width="30" height="7.7" rx="3.85"/>
+    </g>
+    <!-- head: bevel ring, then the paper face, then the ink outline -->
+    <circle cx="24" cy="19.5" r="16" fill="#E8D5AE"/>
+    <circle cx="25.4" cy="18.1" r="14.3" fill="#FFF6E8"/>
+    <circle cx="24" cy="19.5" r="16" fill="none" stroke="#23233B" stroke-width="2.8"/>
+    <!-- brows + smirk -->
+    <g stroke="#23233B" stroke-linecap="round" fill="none">
+      <path d="M15 10 19.2 10.6" stroke-width="2"/>
+      <path d="M31.4 10 27.2 10.6" stroke-width="2"/>
+      <path d="M19 27.2q3.2 3.4 6.6-.6" stroke-width="2.5"/>
+    </g>
+    <circle cx="17.3" cy="14.9" r="1.7" fill="#23233B"/>
+    <circle cx="29.1" cy="14.9" r="1.7" fill="#23233B"/>
+    <!-- the Nose: the boldness budget, spent (DESIGN §4) -->
+    <rect x="23.2" y="18.4" width="30" height="5.2" rx="2.6" fill="#FF5C97" stroke="#23233B" stroke-width="2.5"/>
+  </g>
+</svg>

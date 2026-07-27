@@ -107,6 +107,7 @@ Track race: **Kort** = first past **8** · **Standard** = first past **15** (def
 - **Decoy gating:** the shuffle may never fire before the GM's decoy state is settled — in practice/party, a bot or slow GM finishing their decoy after "all bluffs in" must still make the option pool (the demo's `gmDecoyDone` gate).
 - **Timeout is per round, not permanent** *(§5.2a, web build)*: a player who misses the bluff or vote window is skipped for that round only. They keep their score, still count toward `playerCount` and the win check, and are expected again on the next card. This is deliberately *not* the drop path above.
 - **A reconnecting player is never a laggard** *(web build)*: while a player is inside the 30 s reconnect window, their phase timer does not judge them — they are excluded from the timed-out set entirely. Only when the window expires do they become a genuine drop.
+- **Joining a game already in progress** *(amended 2026-07-27, web build)*: the room accepts newcomers for **3 minutes** after the host presses start. A latecomer takes a **bot's chair** by preference — inheriting its score, which the arrival banner states out loud so nobody thinks points appeared from nowhere — and only gets a new seat if no bot is sitting. Arriving after the card is drawn puts them in the per-round timed-out set: they watch that round and play from the next, by the rule above. Past the window, or once the game is won, the host refuses and the joiner lands back on the profile screen with the play-vs-bots way out. This is **not matchmaking**: the code or link is still required, so §2's "no matchmaking with strangers" holds and no moderation surface opens.
 
 ## 6. The board (scoreboard as a place, not a table)
 - A winding track of exactly *target* spaces (8/15/25) with Start and Mål. One pawn per player in their avatar color.
@@ -125,10 +126,36 @@ Track race: **Kort** = first past **8** · **Standard** = first past **15** (def
 ## 8. Screens inventory
 Home · LanguagePicker (first launch) · PlayerSetup (names, avatar colors, GM order = list order) · GameSetup (length, theme, mode Hotseat/Party) · PartyLobby (host + join via nearby discovery) · **GMDashboard** (truth, decoy composer, tick-in chips, open-vote button, live tally) · CardReveal (bluffer view) · Handover (hotseat privacy) · BluffEntry · WaitingRoom (party) · Vote · RevealCeremony · **BoardView** · Winner (confetti + Gullnese) · Pause/Settings (språk, lyd, haptikk, tema, fjern spiller, avslutt) · Regler (30-sec illustrated how-to, per mode) · About/Credits.
 
+### 8.1 Navigation model *(amended 2026-07-27 — previously unspecified)*
+
+**Every screen except Home has one way back, and the device's own back gesture uses it.** The original flow was a one-way funnel: once you picked a mode you could not leave without reloading, which on a phone means losing the game. A party game that gets handed around a table needs an exit.
+
+- Each screen declares **one parent**, as a flat map — not a history stack. Screen changes are assigned directly from 40-odd places, and threading a stack through all of them is a refactor no gate would catch a miss in.
+- The platform back gesture is captured and routed to the same map, so it navigates the app rather than leaving it. Pressing back at Home leaves the page, as a player expects.
+- **Leaving mid-game asks first.** The confirmation names the actual consequence, which differs by role: a local game is simply abandoned, a guest leaves the room, and **the host tears the room down for everyone** — so the host's copy says so.
+- Leaving a room closes the connection and clears any live phase deadline. A timer must never keep ticking in the menu.
+
+**The word stays on screen.** Any screen where a player is choosing between explanations, or watching the truth land, shows the word being defined. Holding that in your head is not part of the game.
+
 ## 9. Content requirements
 As v1 PRD §7 (original, verifiable, ≤140 chars, cheeky-never-crude), now per language: `deck_nb.json` ship-blocker 150/target 250 · `deck_en.json` ship-blocker 100/target 150 (`EDIT-ME`: or defer en deck; en UI ships regardless). English cards must be *English-obscure* — no translated Norwegian cards.
 
 **Bot fake pools** (practice mode): `fakes_nb.json` / `fakes_en.json` — ≥40 original, generic-but-plausible definitions per language that read credible against *any* word ("Sjømannsuttrykk for slakk i et tau"). Owned by the card-author skill, same originality rules, drawn without repeats within a round. The 16-per-language starter set lives in the reference demo.
+
+### 9.1 Amendment — where a bot's lie comes from *(2026-07-27)*
+
+**A bot's fake explanation is a real explanation — of a different card in the deck.** Not a written-to-order generic one-liner. `Lab/js/fakepool.js` builds the candidate set from the other cards' `truth` fields and selects per round.
+
+*Why the previous rule had to go.* The two pools above were authored to different specs: truths up to 140 characters and built to surprise, fakes "generic" and short. Nobody chose the consequence — `deck_nb` truths average **75** characters and `fakes_nb` average **48**. Measured on a 4-option practice lineup where chance is 25%, **"vote for the longest option" won 87.2% of nb rounds and 65.6% of en**. A player who noticed that never had to learn a Norwegian word again, which defeats §1's entire premise. The gate is `node Tools/check-fake-parity.mjs`; after the change, 26.2% nb / 25.1% en.
+
+*Why this fix and not a rewrite of the 40 strings.* Drawing a fake from the same corpus as the truth makes length, punctuation, register and clause shape match **by construction** rather than by tuning, so the leak cannot creep back as the deck grows. The method is Edvard's, from Ordkrig (`src/bots/answerPool.ts`); we ported the technique, not his Bokmålsordboka corpus, which is CC BY 4.0 and carries attribution obligations.
+
+*Constraints the selector must keep.*
+- **Half-close, never all-close.** About half the lineup is chosen for similarity to the truth and the rest at random. If every decoy resembles the truth, the truth becomes the one that *doesn't*, and the leak returns inverted.
+- **A fake may never become a truth in the same game.** The card in play, every played card and the next 16 draws are barred. On a deck too small to afford that (the `file://` mini-deck is 6 cards) the exclusion relaxes rather than emptying the pool.
+- **No collision with Dobbeltreff (§5.3).** Two different words never share an explanation, so a bot's lie cannot accidentally match the truth. Scoring and the engine vectors are untouched by this amendment.
+
+*Status of `fakes_*.json`.* Demoted to an emergency net for a deck of fewer than 4 usable cards; measured reach in normal play is **0.0%**. Retained rather than deleted because the fallback path must exist, but its surface-form mismatch is now inert — do not spend a content pass closing it.
 
 ## 10. Immersion & quality bar
 - **Audio:** Kenney CC0 kit as base — card-slide on draw, card-shuffle before vote opens, chip sounds for tick-ins, click for votes, hop-tick per board space; original fanfare + GM victory sting to be added (CC0 only, log in CREDITS.md). Everything mixable with room music; global mute persists.

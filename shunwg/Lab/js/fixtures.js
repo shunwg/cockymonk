@@ -39,9 +39,12 @@ function fxMakeG(overrides = {}) {
     revealIdx: 0,
     timedOut: { bluff: [], vote: [] },
     deadline: null,            // null keeps every posed screen static for snap-screens
+    joinOpenUntil: 0,          // posed: the late-join door is shut, so no clock is implied
+    lateJoin: null,            // no joiner banner on a posed screen
     timers: fxTimers(),
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
     ...overrides,
   };
 }
