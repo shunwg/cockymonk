@@ -15,7 +15,7 @@ import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
 import {
   TIMERS, defaultTimers, clockDeadline, clockArm, clockClear, clockLeft, clockSeconds,
-  clockLevel, clockFraction, clockSkew,
+  clockLevel, clockFraction, clockSkew, clockPulseHz,
 } from "./clock.js";
 import {
   RATING, ratingDeltas, ratingApply, ratingLoad, ratingSave, ratingReset,
@@ -29,7 +29,7 @@ import {
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
-import { getFixture } from "./fixtures.js";
+import { getFixture, FX_NOW } from "./fixtures.js";
 
 /* ---------- state ---------- */
 let U = freshUi();       // screen flow (Lane B)
@@ -156,10 +156,14 @@ const timersOn = () => Boolean(G?.timers?.on);
 function clockHtml(labelKey) {
   if (!timersOn() || !G.deadline) return "";
   const left = clockLeft(G.deadline);
+  const level = clockLevel(left);
   return `<div class="clockwrap">
-    <div class="clock ${clockLevel(left)}" id="clockring" role="timer" aria-live="off"
-         style="--p:${clockFraction(G.deadline)}"><span class="clocknum">${clockSeconds(left)}</span></div>
-    <span class="clocklabel">${t(labelKey)}</span>
+    <div class="clockhead">
+      <span class="clocklabel">${t(labelKey)}</span>
+      <span class="clocknum ${level}" id="clocknum">${clockSeconds(left)}</span>
+    </div>
+    <div class="clockbar ${level}" id="clockbar" role="timer" aria-live="off"
+         style="--p:${clockFraction(G.deadline)}"><span class="clockfill"></span></div>
     <span class="sr-live" id="clocksr" aria-live="assertive"></span>
   </div>`;
 }
@@ -189,9 +193,20 @@ let ckSaid = null;
    pulse that follows is a state, not a beat. */
 const ACTING_SCREENS = ["BLUFF", "VOTE", "GM_DASH"];
 let sirenOn = false;
+let sirenHz = 0;
 
-function sirenSet(active) {
-  if (active === sirenOn) return;                 // edge only — no per-tick work
+/* The rate, written every tick while the pulse is running. One custom property
+   on one fixed element — the same surgical discipline as the rest of ckPaint,
+   and cheap enough to do at 1 Hz without thinking about it. CSS turns it into a
+   period; no JS animation loop exists or should. */
+function sirenRate(hz) {
+  if (hz === sirenHz) return;
+  sirenHz = hz;
+  document.getElementById("siren")?.style.setProperty("--hz", hz);
+}
+
+function sirenSet(active, hz = 0) {
+  if (active === sirenOn) { if (active) sirenRate(hz); return; }   // rate keeps climbing
   sirenOn = active;
   let el = document.getElementById("siren");
   if (!el && active) {
@@ -208,21 +223,44 @@ function sirenSet(active) {
   } else if (el) {
     el.classList.toggle("on", active);
   }
-  if (active) { play("urgent"); haptic("warning"); }
+  if (active) { sirenHz = -1; sirenRate(hz); play("closing"); haptic("closing"); }
+  else sirenHz = 0;
 }
 
 function sirenClear() { sirenSet(false); document.getElementById("siren")?.remove(); }
 
+let ckUrgent = false;
+
 function ckPaint(leftMs, level) {
-  sirenSet(level === "urgent" && ACTING_SCREENS.includes(U.screen));
-  const el = document.getElementById("clockring");
+  // WHO gets the pulse, and it is the whole point of this line. The rate says
+  // "time is nearly up"; the gate says "AND you still owe an answer". Fire it at
+  // someone who already submitted and it is a claim about their state that is
+  // simply false — worse than not firing at all (game-feel skill, principle 2).
+  // The screen a player is on IS that fact, so a spectator, a timed-out player
+  // and anyone on WAIT/VOTEWAIT are excluded for free.
+  const owes = ACTING_SCREENS.includes(U.screen);
+  const hz = clockPulseHz(leftMs);
+  sirenSet(hz > 0 && owes, hz);
+
+  // The second beat. Entering the closing window is one event (in sirenSet);
+  // crossing into urgent is another, and a rising rate alone would slide past it
+  // unmarked. Edge-triggered, so it lands once — the pulse either side of it is
+  // a state, not a beat, and must never re-trigger sound or haptics per cycle.
+  const nowUrgent = level === "urgent" && owes;
+  if (nowUrgent && !ckUrgent) { play("urgent"); haptic("warning"); }
+  ckUrgent = nowUrgent;
+
+  const el = document.getElementById("clockbar");
   if (!el) return;
   el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
   el.classList.toggle("warn", level === "warn");
   el.classList.toggle("urgent", level === "urgent");
-  const num = el.querySelector(".clocknum");
+  const num = document.getElementById("clocknum");
   const secs = clockSeconds(leftMs);
-  if (num) num.textContent = secs;
+  if (num) {
+    num.textContent = secs;
+    num.classList.toggle("urgent", level === "urgent");
+  }
   // A silent countdown strands VoiceOver users (DESIGN.md §9). Two announcements
   // per phase, not sixty: one warning, one at zero.
   const sr = document.getElementById("clocksr");
@@ -251,6 +289,7 @@ function refreshClock(labelKey) {
 function armClock(phase, ms, onExpire) {
   clockClear();
   ckSaid = null;
+  ckUrgent = false;      // a new phase re-arms the escalation beat
   if (!timersOn()) { G.deadline = null; return; }
   G.deadline = clockDeadline(phase, ms, G.round);
   clockArm({ ...G.deadline, onTick: ckPaint, onExpire: isHost() ? onExpire : null });
@@ -698,10 +737,17 @@ function startGame() {
     revealIdx: 0,                // lives in G, not U: the whole room watches the same beat (PRD §10)
     timedOut: { bluff: [], vote: [] },   // per round, cleared by newRound (D4)
     deadline: null,              // { at, phase, round, totalMs } — an absolute time, never "seconds left"
-    // On for party/practice, off for hotseat: passing one phone round a table
-    // paces itself, and a clock there just adds stress to the couch mode that
-    // never needed it (PRD §5.2a). U.timers holds the host's setup choices.
-    timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
+    // Off for ONE phone, on for everything else. Passing a single phone round a
+    // table paces itself — the handover IS the clock — and a countdown there
+    // just adds stress to the couch mode that never needed it (PRD §5.2a).
+    // Every other mode has players sitting on their own screens, where nothing
+    // tells you the table is waiting for you.
+    //
+    // Keyed on hotseat rather than on party, which is what it used to be: that
+    // form left the clock OFF in online rooms unless U.mode happened to be
+    // "party", because online sets NET.kind, not U.mode. Exactly the mode that
+    // most needs a deadline was the one silently running without one.
+    timers: { ...defaultTimers(), ...U.timers, on: U.mode === "hotseat" ? false : U.timers.on },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
@@ -2045,7 +2091,14 @@ const bootFx = getFixture(
   new URLSearchParams(location.search).get("fixture")
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
-if (bootFx) { U = bootFx.u; G = bootFx.g; }
+if (bootFx) {
+  U = bootFx.u; G = bootFx.g;
+  // Pin the clock so a posed screen with a live deadline renders the same
+  // seconds on every run — otherwise snap-screens would rewrite that PNG
+  // constantly and the diff would stop meaning anything. Fixture mode only: in
+  // real play Date.now() is never touched.
+  Date.now = () => FX_NOW;
+}
 // The career profile is the source of this device's identity: its pid outlives
 // reloads, which is what lets a rating mean anything. newPid() stays as the
 // fallback for a browser that refuses storage entirely.

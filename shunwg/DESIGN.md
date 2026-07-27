@@ -115,6 +115,9 @@ Top→bottom: eyebrow + card word (display type) · the truth on the dashed gmVi
 | Reveal pacing | Human GM taps each beat; a bot GM (practice mode) auto-paces at ~1.7 s/beat with a tap-to-skip button |
 | Waiting room | Your face **bobs** gently (±7 pt, 2.4 s loop) wearing its smile; bot/player chips pulse "tenker…". No music by default |
 | Goal space | Slow gold pulse ring (2 s) until claimed |
+| **Countdown** *(amended 2026-07-28 — was a conic ring)* | A depleting **bar**, `scaleX` on the compositor, gliding over 1 s between the once-a-second writes so it never steps. Thickens 8 → 10 → 13 px as it passes warn and urgent, so the state survives greyscale and colour-blindness — never colour alone (§9) |
+| **Closing window (15 s)** | The screen begins to breathe: an inset vignette whose **rate climbs** from 0.8 Hz to 2.5 Hz as zero approaches, so the acceleration itself is the message. One soft `closing` tone + a short `closing` tap on entry; the pulse after that is a **state**, not a beat, and never re-triggers sound or haptics. **Capped at 2.5 Hz: WCAG 2.3.1 puts the seizure threshold at three flashes a second — a safety limit, not taste.** Reduced Motion rests at the trough, a steady dim edge, with sound and haptic carrying more |
+| **Urgent (5 s)** | The second and louder beat: `urgent` tone + `.warning` haptic, edge-triggered once. Only fires at a player who still **owes an answer** — on BLUFF, VOTE or GM_DASH. A spectator, a timed-out player, or anyone on a waiting screen gets neither pulse nor buzz, because an effect that says "act now" to someone who already acted is a lie about their own state |
 All audio ducks under, never over, the room. One-shots ≤ 1.5 s. Sources CC0 or OFL only, logged in `Resources/Audio/CREDITS.md` / ASSETS.md.
 
 ## 8. Voice

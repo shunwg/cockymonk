@@ -148,7 +148,7 @@
   --motion-dur-armed-pulse: 1400ms;
   --motion-dur-think-pulse: 1200ms;
   --motion-dur-timer-tick: 250ms;
-  --motion-dur-timer-ring-sweep: 1000ms;
+  --motion-dur-timer-bar-glide: 1000ms;
   --motion-dur-timer-urgent-pulse: 700ms;
   --motion-dur-bob-loop: 2400ms;
   --motion-dur-goal-pulse: 2000ms;
@@ -424,32 +424,49 @@ html, body { overscroll-behavior-y: contain; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.clockwrap { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+/* The countdown, as a depleting bar rather than a ring.
+
+   WHY IT GLIDES, AND WHY THAT IS NOT DECORATION. ckPaint() only fires when the
+   displayed integer SECOND changes — roughly 1 Hz — because repainting more
+   often would be work for nothing. A ring losing 1/60th of a turn per step is
+   invisible; a full-width bar stepping 1/60th of its length is very visible,
+   and an instantaneous jump in a moving element reads as blinking rather than
+   as motion (game-feel skill, principle 7).
+
+   So the glide is CSS, not JS: one transition carries each 1 Hz write smoothly
+   to the next value on the compositor, and the tick rate stays where it was.
+   `transform: scaleX()` rather than `width` for the same reason — width
+   relayouts every frame, transform does not. */
+.clockwrap { margin: 4px 0 10px; }
+.clockhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px;
+}
 .clockwrap .clocklabel { color: var(--color-text-secondary); font-size: 14px; }
-.clock {
-  --clockcol: var(--color-timer-calm);
-  position: relative; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 50%;
-  background: conic-gradient(var(--clockcol) calc(var(--p, 1) * 360deg), rgba(255,255,255,.10) 0);
-  transition: background var(--motion-dur-timer-tick) linear;
-  display: grid; place-items: center;
-}
-.clock::after {
-  content: ""; position: absolute; inset: 5px; border-radius: 50%;
-  background: var(--color-bg); transition: inset var(--motion-dur-timer-tick) linear;
-}
-.clock .clocknum {
-  position: relative; z-index: 1;
+.clockwrap .clocknum {
   font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums;
   color: var(--color-text-on-bg);
 }
-.clock.warn { --clockcol: var(--color-timer-warn); }
-.clock.urgent { --clockcol: var(--color-timer-urgent); }
-.clock.urgent::after { inset: 3px; }            /* ring thins — a shape change, not just a hue */
-.clock.urgent .clocknum { color: var(--color-timer-urgent); }
-@media (prefers-reduced-motion: no-preference) {
-  .clock.urgent { animation: clockpulse var(--motion-dur-timer-urgent-pulse) ease-in-out infinite; }
+.clockbar {
+  --clockcol: var(--color-timer-calm);
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,.10);
+  transition: height var(--motion-dur-timer-tick) linear;
 }
-@keyframes clockpulse { 50% { transform: scale(1.08); } }
+.clockbar .clockfill {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--clockcol);
+  transform-origin: left center;
+  transform: scaleX(var(--p, 1));
+  transition: transform var(--motion-dur-timer-bar-glide) linear,
+              background var(--motion-dur-timer-tick) linear;
+}
+.clockbar.warn { --clockcol: var(--color-timer-warn); }
+.clockbar.urgent { --clockcol: var(--color-timer-urgent); }
+/* Never colour alone (DESIGN.md §9). The bar THICKENS as it runs out, so the
+   state is legible to a colour-blind player and in a grayscale screenshot. */
+.clockbar.warn { height: 10px; }
+.clockbar.urgent { height: 13px; }
+.clockwrap .clocknum.urgent { color: var(--color-timer-urgent); }
 
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .pchip {
@@ -729,8 +746,18 @@ html, body { overscroll-behavior-y: contain; }
    Reduced Motion: base.css kills the animation, so `.siren.on` deliberately
    RESTS at the trough — a steady dim edge glow rather than nothing at all. The
    beat still lands, with the sound and the haptic carrying more of it
-   (game-feel skill, principle 10). It is also why the peak is what it is:
-   ~1.5 flashes/second, comfortably under WCAG 2.3.1's three. */
+   (game-feel skill, principle 10).
+
+   THE RATE NOW CLIMBS (2026-07-28). It used to be a fixed 330 ms half-cycle for
+   the final 5 s; it now opens at 15 s and accelerates, period driven by `--hz`
+   from clockPulseHz(). The acceleration is the information — a fixed rate tells
+   you "urgent", a rising one tells you "and getting worse".
+
+   THE CEILING IS A SAFETY LIMIT, NOT A TASTE DECISION. clockPulseHz() caps at
+   2.5 Hz because WCAG 2.3.1 puts the photosensitive-seizure threshold at three
+   flashes per second, and a full-screen pulse is exactly that stimulus. The
+   fallback below is 1.5 so a missing `--hz` can never produce a faster beat
+   than the old fixed one. Do not raise either number. */
 .siren {
   position: fixed; inset: 0; pointer-events: none; z-index: 40;
   opacity: 0;
@@ -739,7 +766,7 @@ html, body { overscroll-behavior-y: contain; }
 .siren.on { opacity: .10; }                    /* the trough — and the RM resting state */
 @media (prefers-reduced-motion: no-preference) {
   .siren.on {
-    animation: sirenWail calc(var(--motion-dur-siren-half-cycle) * 2) ease-in-out infinite;
+    animation: sirenWail calc(1s / var(--hz, 1.5)) ease-in-out infinite;
   }
 }
 @keyframes sirenWail {
@@ -1681,8 +1708,9 @@ const TIMERS = Object.freeze({
 
   TICK_MS: 250,        // 4 Hz so the last second never visibly stutters — but the
                        // DOM is only touched when the displayed integer changes.
-  WARN_MS: 10000,      // ring → turnYellow, and one VoiceOver announcement
-  URGENT_MS: 5000,     // ring → bluffPink and goes hollow (never colour alone)
+  WARN_MS: 10000,      // bar → action colour, and one VoiceOver announcement
+  URGENT_MS: 5000,     // bar → alert colour (never colour alone)
+  PULSE_MS: 15000,     // the closing window: the screen starts breathing here
   SKEW_CLAMP_MS: 5000, // a peer whose clock is wilder than this gets no say
   GRACE_MS: 400,       // someone who tapped at 0:00.1 experienced making it
 });
@@ -1723,7 +1751,33 @@ function clockLevel(leftMs) {
   return "calm";
 }
 
-// Fraction still to run, 1 → 0. Drives the conic-gradient ring.
+/**
+ * Beats per second for the closing pulse. 0 outside the window, then climbing
+ * from a slow 0.8 Hz at 15 s to 2.5 Hz at zero.
+ *
+ * A RATE, not a level. clockLevel knows three values and steps between them;
+ * what the closing seconds want is something that tightens continuously, so
+ * that the acceleration itself is the information.
+ *
+ * CAPPED AT 2.5 Hz DELIBERATELY, AND THE CAP IS NOT A TASTE DECISION.
+ * WCAG 2.3.1 draws the photosensitive-seizure line at three flashes per second,
+ * and a full-screen pulse is precisely the stimulus that guideline exists for.
+ * Do not raise this to make the ending feel more urgent — if it needs more
+ * pressure, spend it on the sound or the haptic, which have no such ceiling.
+ *
+ * Pure, so the curve is provable without a browser. WHETHER it fires at all is
+ * a separate question and deliberately not asked here: ui.js gates it on the
+ * player still owing an answer, because a pulse aimed at someone who already
+ * submitted tells them a lie about their own state.
+ */
+function clockPulseHz(leftMs) {
+  if (leftMs === null || leftMs === undefined) return 0;
+  if (leftMs > TIMERS.PULSE_MS) return 0;
+  const t = 1 - Math.max(0, leftMs) / TIMERS.PULSE_MS;   // 0 at the window edge → 1 at zero
+  return 0.8 + t * 1.7;
+}
+
+// Fraction still to run, 1 → 0. Drives the depleting bar.
 function clockFraction(deadline, skewMs = 0, now = Date.now()) {
   const left = clockLeft(deadline, skewMs, now);
   if (left === null || !deadline.totalMs) return null;
@@ -2280,6 +2334,12 @@ const HAPTICS = Object.freeze({
   success: [12, 30, 24],  // the truth. Two pulses: an event, not a tick
   heavy: 40,              // the GM stole the round. The only one meant to feel like a thud
   warning: [24, 48, 24],  // the clock has gone urgent and you have not acted
+  // The clock has entered its closing window (15 s) and you have not acted. One
+  // short tap, lighter than `warning`, because it is the quieter half of a
+  // two-beat escalation: this says "moving", warning says "nearly gone". Fired
+  // once on entry — the pulse that follows is a visual state, and buzzing at
+  // 2.5 Hz for fifteen seconds would drain the battery and the goodwill.
+  closing: 16,
 });
 
 // Suppressed by mute, and ONLY by mute. A muted party game means "be discreet",
@@ -2486,6 +2546,14 @@ const VOICES = {
   // an alarm. One shot on ENTERING urgency; the pulse itself is a state, not a
   // beat, and a tone every 660 ms for five seconds would be unbearable.
   urgent:   () => { tone([620, 470], { type: "sine", dur: 0.34, gain: 0.045 }); tone([466, 350], { type: "sine", dur: 0.42, gain: 0.032, when: 0.16 }); },
+
+  // Entering the closing window at 15 s — the first of the two clock beats, and
+  // deliberately the smaller one. A single soft falling sine: "the clock is
+  // moving", not "you are out of time", which is what `urgent` says ten seconds
+  // later. Quieter and shorter than urgent so the pair reads as an escalation
+  // rather than as the same alarm twice. One shot on entry; the pulse that
+  // follows is a state, and a tone per cycle for fifteen seconds is torture.
+  closing:  () => { tone([540, 430], { type: "sine", dur: 0.26, gain: 0.030 }); },
 
   // — round —
   cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
@@ -3117,7 +3185,22 @@ function fxMakeG(overrides = {}) {
 
 // Inlined rather than imported from clock.js: fixtures.js deliberately imports
 // only DOM-free, side-effect-free modules, and clock.js owns a live interval.
-const fxTimers = () => ({ on: false, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
+const fxTimers = (on = false) => ({ on, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
+
+/* A FROZEN clock, so a running countdown can still be a still life.
+   Every posed screen had `deadline: null` because a live deadline is derived
+   from Date.now() — the rendered seconds would differ between two runs of
+   snap-screens and the committed PNG would flicker forever. So the countdown,
+   which is now one of the loudest things on a play screen, was the one
+   component nobody could review. Exactly the rot fixture 06's comment warns
+   about.
+
+   ui.js pins Date.now() to FX_NOW while a fixture is booting, so `at` minus
+   "now" is exact arithmetic and the PNG is reproducible. Fixture-only: nothing
+   touches the clock in real play. */
+const FX_NOW = 1774400000000;
+const fxDeadline = (phase, totalMs, leftMs) =>
+  ({ at: FX_NOW + leftMs, phase, round: 1, totalMs });
 
 // A full vote pool the way openVote() builds it: three bluffs + one GM decoy +
 // the truth, shuffled by the engine with a FIXED rng so letters (and therefore
@@ -3182,7 +3265,15 @@ const FIXTURES = [
     }) },
 
   { id: "09", screen: "BLUFF", name: "Dikt en løgn",
-    make: () => ({ u: { mode: "hotseat", cur: 1 }, g: fxMakeG() }) },
+    // The one screen posed WITH a running deadline, because writing a lie
+    // against the clock is the moment the countdown exists for. Party mode so
+    // timers are on at all, and 8 s left: inside the 15 s closing window and
+    // past the 10 s warn threshold, so the bar shows depleted + warn + the
+    // thicker profile in a single still.
+    make: () => ({
+      u: { mode: "party", cur: 1 },
+      g: fxMakeG({ timers: fxTimers(true), deadline: fxDeadline("bluff", 60000, 8000) }),
+    }) },
 
   { id: "10", screen: "WAIT", name: "Venterommet",
     // Party view: Markus is GM; Åse + Jonas delivered, Ingrid still thinking.
@@ -3451,10 +3542,14 @@ const timersOn = () => Boolean(G?.timers?.on);
 function clockHtml(labelKey) {
   if (!timersOn() || !G.deadline) return "";
   const left = clockLeft(G.deadline);
+  const level = clockLevel(left);
   return `<div class="clockwrap">
-    <div class="clock ${clockLevel(left)}" id="clockring" role="timer" aria-live="off"
-         style="--p:${clockFraction(G.deadline)}"><span class="clocknum">${clockSeconds(left)}</span></div>
-    <span class="clocklabel">${t(labelKey)}</span>
+    <div class="clockhead">
+      <span class="clocklabel">${t(labelKey)}</span>
+      <span class="clocknum ${level}" id="clocknum">${clockSeconds(left)}</span>
+    </div>
+    <div class="clockbar ${level}" id="clockbar" role="timer" aria-live="off"
+         style="--p:${clockFraction(G.deadline)}"><span class="clockfill"></span></div>
     <span class="sr-live" id="clocksr" aria-live="assertive"></span>
   </div>`;
 }
@@ -3484,9 +3579,20 @@ let ckSaid = null;
    pulse that follows is a state, not a beat. */
 const ACTING_SCREENS = ["BLUFF", "VOTE", "GM_DASH"];
 let sirenOn = false;
+let sirenHz = 0;
 
-function sirenSet(active) {
-  if (active === sirenOn) return;                 // edge only — no per-tick work
+/* The rate, written every tick while the pulse is running. One custom property
+   on one fixed element — the same surgical discipline as the rest of ckPaint,
+   and cheap enough to do at 1 Hz without thinking about it. CSS turns it into a
+   period; no JS animation loop exists or should. */
+function sirenRate(hz) {
+  if (hz === sirenHz) return;
+  sirenHz = hz;
+  document.getElementById("siren")?.style.setProperty("--hz", hz);
+}
+
+function sirenSet(active, hz = 0) {
+  if (active === sirenOn) { if (active) sirenRate(hz); return; }   // rate keeps climbing
   sirenOn = active;
   let el = document.getElementById("siren");
   if (!el && active) {
@@ -3503,21 +3609,44 @@ function sirenSet(active) {
   } else if (el) {
     el.classList.toggle("on", active);
   }
-  if (active) { play("urgent"); haptic("warning"); }
+  if (active) { sirenHz = -1; sirenRate(hz); play("closing"); haptic("closing"); }
+  else sirenHz = 0;
 }
 
 function sirenClear() { sirenSet(false); document.getElementById("siren")?.remove(); }
 
+let ckUrgent = false;
+
 function ckPaint(leftMs, level) {
-  sirenSet(level === "urgent" && ACTING_SCREENS.includes(U.screen));
-  const el = document.getElementById("clockring");
+  // WHO gets the pulse, and it is the whole point of this line. The rate says
+  // "time is nearly up"; the gate says "AND you still owe an answer". Fire it at
+  // someone who already submitted and it is a claim about their state that is
+  // simply false — worse than not firing at all (game-feel skill, principle 2).
+  // The screen a player is on IS that fact, so a spectator, a timed-out player
+  // and anyone on WAIT/VOTEWAIT are excluded for free.
+  const owes = ACTING_SCREENS.includes(U.screen);
+  const hz = clockPulseHz(leftMs);
+  sirenSet(hz > 0 && owes, hz);
+
+  // The second beat. Entering the closing window is one event (in sirenSet);
+  // crossing into urgent is another, and a rising rate alone would slide past it
+  // unmarked. Edge-triggered, so it lands once — the pulse either side of it is
+  // a state, not a beat, and must never re-trigger sound or haptics per cycle.
+  const nowUrgent = level === "urgent" && owes;
+  if (nowUrgent && !ckUrgent) { play("urgent"); haptic("warning"); }
+  ckUrgent = nowUrgent;
+
+  const el = document.getElementById("clockbar");
   if (!el) return;
   el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
   el.classList.toggle("warn", level === "warn");
   el.classList.toggle("urgent", level === "urgent");
-  const num = el.querySelector(".clocknum");
+  const num = document.getElementById("clocknum");
   const secs = clockSeconds(leftMs);
-  if (num) num.textContent = secs;
+  if (num) {
+    num.textContent = secs;
+    num.classList.toggle("urgent", level === "urgent");
+  }
   // A silent countdown strands VoiceOver users (DESIGN.md §9). Two announcements
   // per phase, not sixty: one warning, one at zero.
   const sr = document.getElementById("clocksr");
@@ -3546,6 +3675,7 @@ function refreshClock(labelKey) {
 function armClock(phase, ms, onExpire) {
   clockClear();
   ckSaid = null;
+  ckUrgent = false;      // a new phase re-arms the escalation beat
   if (!timersOn()) { G.deadline = null; return; }
   G.deadline = clockDeadline(phase, ms, G.round);
   clockArm({ ...G.deadline, onTick: ckPaint, onExpire: isHost() ? onExpire : null });
@@ -3993,10 +4123,17 @@ function startGame() {
     revealIdx: 0,                // lives in G, not U: the whole room watches the same beat (PRD §10)
     timedOut: { bluff: [], vote: [] },   // per round, cleared by newRound (D4)
     deadline: null,              // { at, phase, round, totalMs } — an absolute time, never "seconds left"
-    // On for party/practice, off for hotseat: passing one phone round a table
-    // paces itself, and a clock there just adds stress to the couch mode that
-    // never needed it (PRD §5.2a). U.timers holds the host's setup choices.
-    timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
+    // Off for ONE phone, on for everything else. Passing a single phone round a
+    // table paces itself — the handover IS the clock — and a countdown there
+    // just adds stress to the couch mode that never needed it (PRD §5.2a).
+    // Every other mode has players sitting on their own screens, where nothing
+    // tells you the table is waiting for you.
+    //
+    // Keyed on hotseat rather than on party, which is what it used to be: that
+    // form left the clock OFF in online rooms unless U.mode happened to be
+    // "party", because online sets NET.kind, not U.mode. Exactly the mode that
+    // most needs a deadline was the one silently running without one.
+    timers: { ...defaultTimers(), ...U.timers, on: U.mode === "hotseat" ? false : U.timers.on },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
@@ -5340,7 +5477,14 @@ const bootFx = getFixture(
   new URLSearchParams(location.search).get("fixture")
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
-if (bootFx) { U = bootFx.u; G = bootFx.g; }
+if (bootFx) {
+  U = bootFx.u; G = bootFx.g;
+  // Pin the clock so a posed screen with a live deadline renders the same
+  // seconds on every run — otherwise snap-screens would rewrite that PNG
+  // constantly and the diff would stop meaning anything. Fixture mode only: in
+  // real play Date.now() is never touched.
+  Date.now = () => FX_NOW;
+}
 // The career profile is the source of this device's identity: its pid outlives
 // reloads, which is what lets a rating mean anything. newPid() stays as the
 // fallback for a browser that refuses storage entirely.

@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import {
   TIMERS, defaultTimers, clockDeadline, clockLeft, clockSeconds, clockLevel,
   clockFraction, clockExpired, clockSkew, clockArm, clockClear, clockArmed,
+  clockPulseHz,
 } from "./clock.js";
 import {
   RATING, ratingDeltas, ratingExpected, ratingApply, ratingFresh, ratingLoad,
@@ -193,6 +194,33 @@ test("clockLevel thresholds", () => {
   assert.equal(clockLevel(5001), "warn");
   assert.equal(clockLevel(5000), "urgent");
   assert.equal(clockLevel(0), "urgent");
+});
+
+// The closing pulse is a RATE, not a level: the ask is a heart rate that climbs
+// as the deadline approaches, and clockLevel only knows three values.
+test("clockPulseHz climbs over the closing window, and is capped for safety", () => {
+  assert.equal(clockPulseHz(null), 0, "no deadline, no pulse");
+  assert.equal(clockPulseHz(TIMERS.PULSE_MS + 1), 0, "silent outside the window");
+  assert.equal(clockPulseHz(TIMERS.PULSE_MS), 0.8, "starts at a slow beat, not a jolt");
+  assert.equal(clockPulseHz(0), 2.5, "fastest exactly at zero");
+
+  // Monotonic all the way in — a rate that dipped would read as the deadline
+  // receding, which is the one thing it must never say.
+  let prev = -1;
+  for (let left = TIMERS.PULSE_MS; left >= 0; left -= 250) {
+    const hz = clockPulseHz(left);
+    assert.ok(hz >= prev, `hz must never fall (at ${left}ms: ${hz} < ${prev})`);
+    prev = hz;
+  }
+
+  // WCAG 2.3.1 puts the photosensitive-seizure threshold at three flashes per
+  // second. A full-screen pulse is exactly that stimulus, so the ceiling is a
+  // safety limit rather than taste. Overshoot must be impossible, including
+  // past zero when a late tick arrives with a negative remainder.
+  for (const left of [0, -1, -5000, -60000]) {
+    assert.ok(clockPulseHz(left) <= 2.5, `never above 2.5 Hz (at ${left}ms)`);
+  }
+  assert.ok(clockPulseHz(0) < 3, "strictly under the WCAG three-per-second line");
 });
 
 test("clockFraction drives the ring 1 → 0", () => {

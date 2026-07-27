@@ -48,32 +48,49 @@
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.clockwrap { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+/* The countdown, as a depleting bar rather than a ring.
+
+   WHY IT GLIDES, AND WHY THAT IS NOT DECORATION. ckPaint() only fires when the
+   displayed integer SECOND changes — roughly 1 Hz — because repainting more
+   often would be work for nothing. A ring losing 1/60th of a turn per step is
+   invisible; a full-width bar stepping 1/60th of its length is very visible,
+   and an instantaneous jump in a moving element reads as blinking rather than
+   as motion (game-feel skill, principle 7).
+
+   So the glide is CSS, not JS: one transition carries each 1 Hz write smoothly
+   to the next value on the compositor, and the tick rate stays where it was.
+   `transform: scaleX()` rather than `width` for the same reason — width
+   relayouts every frame, transform does not. */
+.clockwrap { margin: 4px 0 10px; }
+.clockhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px;
+}
 .clockwrap .clocklabel { color: var(--color-text-secondary); font-size: 14px; }
-.clock {
-  --clockcol: var(--color-timer-calm);
-  position: relative; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 50%;
-  background: conic-gradient(var(--clockcol) calc(var(--p, 1) * 360deg), rgba(255,255,255,.10) 0);
-  transition: background var(--motion-dur-timer-tick) linear;
-  display: grid; place-items: center;
-}
-.clock::after {
-  content: ""; position: absolute; inset: 5px; border-radius: 50%;
-  background: var(--color-bg); transition: inset var(--motion-dur-timer-tick) linear;
-}
-.clock .clocknum {
-  position: relative; z-index: 1;
+.clockwrap .clocknum {
   font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums;
   color: var(--color-text-on-bg);
 }
-.clock.warn { --clockcol: var(--color-timer-warn); }
-.clock.urgent { --clockcol: var(--color-timer-urgent); }
-.clock.urgent::after { inset: 3px; }            /* ring thins — a shape change, not just a hue */
-.clock.urgent .clocknum { color: var(--color-timer-urgent); }
-@media (prefers-reduced-motion: no-preference) {
-  .clock.urgent { animation: clockpulse var(--motion-dur-timer-urgent-pulse) ease-in-out infinite; }
+.clockbar {
+  --clockcol: var(--color-timer-calm);
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,.10);
+  transition: height var(--motion-dur-timer-tick) linear;
 }
-@keyframes clockpulse { 50% { transform: scale(1.08); } }
+.clockbar .clockfill {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--clockcol);
+  transform-origin: left center;
+  transform: scaleX(var(--p, 1));
+  transition: transform var(--motion-dur-timer-bar-glide) linear,
+              background var(--motion-dur-timer-tick) linear;
+}
+.clockbar.warn { --clockcol: var(--color-timer-warn); }
+.clockbar.urgent { --clockcol: var(--color-timer-urgent); }
+/* Never colour alone (DESIGN.md §9). The bar THICKENS as it runs out, so the
+   state is legible to a colour-blind player and in a grayscale screenshot. */
+.clockbar.warn { height: 10px; }
+.clockbar.urgent { height: 13px; }
+.clockwrap .clocknum.urgent { color: var(--color-timer-urgent); }
 
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .pchip {
@@ -353,8 +370,18 @@
    Reduced Motion: base.css kills the animation, so `.siren.on` deliberately
    RESTS at the trough — a steady dim edge glow rather than nothing at all. The
    beat still lands, with the sound and the haptic carrying more of it
-   (game-feel skill, principle 10). It is also why the peak is what it is:
-   ~1.5 flashes/second, comfortably under WCAG 2.3.1's three. */
+   (game-feel skill, principle 10).
+
+   THE RATE NOW CLIMBS (2026-07-28). It used to be a fixed 330 ms half-cycle for
+   the final 5 s; it now opens at 15 s and accelerates, period driven by `--hz`
+   from clockPulseHz(). The acceleration is the information — a fixed rate tells
+   you "urgent", a rising one tells you "and getting worse".
+
+   THE CEILING IS A SAFETY LIMIT, NOT A TASTE DECISION. clockPulseHz() caps at
+   2.5 Hz because WCAG 2.3.1 puts the photosensitive-seizure threshold at three
+   flashes per second, and a full-screen pulse is exactly that stimulus. The
+   fallback below is 1.5 so a missing `--hz` can never produce a faster beat
+   than the old fixed one. Do not raise either number. */
 .siren {
   position: fixed; inset: 0; pointer-events: none; z-index: 40;
   opacity: 0;
@@ -363,7 +390,7 @@
 .siren.on { opacity: .10; }                    /* the trough — and the RM resting state */
 @media (prefers-reduced-motion: no-preference) {
   .siren.on {
-    animation: sirenWail calc(var(--motion-dur-siren-half-cycle) * 2) ease-in-out infinite;
+    animation: sirenWail calc(1s / var(--hz, 1.5)) ease-in-out infinite;
   }
 }
 @keyframes sirenWail {

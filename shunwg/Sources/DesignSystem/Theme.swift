@@ -159,7 +159,7 @@ enum Theme {
         static let armedPulse: TimeInterval = 1.4
         static let thinkPulse: TimeInterval = 1.2
         static let timerTick: TimeInterval = 0.25
-        static let timerRingSweep: TimeInterval = 1
+        static let timerBarGlide: TimeInterval = 1
         static let timerUrgentPulse: TimeInterval = 0.7
         static let bobLoop: TimeInterval = 2.4
         static let goalPulse: TimeInterval = 2

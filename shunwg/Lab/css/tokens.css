@@ -123,7 +123,7 @@
   --motion-dur-armed-pulse: 1400ms;
   --motion-dur-think-pulse: 1200ms;
   --motion-dur-timer-tick: 250ms;
-  --motion-dur-timer-ring-sweep: 1000ms;
+  --motion-dur-timer-bar-glide: 1000ms;
   --motion-dur-timer-urgent-pulse: 700ms;
   --motion-dur-bob-loop: 2400ms;
   --motion-dur-goal-pulse: 2000ms;

@@ -160,7 +160,7 @@ Unit: ms. Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfa
 | `armedPulse` | 1400 |
 | `thinkPulse` | 1200 |
 | `timerTick` | 250 |
-| `timerRingSweep` | 1000 |
+| `timerBarGlide` | 1000 |
 | `timerUrgentPulse` | 700 |
 | `bobLoop` | 2400 |
 | `goalPulse` | 2000 |

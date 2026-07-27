@@ -32,8 +32,9 @@ export const TIMERS = Object.freeze({
 
   TICK_MS: 250,        // 4 Hz so the last second never visibly stutters — but the
                        // DOM is only touched when the displayed integer changes.
-  WARN_MS: 10000,      // ring → turnYellow, and one VoiceOver announcement
-  URGENT_MS: 5000,     // ring → bluffPink and goes hollow (never colour alone)
+  WARN_MS: 10000,      // bar → action colour, and one VoiceOver announcement
+  URGENT_MS: 5000,     // bar → alert colour (never colour alone)
+  PULSE_MS: 15000,     // the closing window: the screen starts breathing here
   SKEW_CLAMP_MS: 5000, // a peer whose clock is wilder than this gets no say
   GRACE_MS: 400,       // someone who tapped at 0:00.1 experienced making it
 });
@@ -74,7 +75,33 @@ export function clockLevel(leftMs) {
   return "calm";
 }
 
-// Fraction still to run, 1 → 0. Drives the conic-gradient ring.
+/**
+ * Beats per second for the closing pulse. 0 outside the window, then climbing
+ * from a slow 0.8 Hz at 15 s to 2.5 Hz at zero.
+ *
+ * A RATE, not a level. clockLevel knows three values and steps between them;
+ * what the closing seconds want is something that tightens continuously, so
+ * that the acceleration itself is the information.
+ *
+ * CAPPED AT 2.5 Hz DELIBERATELY, AND THE CAP IS NOT A TASTE DECISION.
+ * WCAG 2.3.1 draws the photosensitive-seizure line at three flashes per second,
+ * and a full-screen pulse is precisely the stimulus that guideline exists for.
+ * Do not raise this to make the ending feel more urgent — if it needs more
+ * pressure, spend it on the sound or the haptic, which have no such ceiling.
+ *
+ * Pure, so the curve is provable without a browser. WHETHER it fires at all is
+ * a separate question and deliberately not asked here: ui.js gates it on the
+ * player still owing an answer, because a pulse aimed at someone who already
+ * submitted tells them a lie about their own state.
+ */
+export function clockPulseHz(leftMs) {
+  if (leftMs === null || leftMs === undefined) return 0;
+  if (leftMs > TIMERS.PULSE_MS) return 0;
+  const t = 1 - Math.max(0, leftMs) / TIMERS.PULSE_MS;   // 0 at the window edge → 1 at zero
+  return 0.8 + t * 1.7;
+}
+
+// Fraction still to run, 1 → 0. Drives the depleting bar.
 export function clockFraction(deadline, skewMs = 0, now = Date.now()) {
   const left = clockLeft(deadline, skewMs, now);
   if (left === null || !deadline.totalMs) return null;
