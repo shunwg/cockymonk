@@ -10,16 +10,16 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | Token | Hex | Use |
 |---|---|---|
-| `inkNight` | `#1B1B2E` | App background base |
-| `paper` | `#FFF6E8` | Cards, sheets |
-| `inkText` | `#23233B` | Text and borders on paper |
-| `paperText` | `#F4EFE4` | Text on inkNight |
-| `truthGreen` | `#3BD489` | Truth reveal, correct vote |
-| `bluffPink` | `#FF5C97` | Bluff unmasking, bluff points, the Nose |
-| `turnYellow` | `#FFC53D` | Primary CTA, active player |
-| `gmViolet` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, victory sting |
-| `mutedViolet` | `#8A87B8` | Secondary text, dividers, eyebrows |
-| `mutedVioletText` | `#A6A2D4` |  |
+| `backdrop` | `#1B1B2E` |  |
+| `sheet` | `#FFF6E8` |  |
+| `ink` | `#23233B` |  |
+| `inkInverse` | `#F4EFE4` |  |
+| `confirmed` | `#3BD489` |  |
+| `alert` | `#FF5C97` |  |
+| `action` | `#FFC53D` |  |
+| `private` | `#9B6DFF` |  |
+| `quiet` | `#8A87B8` |  |
+| `quietText` | `#A6A2D4` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
@@ -48,25 +48,29 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | Role | References | Resolves to |
 |---|---|---|
-| `bg` | `{color.core.inkNight}` | `#1B1B2E` |
-| `surface` | `{color.core.paper}` | `#FFF6E8` |
-| `text.onSurface` | `{color.core.inkText}` | `#23233B` |
-| `text.onBg` | `{color.core.paperText}` | `#F4EFE4` |
-| `text.secondary` | `{color.core.mutedVioletText}` | `#A6A2D4` |
-| `border` | `{color.core.inkText}` | `#23233B` |
-| `accent.truth` | `{color.core.truthGreen}` | `#3BD489` |
-| `accent.bluff` | `{color.core.bluffPink}` | `#FF5C97` |
-| `accent.gm` | `{color.core.gmViolet}` | `#9B6DFF` |
-| `accent.turn` | `{color.core.turnYellow}` | `#FFC53D` |
-| `status.success` | `{color.core.truthGreen}` | `#3BD489` |
-| `status.warning` | `{color.core.turnYellow}` | `#FFC53D` |
-| `status.error` | `{color.core.bluffPink}` | `#FF5C97` |
-| `status.info` | `{color.core.gmViolet}` | `#9B6DFF` |
-| `timer.calm` | `{color.core.mutedViolet}` | `#8A87B8` |
-| `timer.warn` | `{color.core.turnYellow}` | `#FFC53D` |
-| `timer.urgent` | `{color.core.bluffPink}` | `#FF5C97` |
-| `bgLayers.glowViolet` | *(literal)* | `#9B6DFF26` |
-| `bgLayers.glowPink` | *(literal)* | `#FF5C9722` |
+| `bg` | `{color.palette.backdrop}` | `#1B1B2E` |
+| `surface` | `{color.palette.sheet}` | `#FFF6E8` |
+| `surfaceSecret` | `{color.palette.private}` | `#9B6DFF` |
+| `text.onSurface` | `{color.palette.ink}` | `#23233B` |
+| `text.onBg` | `{color.palette.inkInverse}` | `#F4EFE4` |
+| `text.secondary` | `{color.palette.quietText}` | `#A6A2D4` |
+| `border` | `{color.palette.ink}` | `#23233B` |
+| `accent.truth` | `{color.palette.confirmed}` | `#3BD489` |
+| `accent.bluff` | `{color.palette.alert}` | `#FF5C97` |
+| `accent.gm` | `{color.palette.private}` | `#9B6DFF` |
+| `accent.turn` | `{color.palette.action}` | `#FFC53D` |
+| `status.success` | `{color.palette.confirmed}` | `#3BD489` |
+| `status.warning` | `{color.palette.action}` | `#FFC53D` |
+| `status.error` | `{color.palette.alert}` | `#FF5C97` |
+| `status.info` | `{color.palette.private}` | `#9B6DFF` |
+| `status.pending` | `{color.palette.quiet}` | `#8A87B8` |
+| `board.path` | `{color.palette.quiet}` | `#8A87B8` |
+| `board.goal` | `{color.palette.action}` | `#FFC53D` |
+| `timer.calm` | `{color.palette.quiet}` | `#8A87B8` |
+| `timer.warn` | `{color.palette.action}` | `#FFC53D` |
+| `timer.urgent` | `{color.palette.alert}` | `#FF5C97` |
+| `bgLayers.glowPrimary` | *(literal)* | `#9B6DFF26` |
+| `bgLayers.glowSecondary` | *(literal)* | `#FF5C9722` |
 | `bgLayers.dotGrid` | *(literal)* | `#FFFFFF09` |
 
 ## Contrast (WCAG 2.1, AA text threshold 4.5:1)

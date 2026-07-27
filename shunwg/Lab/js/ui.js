@@ -526,7 +526,7 @@ SCREENS.RULES = () => {
        <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
      </div>`).join("")}
    <div class="nose-demo" aria-hidden="true">
-     ${[1, 2, 3].map((n) => face({ color: "var(--color-avatar-2)", notch: n })).join("")}
+     ${[1, 2, 3].map((n) => face({ color: "var(--color-player-2)", notch: n })).join("")}
    </div>
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">

@@ -215,7 +215,16 @@ export const STR = {
   },
 };
 
-export const AVA = ["#FFB020", "#4FC3F7", "#FF7043", "#9CCC65", "#BA68C8", "#4DD0E1", "#F06292", "#AED581"];
+// The eight player identity colours, as CSS custom-property references rather
+// than hex. These used to be literal hexes duplicating tokens.json — two sources
+// of truth for one set of values, and the kind that drifts silently because
+// nothing compares them. Now the palette can be repainted in tokens.json alone.
+//
+// Safe as `var(...)` because every consumer drops these straight into a CSS
+// colour slot (`background:`, or face({color})). Nothing parses or does maths on
+// them, and there is no canvas in the Lab. myColor() in ui.js already returned a
+// var() string for the seatless case, so the pattern was load-bearing already.
+export const AVA = Array.from({ length: 8 }, (_, i) => `var(--color-player-${i + 1})`);
 
 // Embedded fallback content so file:// double-click still demos the screens.
 // These cards/fakes are our own (from the starter kit); the real decks load

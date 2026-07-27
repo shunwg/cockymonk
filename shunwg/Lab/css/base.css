@@ -8,8 +8,8 @@ body {
   color: var(--color-text-on-bg);
   font-family: var(--type-display-family);
   background:
-    radial-gradient(600px 340px at 85% -80px, var(--color-bg-layers-glow-violet), transparent 70%),
-    radial-gradient(520px 320px at 0% 110%, var(--color-bg-layers-glow-pink), transparent 70%),
+    radial-gradient(600px 340px at 85% -80px, var(--color-bg-layers-glow-primary), transparent 70%),
+    radial-gradient(520px 320px at 0% 110%, var(--color-bg-layers-glow-secondary), transparent 70%),
     radial-gradient(var(--color-bg-layers-dot-grid) 1.2px, transparent 1.2px) 0 0 / 26px 26px,
     var(--color-bg);
   display: flex;

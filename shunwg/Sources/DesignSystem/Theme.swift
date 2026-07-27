@@ -25,19 +25,20 @@ enum Theme {
     enum ColorToken {
 
         // Core palette (DESIGN.md §2)
-        static let inkNight = Color(hex: 0x1B1B2E)  // #1B1B2E
-        static let paper = Color(hex: 0xFFF6E8)  // #FFF6E8
-        static let inkText = Color(hex: 0x23233B)  // #23233B
-        static let paperText = Color(hex: 0xF4EFE4)  // #F4EFE4
-        static let truthGreen = Color(hex: 0x3BD489)  // #3BD489
-        static let bluffPink = Color(hex: 0xFF5C97)  // #FF5C97
-        static let turnYellow = Color(hex: 0xFFC53D)  // #FFC53D
-        static let gmViolet = Color(hex: 0x9B6DFF)  // #9B6DFF
-        static let mutedViolet = Color(hex: 0x8A87B8)  // #8A87B8
-        static let mutedVioletText = Color(hex: 0xA6A2D4)  // #A6A2D4
+        static let backdrop = Color(hex: 0x1B1B2E)  // #1B1B2E
+        static let sheet = Color(hex: 0xFFF6E8)  // #FFF6E8
+        static let ink = Color(hex: 0x23233B)  // #23233B
+        static let inkInverse = Color(hex: 0xF4EFE4)  // #F4EFE4
+        static let confirmed = Color(hex: 0x3BD489)  // #3BD489
+        static let alert = Color(hex: 0xFF5C97)  // #FF5C97
+        static let action = Color(hex: 0xFFC53D)  // #FFC53D
+        static let private = Color(hex: 0x9B6DFF)  // #9B6DFF
+        static let quiet = Color(hex: 0x8A87B8)  // #8A87B8
+        static let quietText = Color(hex: 0xA6A2D4)  // #A6A2D4
 
-        /// 8 fixed saturated avatar colors (demo AVA[]) — used as fills with ink borders.
-        static let avatarPalette: [Color] = [
+        /// 8 fixed player identity colors (demo AVA[]) — fills with ink borders.
+        /// Never the ONLY signal of identity: the name and marker carry it too (DESIGN.md §9).
+        static let playerPalette: [Color] = [
             Color(hex: 0xFFB020),  // #FFB020
             Color(hex: 0x4FC3F7),  // #4FC3F7
             Color(hex: 0xFF7043),  // #FF7043
@@ -58,25 +59,29 @@ enum Theme {
         ]
 
         // Semantic roles (resolve to core — keep Views on these, not on core names)
-        static let bg = inkNight  // #1B1B2E
-        static let surface = paper  // #FFF6E8
-        static let textOnSurface = inkText  // #23233B
-        static let textOnBg = paperText  // #F4EFE4
-        static let textSecondary = mutedVioletText  // #A6A2D4
-        static let border = inkText  // #23233B
-        static let accentTruth = truthGreen  // #3BD489
-        static let accentBluff = bluffPink  // #FF5C97
-        static let accentGm = gmViolet  // #9B6DFF
-        static let accentTurn = turnYellow  // #FFC53D
-        static let statusSuccess = truthGreen  // #3BD489
-        static let statusWarning = turnYellow  // #FFC53D
-        static let statusError = bluffPink  // #FF5C97
-        static let statusInfo = gmViolet  // #9B6DFF
-        static let timerCalm = mutedViolet  // #8A87B8
-        static let timerWarn = turnYellow  // #FFC53D
-        static let timerUrgent = bluffPink  // #FF5C97
-        static let bgLayersGlowViolet = Color(hex: 0x9B6DFF, opacity: 0.149)  // #9B6DFF26
-        static let bgLayersGlowPink = Color(hex: 0xFF5C97, opacity: 0.133)  // #FF5C9722
+        static let bg = backdrop  // #1B1B2E
+        static let surface = sheet  // #FFF6E8
+        static let surfaceSecret = private  // #9B6DFF
+        static let textOnSurface = ink  // #23233B
+        static let textOnBg = inkInverse  // #F4EFE4
+        static let textSecondary = quietText  // #A6A2D4
+        static let border = ink  // #23233B
+        static let accentTruth = confirmed  // #3BD489
+        static let accentBluff = alert  // #FF5C97
+        static let accentGm = private  // #9B6DFF
+        static let accentTurn = action  // #FFC53D
+        static let statusSuccess = confirmed  // #3BD489
+        static let statusWarning = action  // #FFC53D
+        static let statusError = alert  // #FF5C97
+        static let statusInfo = private  // #9B6DFF
+        static let statusPending = quiet  // #8A87B8
+        static let boardPath = quiet  // #8A87B8
+        static let boardGoal = action  // #FFC53D
+        static let timerCalm = quiet  // #8A87B8
+        static let timerWarn = action  // #FFC53D
+        static let timerUrgent = alert  // #FF5C97
+        static let bgLayersGlowPrimary = Color(hex: 0x9B6DFF, opacity: 0.149)  // #9B6DFF26
+        static let bgLayersGlowSecondary = Color(hex: 0xFF5C97, opacity: 0.133)  // #FF5C9722
         static let bgLayersDotGrid = Color(hex: 0xFFFFFF, opacity: 0.035)  // #FFFFFF09
     }
 

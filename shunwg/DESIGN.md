@@ -15,19 +15,32 @@
 ## 2. Tokens
 
 ### Color (themes may override background layers only)
+
+**Amended 2026-07-28** (DESIGN-DIRECTION.md §7): palette entries are named by **role, never by hue**.
+A token called `bluffPink` leaks a hue into every file that names it, which is what pins a palette in
+place — so the values below can now be repainted without touching a single call site. The values
+themselves are unchanged by that rename; the repaint is a separate, later change.
+
 | Token | Hex | Use |
 |---|---|---|
-| `inkNight` | `#1B1B2E` | App background base |
-| `paper` | `#FFF6E8` | Cards, sheets |
-| `inkText` | `#23233B` | Text and borders on paper |
-| `paperText` | `#F4EFE4` | Text on inkNight |
-| `truthGreen` | `#3BD489` | Truth reveal, correct vote |
-| `bluffPink` | `#FF5C97` | Bluff unmasking, bluff points, the Nose |
-| `turnYellow` | `#FFC53D` | Primary CTA, active player |
-| `gmViolet` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, victory sting |
-| `mutedViolet` | `#8A87B8` | Secondary text, dividers, eyebrows |
+| `backdrop` | `#1B1B2E` | App background base |
+| `sheet` | `#FFF6E8` | Cards, sheets — the reading surface |
+| `ink` | `#23233B` | Text and borders on `sheet` |
+| `inkInverse` | `#F4EFE4` | Text on `backdrop` |
+| `confirmed` | `#3BD489` | Truth reveal, correct vote |
+| `alert` | `#FF5C97` | Bluff unmasking, bluff points, the Nose, urgent clock |
+| `action` | `#FFC53D` | Primary CTA, active player, goal |
+| `private` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, the secret card |
+| `quiet` | `#8A87B8` | Secondary text, dividers, eyebrows, pending, board path |
 
-8 avatar colors: a fixed saturated palette readable on both `inkNight` and `paper` (defined once in `Theme.swift`, contrast ≥ 4.5:1 snapshot-tested).
+Consumers name the **semantic** layer (`--color-surface`, `--color-accent-truth`,
+`--color-status-pending`, `--color-board-goal`), never the palette. `DESIGN-DIRECTION.md` §7 lists its
+categories as examples and leaves values open, so established semantic names are kept where they
+already read as roles — what changed is that none of them is named after a colour any more.
+
+8 player identity colours (`player.one`…`player.eight`): a fixed palette readable on both `backdrop`
+and `sheet`, contrast ≥ 4.5:1. **Identity must survive without hue** (§9 and DESIGN-DIRECTION.md §7)
+— the name and marker always carry it too, so colour is never the only signal.
 
 ### Type
 | Role | Face | Notes |

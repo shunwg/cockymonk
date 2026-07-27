@@ -9,25 +9,25 @@
  * .27→(.34,1.4,.64,1). bounce 0 degrades to ease-out (.34,1,.64,1). */
 
 :root {
-  /* ---- color.core ---- */
-  --color-ink-night: #1B1B2E;
-  --color-paper: #FFF6E8;
-  --color-ink-text: #23233B;
-  --color-paper-text: #F4EFE4;
-  --color-truth-green: #3BD489;
-  --color-bluff-pink: #FF5C97;
-  --color-turn-yellow: #FFC53D;
-  --color-gm-violet: #9B6DFF;
-  --color-muted-violet: #8A87B8;
-  --color-muted-violet-text: #A6A2D4;
-  --color-avatar-1: #FFB020;
-  --color-avatar-2: #4FC3F7;
-  --color-avatar-3: #FF7043;
-  --color-avatar-4: #9CCC65;
-  --color-avatar-5: #BA68C8;
-  --color-avatar-6: #4DD0E1;
-  --color-avatar-7: #F06292;
-  --color-avatar-8: #AED581;
+  /* ---- color.palette ---- */
+  --color-backdrop: #1B1B2E;
+  --color-sheet: #FFF6E8;
+  --color-ink: #23233B;
+  --color-ink-inverse: #F4EFE4;
+  --color-confirmed: #3BD489;
+  --color-alert: #FF5C97;
+  --color-action: #FFC53D;
+  --color-private: #9B6DFF;
+  --color-quiet: #8A87B8;
+  --color-quiet-text: #A6A2D4;
+  --color-player-1: #FFB020;
+  --color-player-2: #4FC3F7;
+  --color-player-3: #FF7043;
+  --color-player-4: #9CCC65;
+  --color-player-5: #BA68C8;
+  --color-player-6: #4DD0E1;
+  --color-player-7: #F06292;
+  --color-player-8: #AED581;
   --color-confetti-1: #FFC53D;
   --color-confetti-2: #FF5C97;
   --color-confetti-3: #3BD489;
@@ -37,6 +37,7 @@
   /* ---- color.semantic (resolved from core) ---- */
   --color-bg: #1B1B2E;
   --color-surface: #FFF6E8;
+  --color-surface-secret: #9B6DFF;
   --color-text-on-surface: #23233B;
   --color-text-on-bg: #F4EFE4;
   --color-text-secondary: #A6A2D4;
@@ -49,11 +50,14 @@
   --color-status-warning: #FFC53D;
   --color-status-error: #FF5C97;
   --color-status-info: #9B6DFF;
+  --color-status-pending: #8A87B8;
+  --color-board-path: #8A87B8;
+  --color-board-goal: #FFC53D;
   --color-timer-calm: #8A87B8;
   --color-timer-warn: #FFC53D;
   --color-timer-urgent: #FF5C97;
-  --color-bg-layers-glow-violet: #9B6DFF26;
-  --color-bg-layers-glow-pink: #FF5C9722;
+  --color-bg-layers-glow-primary: #9B6DFF26;
+  --color-bg-layers-glow-secondary: #FF5C9722;
   --color-bg-layers-dot-grid: #FFFFFF09;
 
   /* ---- color.themes — background-layer overrides only (DESIGN.md §3) ---- */
