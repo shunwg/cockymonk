@@ -42,11 +42,28 @@ export const NET_CONFIG = Object.freeze({
   CODE_ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",  // no 0/O/1/I — read aloud
   CONNECT_TIMEOUT_MS: 8000,
   RECONNECT_MS: 30000,           // PRD §5.5
+  // The room stays open this long AFTER the host presses start, so the friend who
+  // was still parking gets seated into the running game instead of a dead end.
+  // Not matchmaking: you still need the code or the link (PRD §2 excludes
+  // matchmaking with strangers), this only widens the door in time.
+  LATE_JOIN_MS: 180000,          // 3 minutes
   ID_RETRIES: 3,
   ICE: [{ urls: "stun:stun.l.google.com:19302" }],
   MIN_PLAYERS: 3,
   MAX_PLAYERS: 8,
 });
+
+/**
+ * Is the late-join door still open? Room policy, so it lives here beside
+ * LATE_JOIN_MS rather than in the UI — and pure, so it is testable.
+ * `g.joinOpenUntil` is an absolute epoch ms stamped by startGame(). Only the HOST
+ * ever calls this: a client cannot be trusted to judge its own lateness.
+ */
+export function netJoinOpen(g, now = Date.now()) {
+  if (!g) return false;
+  if (g.phase === "winner") return false;   // nothing left to join
+  return now <= (g.joinOpenUntil ?? 0);
+}
 
 export function netRoomCode(rng = Math.random) {
   const a = NET_CONFIG.CODE_ALPHABET;

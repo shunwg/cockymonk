@@ -16,6 +16,7 @@ const SCREEN_COUNT = SCREEN_IDS.length;   // numbers are permanent; new screens 
 const G_KEYS = [
   "players", "target", "round", "gm", "phase", "card", "bluffs", "decoys", "gmDecoyDone",
   "options", "doubles", "votes", "deltas", "gmStole", "revealIdx", "timedOut", "deadline", "theme",
+  "joinOpenUntil", "lateJoin",
   "timers", "inOmkamp", "omkampParticipants",
   "preOmkampScores", "goalCelebrated", "celebrated", "awaitingNext", "ratingDone",
 ];

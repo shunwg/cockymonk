@@ -21,7 +21,7 @@ import {
 } from "./rating.js";
 import {
   NET, NET_CONFIG, netLoopback, netHost, netJoin, netProject, netShareLink,
-  netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby,
+  netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby, netJoinOpen,
 } from "./net.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
@@ -61,12 +61,38 @@ const isHost = () => NET.isHost;
 const online = () => NET.kind !== "loopback";
 const app = document.getElementById("app");
 
-const LOGO = (sz = 26) => `<svg class="logo" width="${sz * 1.7}" height="${sz}" viewBox="0 0 44 26" fill="none">
-  <circle cx="13" cy="13" r="11" fill="#FFF6E8" stroke="#23233B" stroke-width="2.6"/>
-  <circle cx="9.5" cy="10.5" r="1.6" fill="#23233B"/><circle cx="16.5" cy="10.5" r="1.6" fill="#23233B"/>
-  <path d="M9 17 q4 3.4 8 0" stroke="#23233B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-  <path d="M23 11 h14 a3.4 3.4 0 0 1 0 6.8 h-14 z" fill="#FF5C97" stroke="#23233B" stroke-width="2.4"/>
+// The mark. Literal hexes, not tokens: this is the brand asset, it must render
+// identically on every theme and in the standalone file:// bundle, and it is the
+// one drawing the whole app copies. The avatar in components.css is the SAME
+// face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
+// Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
+// than via a CSS filter so the mark carries it everywhere it appears.
+const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.447).toFixed(1)}" height="${sz}" viewBox="0 0 55 38" fill="none" role="img" aria-hidden="true">
+  <g fill="#141425">
+    <circle cx="18.8" cy="20.3" r="16"/>
+    <rect x="18" y="19.2" width="34.2" height="7.7" rx="3.85"/>
+  </g>
+  <circle cx="20" cy="18.5" r="16" fill="#E8D5AE"/>
+  <circle cx="21.4" cy="17.1" r="14.3" fill="#FFF6E8"/>
+  <circle cx="20" cy="18.5" r="16" stroke="#23233B" stroke-width="2.8"/>
+  <g stroke="#23233B" stroke-linecap="round" fill="none">
+    <path d="M11 9 15.2 9.6" stroke-width="2"/><path d="M27.4 9 23.2 9.6" stroke-width="2"/>
+    <path d="M15 26.2q3.2 3.4 6.6-.6" stroke-width="2.5"/>
+  </g>
+  <circle cx="13.3" cy="13.9" r="1.7" fill="#23233B"/><circle cx="25.1" cy="13.9" r="1.7" fill="#23233B"/>
+  <rect x="19.2" y="17.4" width="34.2" height="5.2" rx="2.6" fill="#FF5C97" stroke="#23233B" stroke-width="2.5"/>
 </svg>`;
+
+// Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
+// call sites used to hand-roll this markup with per-site pixel geometry, and two
+// had already drifted (no mouth at all) — so the geometry now lives in exactly
+// one place: components.css scales all of it off --fs. `notch` is the vote count
+// the Nose is bragging about; the width formula is CSS's, not ours.
+const face = ({ color, size = 34, mood = "", notch = 0, tone = "", grow = false, bob = false, brand = false }) =>
+  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};background:${color}">
+     <i class="brows"></i><i class="smile"></i>
+     <i class="nose ${tone}${brand ? " brand" : ""}${grow ? " grow" : ""}"></i>
+   </span>`;
 
 /* ---------- content loading (inlined bundle → http real decks → embedded mini) ---------- */
 async function loadContent(lang) {
@@ -232,6 +258,96 @@ const NO_THEME_BTN = ["HOME", "RULES", "ABOUT", "LANG", "MODE", "PLAYERS", "PART
 const NO_HELP_BTN = [...NO_THEME_BTN, "SETUP"];
 const CEREMONY_SCREENS = ["REVEAL", "BOARD", "WINNER"];
 
+/* ---------- back navigation ----------
+ * Deliberately NOT a history stack. 40+ sites assign U.screen directly, so
+ * threading a stack through all of them is a refactor no gate would catch a miss
+ * in. A parent map is plain data, read at render time, and needs zero changes to
+ * those sites — the same shape U.rulesReturn already uses, generalised.
+ *
+ * Leaving a room is not just a screen change: the peer connection has to close,
+ * or the host keeps a zombie seat and the room waits on someone who is gone.
+ */
+const IN_GAME = ["GM_INTRO", "GM_DASH", "BLUFF", "WAIT", "VOTE", "VOTEWAIT", "REVEAL", "BOARD", "OMKAMP"];
+
+function backTarget() {
+  const s = U.screen;
+  if (s === "HOME") return null;                       // nowhere left to go
+  if (s === "RULES" || s === "ABOUT" || s === "PROFILE") return { to: U.rulesReturn || "HOME" };
+  if (s === "LANG" || s === "MODE") return { to: "HOME" };
+  if (s === "PLAYERS" || s === "PARTYSETUP") return { to: "MODE" };
+  if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (party() ? "PARTYSETUP" : "PLAYERS") };
+  if (s === "JOIN") return { to: "PARTYSETUP", leave: true };
+  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "PARTYSETUP", leave: true };
+  if (s === "CONNLOST") return { to: "HOME", leave: true };
+  if (s === "WINNER") return { to: "HOME", leave: true };   // the game is over; nothing to confirm
+  if (IN_GAME.includes(s)) return { to: "HOME", leave: true, confirm: true };
+  return { to: "HOME" };
+}
+
+function goBack() {
+  const b = backTarget();
+  if (!b) return;
+  if (b.confirm) { U.backConfirm = true; play("confirm"); render(); return; }
+  backExit(b);
+}
+
+function backExit(b) {
+  U.backConfirm = false;
+  if (b.leave) {
+    resetTimers();                 // a live deadline must not tick on into the menu
+    if (online()) NET.close?.();   // net.js close() restores loopback for us
+    G = null;
+  }
+  play("back");
+  U.screen = b.to;
+  render();
+}
+
+// Confirm overlay for walking out mid-game. Un-numbered, like `hand()` — see the
+// overlay table in Screens/SCREENS.md.
+function confirmQuit() {
+  const why = !online() ? t("quitBodyLocal") : isHost() ? t("quitBodyHost") : t("quitBodyOnline");
+  const d = document.createElement("div");
+  d.className = "handover"; d.id = "quitbox";
+  d.innerHTML = `<h2>${t("quitTitle")}</h2><p class="sub" style="max-width:22rem">${why}</p>
+    <button class="btn" id="qno" style="margin-top:22px;min-width:15rem">${t("quitNo")}</button>
+    <button class="btn secondary" id="qyes" style="min-width:15rem">${t("quitYes")}</button>`;
+  document.body.appendChild(d);
+  const close = () => { d.remove(); U.backConfirm = false; };
+  d.querySelector("#qno").onclick = () => { play("back"); close(); };
+  d.querySelector("#qyes").onclick = () => { close(); backExit({ to: "HOME", leave: true }); };
+}
+
+/* The phone's own back gesture is the one people actually reach for, so keep one
+ * spare history entry pushed and re-arm it after every pop: the gesture then
+ * reaches goBack() instead of navigating off the game. At HOME we deliberately do
+ * NOT re-arm, so a second press really does leave the page. pushState throws on
+ * some file:// engines and the standalone bundle runs from disk — hence try/catch. */
+function backArm() {
+  try { globalThis.history?.pushState({ cm: 1 }, ""); } catch { /* file:// may refuse */ }
+}
+function backInstallHistory() {
+  if (!globalThis.addEventListener) return;
+  backArm();
+  globalThis.addEventListener("popstate", () => {
+    if (!backTarget()) return;     // at HOME: let the pop stand and the page unload
+    backArm();
+    if (document.getElementById("quitbox")) { document.getElementById("quitbox").remove(); U.backConfirm = false; return; }
+    goBack();
+  });
+}
+
+// The room event, plus a second line only on the device it happened to: being
+// told "you'll sit this round out" matters to exactly one person, and reads as
+// noise to everyone else.
+function lateNoteHtml() {
+  const lj = G?.lateJoin;
+  if (!lj?.note) return "";
+  const mine = lj.seat === mySeat();
+  const benched = mine && (G.timedOut?.bluff?.includes(lj.seat) || G.timedOut?.vote?.includes(lj.seat));
+  return `<div class="latenote" role="status">${lj.note}${benched ? `<br><span class="small">${t("lateNextRound")}</span>` : ""}</div>`;
+}
+
 function shell(inner, { gm = false } = {}) {
   clearCelebrations();   // no celebration bleeds into the next screen
   // Entrance animation only on a real screen change — surgical re-renders (tick-ins,
@@ -239,15 +355,20 @@ function shell(inner, { gm = false } = {}) {
   const changed = U.screen !== lastScreen;
   const fadeClass = changed ? (CEREMONY_SCREENS.includes(U.screen) ? "fade ceremony" : "fade") : "";
   lastScreen = U.screen;
+  const canBack = !!backTarget();
   app.innerHTML = `
    <div class="topbar">
-     <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
+     <span style="display:flex;align-items:center;gap:8px;min-width:0">
+       ${canBack ? `<button class="iconbtn backbtn" id="backbtn" aria-label="${t("back")}">←</button>` : ""}
+       <span class="brand">${LOGO(22)}<span>${t("title")} <span class="small">· ${t("demo")}</span></span></span>
+     </span>
      <span>
        ${NO_HELP_BTN.includes(U.screen) ? "" : `<button class="iconbtn" id="helpbtn" aria-label="${t("rulesTitle")}">?</button>`}
        ${NO_THEME_BTN.includes(U.screen) || (online() && !isHost()) ? "" : `<button class="iconbtn" id="themebtn">🎨</button>`}
        <button class="iconbtn" id="mutebtn">${isMuted() ? "🔇" : "🔊"}</button>
      </span>
    </div>
+   ${lateNoteHtml()}
    <div class="${fadeClass}" style="flex:1;display:flex;flex-direction:column;">${inner}</div>`;
   app.style.boxShadow = gm ? "inset 0 0 0 4px var(--color-accent-gm)" : "none";
   const tb = document.getElementById("themebtn");
@@ -255,6 +376,12 @@ function shell(inner, { gm = false } = {}) {
   const help = document.getElementById("helpbtn");
   if (help) help.onclick = () => { U.rulesReturn = U.screen; play("confirm"); U.screen = "RULES"; render(); };
   document.getElementById("mutebtn").onclick = () => { setMuted(!isMuted()); render(); };
+  const bb = document.getElementById("backbtn");
+  if (bb) bb.onclick = () => goBack();
+  // Re-attach after every repaint: shell() replaces app.innerHTML wholesale, and
+  // the overlay lives on document.body so it survives that — put it back only if
+  // the flag says it should be up.
+  if (U.backConfirm && !document.getElementById("quitbox")) confirmQuit();
 }
 
 /* ---------- render dispatch ---------- */
@@ -302,8 +429,7 @@ SCREENS.RULES = () => {
        <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
      </div>`).join("")}
    <div class="nose-demo" aria-hidden="true">
-     ${[7, 18, 32].map((w) => `
-       <span class="face" style="background:var(--color-avatar-2)"><span class="smile"></span><span class="nose" style="width:${w}px"></span></span>`).join("")}
+     ${[1, 2, 3].map((n) => face({ color: "var(--color-avatar-2)", notch: n })).join("")}
    </div>
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
@@ -481,8 +607,63 @@ function startGame() {
     timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
+    // The door stays open this long for people who had the link but were slow.
+    // Absolute time, like G.deadline, so it survives the hop to a client with a
+    // differently-set clock. Only the HOST ever judges it (netSeatLate).
+    joinOpenUntil: Date.now() + NET_CONFIG.LATE_JOIN_MS,
+    // { note, seat } for the last latecomer. In G, not U, because it is a ROOM
+    // event: the person it happened to is on another device, and they are the one
+    // who most needs to hear that they inherited a bot's points.
+    lateJoin: null,
   };
   newRound();
+}
+
+/* ---------- late join (3-minute window after start) ----------
+ * A friend who opens the link 40 seconds late used to reach a dead end: the host
+ * seated them in NET.peers but G.players was already built, so netBroadcastState
+ * skipped them (seat < 0) and they sat on "waiting for the host" forever.
+ *
+ * Taking a BOT's chair is the preferred outcome, not a fallback: it keeps
+ * G.players.length stable — which is what every engine vector and scoreRound's
+ * Array(playerCount) assume — and "du tok over Kåres plass" is a better story
+ * than an extra chair appearing. They inherit the bot's score, which the banner
+ * says out loud; silently resetting it to 0 would hop a pawn backwards and read
+ * as a bug.
+ */
+function netSeatLate(msg) {
+  if (!netJoinOpen(G)) return { ok: false, reason: "started" };
+  const botSeat = G.players.findIndex((p) => p.kind === "bot" && !p.dropped);
+  const name = String(msg.name ?? "?").slice(0, 24) || "?";
+  let seat, tookFrom = null;
+
+  if (botSeat >= 0) {
+    tookFrom = G.players[botSeat].name;
+    Object.assign(G.players[botSeat], { name, pid: msg.pid, kind: "remote" });
+    seat = botSeat;
+  } else if (G.players.length < NET_CONFIG.MAX_PLAYERS) {
+    seat = G.players.length;
+    G.players.push({
+      name, color: AVA[seat], score: 0, bluffVotes: 0, dropped: false,
+      pid: msg.pid, kind: "remote",
+    });
+  } else return { ok: false, reason: "full" };
+
+  // Past the card reveal, this round is already in motion: they watch it out and
+  // play from the next one. timedOut is exactly the right vehicle — it means "not
+  // expected this round, and NOT dropped" (vectors D4/E9) and newRound clears it.
+  // Without this, bluffersExpected/votersExpected would wait forever on someone
+  // who was parking a car when the word was drawn.
+  if (G.phase !== "card") {
+    if (!G.timedOut.bluff.includes(seat)) G.timedOut.bluff.push(seat);
+    if (!G.timedOut.vote.includes(seat)) G.timedOut.vote.push(seat);
+  }
+  G.lateJoin = {
+    note: tookFrom ? t("lateTookSeat", esc(name), esc(tookFrom)) : t("lateJoined", esc(name)),
+    seat,
+  };
+  play("tickIn");
+  return { ok: true, seat, tookFrom };
 }
 
 function newRound() {
@@ -499,6 +680,7 @@ function newRound() {
   G.phase = "card";
   G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
   U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
+  G.lateJoin = null;                        // a joiner announcement lasts its round, no longer
   U.screen = "GM_INTRO"; play("cardDraw"); render(); netPush();
   // Bot GM auto-advances. A REMOTE gm does not: that person taps on their own
   // device, and their tap arrives as a state broadcast.
@@ -514,9 +696,7 @@ SCREENS.GM_INTRO = () => {
      <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       <div class="face bob" style="background:${gm.color};width:68px;height:68px;">
-         <div class="smile" style="width:18px;height:9px;bottom:11px;"></div>
-         <div class="nose violet" style="top:29px;width:28px;height:13px;"></div></div></div>
+       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
    </div>
    ${party() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
@@ -538,7 +718,10 @@ function scheduleBotBluffs() {
   const offsets = bluffOffsets(bots.length, Math.random);
   bots.forEach((i, k) => {
     later(() => {
-      if (G.bluffs[i] !== undefined) return;
+      // Re-check the seat is STILL a bot: a late joiner may have taken this chair
+      // since the timer was armed, and a bot fake must never be submitted as a
+      // human's answer.
+      if (!isBot(i) || G.bluffs[i] !== undefined) return;
       G.bluffs[i] = takeFakeText(); play("tickIn");
       botTickUI(i);
       maybeAllBluffsIn();
@@ -738,9 +921,7 @@ SCREENS.WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob suspicious" style="background:${G.players[mySeat()].color};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: G.players[mySeat()].color, size: 60, mood: "suspicious", brand: true, bob: true })}
    </div>`);
 };
 
@@ -750,7 +931,7 @@ function scheduleBotVotes() {
   const offsets = voteOffsets(bots.length, Math.random);
   bots.forEach((i, k) => {
     later(() => {
-      if (G.votes[i] !== undefined) return;
+      if (!isBot(i) || G.votes[i] !== undefined) return;   // chair may have changed hands
       G.votes[i] = botPick(G.options, i, Math.random); play("voteCast");
       if (U.screen === "VOTEWAIT") render();
       maybeAllVotesIn();
@@ -858,8 +1039,7 @@ SCREENS.REVEAL = () => {
          ${!isT ? `<div class="author">
             ${o.authors.map((a) => {
               const pl = G.players[a]; const gmA = a === G.gm;
-              return `<span class="face" style="background:${pl.color}">
-                        <span class="nose grow ${gmA ? "violet" : ""}" style="--votes:${voters.length};width:${6 + voters.length * 14}px"></span></span>
+              return `${face({ color: pl.color, notch: voters.length, grow: true, tone: gmA ? "violet" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
@@ -1128,8 +1308,7 @@ SCREENS.WINNER = () => {
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
-       <span class="face delighted" style="background:${liar.color};width:48px;height:48px;">
-         <span class="nose gold grow" style="--votes:${liar.bluffVotes};top:20px;width:${10 + liar.bluffVotes * 10}px;height:10px;"></span></span>
+       ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
        <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
@@ -1170,10 +1349,15 @@ SCREENS.WINNER = () => {
 function screenForSeat(g, seat) {
   switch (g.phase) {
     case "card": return "GM_INTRO";
+    // timedOut has to be consulted here, not just "did they submit". Otherwise the
+    // next broadcast puts a player who missed the deadline (or joined late) back on
+    // an input screen whose submission the host will reject — an unwinnable box.
     case "bluffing":
       if (seat === g.gm) return "GM_DASH";
+      if (g.timedOut?.bluff?.includes(seat)) return "WAIT";
       return g.bluffs?.[seat] !== undefined || (g.bluffsIn ?? []).includes(seat) ? "WAIT" : "BLUFF";
     case "voting":
+      if (g.timedOut?.vote?.includes(seat)) return "VOTEWAIT";
       return seat === g.gm || g.votes?.[seat] !== undefined ? "VOTEWAIT" : "VOTE";
     case "reveal": return "REVEAL";
     case "board": return "BOARD";
@@ -1191,10 +1375,22 @@ function netPush() {
 
 // Host: accept an intent from a client. Every one is re-judged here — the host's
 // clock decides what is late, not the sender's (a client could lie about either).
-function netOnClientMessage(msg) {
+function netOnClientMessage(msg, conn) {
   if (!G || !isHost()) return;
-  const seat = G.players.findIndex((p) => p.pid === msg.pid);
-  if (seat < 0) return;
+  let seat = G.players.findIndex((p) => p.pid === msg.pid);
+  // A hello with no seat means someone arrived after startGame(). Either the door
+  // is still open and we seat them, or we say so plainly and let them go play
+  // bots — never the old silent return, which stranded them on LOBBY_WAIT.
+  if (seat < 0) {
+    if (msg.t !== "hello") return;
+    const r = netSeatLate(msg);
+    if (!r.ok) { NET.sendTo(msg.pid, { t: "bye", reason: r.reason }); return; }
+    seat = r.seat;
+    netBroadcastLobby();
+    netPush();
+    render();
+    return;
+  }
   switch (msg.t) {
     case "bluff": {
       if (G.phase !== "bluffing") return;
@@ -1246,15 +1442,27 @@ function netOnHostState(msg) {
   render();
 }
 
-function netHandle(msg) {
+function netHandle(msg, conn) {
   if (!msg?.t) return;
-  if (isHost()) { netOnClientMessage(msg); return; }
+  if (isHost()) { netOnClientMessage(msg, conn); return; }
   // The host renamed us because our id collided with someone already seated
   // (a shared browser profile). Adopt it, or we'd never find our own seat.
   if (msg.t === "rebind") { U.myPid = msg.pid; NET.myPid = msg.pid; return; }
   if (msg.t === "state") { netOnHostState(msg); return; }
   if (msg.t === "ratings") { netApplyRatings(msg); return; }
-  if (msg.t === "bye") { netFail(msg.reason === "full" ? "full" : "host-gone"); return; }
+  // "started"/"full" are not connection failures — the room simply said no. Send
+  // them back to JOIN with the real reason and the play-vs-bots way out, rather
+  // than to CONNLOST, which offers a reconnect that will never succeed.
+  if (msg.t === "bye") {
+    if (msg.reason === "started" || msg.reason === "full") {
+      NET.close?.();
+      U.joinError = msg.reason === "started" ? "joinFailStarted" : "joinFailFull";
+      U.joining = false; U.screen = "JOIN"; render();
+      return;
+    }
+    netFail("host-gone");
+    return;
+  }
 }
 
 function netFail(reason) {
@@ -1314,6 +1522,7 @@ SCREENS.HOST_LOBBY = () => {
      <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
    ${need ? `<p class="small">${t("lobbyNeed", need)}</p>` : ""}
    <div style="flex:1"></div>
+   <p class="small" style="text-align:center;margin:0 0 8px">${t("lobbyLateWindow")}</p>
    <button class="btn" id="startroom" ${need ? "disabled" : ""}>${t("lobbyStart")}</button>
    <button class="linkbtn" id="tojoin">${t("lobbyJoinInstead")}</button>`);
   const cp = document.getElementById("copylink");
@@ -1355,9 +1564,7 @@ SCREENS.LOBBY_WAIT = () => {
      <p class="small" style="margin:8px 0 0">${t("lobbyWaitingSub")}</p>
    </div>
    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-     <div class="face bob" style="background:${AVA[0]};width:60px;height:60px;">
-       <div class="smile" style="width:16px;height:8px;bottom:10px;"></div>
-       <div class="nose" style="top:26px;width:14px;height:10px;"></div></div>
+     ${face({ color: AVA[0], size: 60, brand: true, bob: true })}
    </div>`);
 };
 
@@ -1580,5 +1787,9 @@ netLoopback();          // local play is its own host; online replaces this tran
 // This is the whole point of "send a link to your friends": no menu to navigate.
 const bootRoom = netRoomFromUrl();
 if (bootRoom && !bootFx) { U.joinCode = bootRoom; U.screen = "JOIN"; }
+
+// Not under a fixture: a posed screen is a still life, and arming the history trap
+// there would make the gallery's back button behave like a game.
+if (!bootFx) backInstallHistory();
 
 render();
