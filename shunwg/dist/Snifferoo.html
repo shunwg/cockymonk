@@ -35,16 +35,16 @@
 
 :root {
   /* ---- color.palette ---- */
-  --color-backdrop: #1B1B2E;
-  --color-sheet: #FFF6E8;
-  --color-ink: #23233B;
-  --color-ink-inverse: #F4EFE4;
-  --color-confirmed: #3BD489;
-  --color-alert: #FF5C97;
-  --color-action: #FFC53D;
-  --color-private: #9B6DFF;
-  --color-quiet: #8A87B8;
-  --color-quiet-text: #A6A2D4;
+  --color-backdrop: #14161C;
+  --color-sheet: #FAF6EF;
+  --color-ink: #1C1E26;
+  --color-ink-inverse: #E9E7E1;
+  --color-confirmed: #3FB984;
+  --color-alert: #E2614B;
+  --color-action: #E8B93F;
+  --color-private: #4E5A85;
+  --color-quiet: #7C8296;
+  --color-quiet-text: #9DA3B5;
   --color-player-1: #FFB020;
   --color-player-2: #4FC3F7;
   --color-player-3: #FF7043;
@@ -53,37 +53,37 @@
   --color-player-6: #4DD0E1;
   --color-player-7: #F06292;
   --color-player-8: #AED581;
-  --color-confetti-1: #FFC53D;
-  --color-confetti-2: #FF5C97;
-  --color-confetti-3: #3BD489;
-  --color-confetti-4: #9B6DFF;
+  --color-confetti-1: #E8B93F;
+  --color-confetti-2: #E2614B;
+  --color-confetti-3: #3FB984;
+  --color-confetti-4: #7480B5;
   --color-confetti-5: #4FC3F7;
 
   /* ---- color.semantic (resolved from core) ---- */
-  --color-bg: #1B1B2E;
-  --color-surface: #FFF6E8;
-  --color-surface-secret: #9B6DFF;
-  --color-text-on-surface: #23233B;
-  --color-text-on-bg: #F4EFE4;
-  --color-text-secondary: #A6A2D4;
-  --color-border: #23233B;
-  --color-accent-truth: #3BD489;
-  --color-accent-bluff: #FF5C97;
-  --color-accent-gm: #9B6DFF;
-  --color-accent-turn: #FFC53D;
-  --color-status-success: #3BD489;
-  --color-status-warning: #FFC53D;
-  --color-status-error: #FF5C97;
-  --color-status-info: #9B6DFF;
-  --color-status-pending: #8A87B8;
-  --color-board-path: #8A87B8;
-  --color-board-goal: #FFC53D;
-  --color-timer-calm: #8A87B8;
-  --color-timer-warn: #FFC53D;
-  --color-timer-urgent: #FF5C97;
-  --color-bg-layers-glow-primary: #9B6DFF26;
-  --color-bg-layers-glow-secondary: #FF5C9722;
-  --color-bg-layers-dot-grid: #FFFFFF09;
+  --color-bg: #14161C;
+  --color-surface: #FAF6EF;
+  --color-surface-secret: #4E5A85;
+  --color-text-on-surface: #1C1E26;
+  --color-text-on-bg: #E9E7E1;
+  --color-text-secondary: #9DA3B5;
+  --color-border: #1C1E26;
+  --color-accent-truth: #3FB984;
+  --color-accent-bluff: #E2614B;
+  --color-accent-gm: #4E5A85;
+  --color-accent-turn: #E8B93F;
+  --color-status-success: #3FB984;
+  --color-status-warning: #E8B93F;
+  --color-status-error: #E2614B;
+  --color-status-info: #4E5A85;
+  --color-status-pending: #7C8296;
+  --color-board-path: #7C8296;
+  --color-board-goal: #E8B93F;
+  --color-timer-calm: #7C8296;
+  --color-timer-warn: #E8B93F;
+  --color-timer-urgent: #E2614B;
+  --color-bg-layers-glow-primary: #7480B516;
+  --color-bg-layers-glow-secondary: #E2614B0E;
+  --color-bg-layers-dot-grid: #FFFFFF07;
 
   /* ---- color.themes — background-layer overrides only (DESIGN.md §3) ---- */
   --color-theme-salongen-board-base: #6B4A2F;
@@ -277,9 +277,9 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   /* The lavender gradient IS the background-image; it also overrides .card's paper
      grain, so no separate grain-suppression is needed. (A stray `background-image:
      none` here previously erased the gradient → transparent card → unreadable truth.) */
-  background: linear-gradient(145deg, #efe6ff, #ddccff);
+  background: linear-gradient(145deg, #ECEEF5, #DDE1EE);
   border-color: var(--color-accent-gm); border-style: dashed;   /* "classified" */
-  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;     /* faint dossier glow */
+  box-shadow: var(--shadow-hard), inset 0 0 22px #4E5A851f;     /* faint dossier glow */
 }
 
 .word {
@@ -292,15 +292,15 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
 .btn {
   display: block; width: 100%; border: 2.5px solid var(--color-border); border-radius: var(--radius-button);
   padding: 16px; font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 12px;
-  background: var(--color-accent-turn); color: var(--color-text-on-surface); box-shadow: 0 5px 0 #b8860bcc;
+  background: var(--color-accent-turn); color: var(--color-text-on-surface); box-shadow: 0 5px 0 #A8801Fcc;
   transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
 }
-.btn:active:not(:disabled) { transform: translateY(var(--shadow-press-translate)); box-shadow: 0 1px 0 #b8860bcc; }
+.btn:active:not(:disabled) { transform: translateY(var(--shadow-press-translate)); box-shadow: 0 1px 0 #A8801Fcc; }
 .btn:disabled { opacity: .35; cursor: default; box-shadow: none; }
 .btn.secondary { background: #ffffff0e; color: var(--color-text-on-bg); border-color: #ffffff3a; box-shadow: 0 5px 0 #00000055; font-weight: 600; }
 .btn.secondary:active { box-shadow: 0 1px 0 #00000055; }
-.btn.gm { background: var(--color-accent-gm); color: #fff; box-shadow: 0 5px 0 #5c3ab8; }
-.btn.gm:active { box-shadow: 0 1px 0 #5c3ab8; }
+.btn.gm { background: var(--color-accent-gm); color: #fff; box-shadow: 0 5px 0 #333C5A; }
+.btn.gm:active { box-shadow: 0 1px 0 #333C5A; }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .btn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 3px; }
@@ -392,7 +392,7 @@ html, body { overscroll-behavior-y: contain; }
   width: 6px; height: 2.5px; border-radius: 2px; background: var(--color-border);
 }
 .phoneico.p2 { height: 26px; background: var(--color-accent-turn); }
-.phoneico.p3 { height: 29px; background: #ffe1ec; }
+.phoneico.p3 { height: 29px; background: #E6E3DB; }
 
 /* ---- phase countdown (PRD §5.2a) ----------------------------------------
    --p is the fraction still to run, 1 → 0, and is the ONLY property the
@@ -480,7 +480,7 @@ html, body { overscroll-behavior-y: contain; }
 .pchip .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(0,0,0,.25); }
 .pchip.done {
   background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth);
-  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #1d8f5b;   /* mechanical snap + truthGreen under-shadow */
+  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #2A8A63;   /* mechanical snap + truthGreen under-shadow */
 }
 
 .seg { display: flex; gap: 8px; margin: 8px 0; }
@@ -490,7 +490,7 @@ html, body { overscroll-behavior-y: contain; }
 }
 .seg button.on {
   background: var(--color-accent-turn); color: var(--color-text-on-surface); border-color: var(--color-accent-turn);
-  box-shadow: 0 3px 0 #b8860bcc; font-weight: 700;
+  box-shadow: 0 3px 0 #A8801Fcc; font-weight: 700;
 }
 
 .opt {
@@ -505,9 +505,9 @@ html, body { overscroll-behavior-y: contain; }
   font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family: var(--type-display-family);
 }
 /* tinted hard shadows → each option reads as a colored physical tile (color means something) */
-.opt.truth { border-color: var(--color-accent-truth); background: #e7fff3; box-shadow: 4px 5px 0 #1d8f5b88, 0 0 22px #3bd48944; }
-.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #c23a6a88; }
-.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #6b4bb888; }
+.opt.truth { border-color: var(--color-accent-truth); background: #E8F7EF; box-shadow: 4px 5px 0 #2A8A6388, 0 0 22px #3FB98444; }
+.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #A8412E88; }
+.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #4E5A8588; }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
 @keyframes pop { 0% { opacity: 0; transform: scale(.85) rotate(-1.5deg); } 100% { opacity: 1; transform: none; } }
@@ -629,7 +629,7 @@ html, body { overscroll-behavior-y: contain; }
    one would run straight through the name beside it. Anywhere a face sits inline
    with text, buy back exactly the overflow — hence --notch living on .face. */
 .author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
-.nose.violet { background: var(--color-accent-gm); }
+.nose.gm { background: var(--color-accent-gm); }
 .nose.gold { background: gold; }
 
 /* Back button: same 44 px target as its siblings, but visually quieter than the
@@ -659,8 +659,8 @@ html, body { overscroll-behavior-y: contain; }
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #5c3ab8; box-shadow: 0 4px 0 #5c3ab8; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #1d8f5b; box-shadow: 0 4px 0 #1d8f5b; }
+.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #333C5A; box-shadow: 0 4px 0 #333C5A; }
+.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #2A8A63; box-shadow: 0 4px 0 #2A8A63; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
@@ -811,8 +811,8 @@ html, body { overscroll-behavior-y: contain; }
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
 @keyframes goalglow {
-  0%, 100% { box-shadow: 0 0 0 0 #ffc53d00, inset 0 0 0 2px #ffe38a99; }
-  50%      { box-shadow: 0 0 0 9px #ffc53d33, 0 0 20px 5px #ffc53d66, inset 0 0 0 2px #ffffff; }
+  0%, 100% { box-shadow: 0 0 0 0 #E8B93F00, inset 0 0 0 2px #F0D38799; }
+  50%      { box-shadow: 0 0 0 9px #E8B93F33, 0 0 20px 5px #E8B93F66, inset 0 0 0 2px #ffffff; }
 }
 
 /* ---------- pawns: domed physical pieces ---------- */
@@ -841,7 +841,7 @@ html, body { overscroll-behavior-y: contain; }
 .scoreline b {                               /* the +delta — a turnYellow chip you win */
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
   border: 2px solid var(--color-border); border-radius: var(--radius-chip);
-  padding: 1px 9px; box-shadow: 0 2px 0 #b8860bcc;
+  padding: 1px 9px; box-shadow: 0 2px 0 #A8801Fcc;
 }
 
 /* ---------- Home (front of house) ---------- */
@@ -867,7 +867,7 @@ html, body { overscroll-behavior-y: contain; }
 .step-n {
   flex: none; width: 36px; height: 36px; border-radius: 50%;
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #b8860bcc;
+  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #A8801Fcc;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 17px; font-family: var(--type-display-family);
 }
@@ -883,7 +883,7 @@ html, body { overscroll-behavior-y: contain; }
 }
 .pt.green  { background: var(--color-accent-truth); }
 .pt.pink   { background: var(--color-accent-bluff); }
-.pt.violet { background: var(--color-accent-gm); color: #fff; }
+.pt.gm { background: var(--color-accent-gm); color: #fff; }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
@@ -983,8 +983,8 @@ html, body { overscroll-behavior-y: contain; }
 @keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
 .theme-rom .space {
   background: radial-gradient(circle at 50% 50%, #1c1c46 0 54%, #141430 55%);
-  border: 2.5px solid var(--color-accent-gm); color: #d6c8ff;
-  box-shadow: 0 0 0 2px #9b6dff22, 0 0 12px #9b6dff66 inset, 0 0 10px #9b6dff33;   /* orbit-ring halo */
+  border: 2.5px solid var(--color-accent-gm); color: #C3CAE0;
+  box-shadow: 0 0 0 2px #4E5A8522, 0 0 12px #4E5A8566 inset, 0 0 10px #4E5A8533;   /* orbit-ring halo */
 }
 
 /* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
@@ -4051,7 +4051,7 @@ SCREENS.RULES = () => {
      <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
      <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
      <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
-     <div class="scorerow"><span class="pt violet">+2</span><span>${t("rulesScore3")}</span></div>
+     <div class="scorerow"><span class="pt gm">+2</span><span>${t("rulesScore3")}</span></div>
      <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
    </div>
    <div style="flex:1"></div>
@@ -4391,7 +4391,7 @@ SCREENS.GM_INTRO = () => {
      <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
+       ${face({ color: gm.color, size: 68, tone: "gm", brand: true, bob: true })}</div>
    </div>
    ${party() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
@@ -4754,7 +4754,7 @@ SCREENS.REVEAL = () => {
               // just took the round finally smirks about it. Only once the truth is
               // out — before that nobody knows they stole anything.
               const mood = gmA && done && G.gmStole ? "smug" : "";
-              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "violet" : "" })}
+              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "gm" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}

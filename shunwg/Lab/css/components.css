@@ -16,7 +16,7 @@
   width: 6px; height: 2.5px; border-radius: 2px; background: var(--color-border);
 }
 .phoneico.p2 { height: 26px; background: var(--color-accent-turn); }
-.phoneico.p3 { height: 29px; background: #ffe1ec; }
+.phoneico.p3 { height: 29px; background: #E6E3DB; }
 
 /* ---- phase countdown (PRD §5.2a) ----------------------------------------
    --p is the fraction still to run, 1 → 0, and is the ONLY property the
@@ -104,7 +104,7 @@
 .pchip .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(0,0,0,.25); }
 .pchip.done {
   background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth);
-  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #1d8f5b;   /* mechanical snap + truthGreen under-shadow */
+  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #2A8A63;   /* mechanical snap + truthGreen under-shadow */
 }
 
 .seg { display: flex; gap: 8px; margin: 8px 0; }
@@ -114,7 +114,7 @@
 }
 .seg button.on {
   background: var(--color-accent-turn); color: var(--color-text-on-surface); border-color: var(--color-accent-turn);
-  box-shadow: 0 3px 0 #b8860bcc; font-weight: 700;
+  box-shadow: 0 3px 0 #A8801Fcc; font-weight: 700;
 }
 
 .opt {
@@ -129,9 +129,9 @@
   font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family: var(--type-display-family);
 }
 /* tinted hard shadows → each option reads as a colored physical tile (color means something) */
-.opt.truth { border-color: var(--color-accent-truth); background: #e7fff3; box-shadow: 4px 5px 0 #1d8f5b88, 0 0 22px #3bd48944; }
-.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #c23a6a88; }
-.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #6b4bb888; }
+.opt.truth { border-color: var(--color-accent-truth); background: #E8F7EF; box-shadow: 4px 5px 0 #2A8A6388, 0 0 22px #3FB98444; }
+.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #A8412E88; }
+.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #4E5A8588; }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
 @keyframes pop { 0% { opacity: 0; transform: scale(.85) rotate(-1.5deg); } 100% { opacity: 1; transform: none; } }
@@ -253,7 +253,7 @@
    one would run straight through the name beside it. Anywhere a face sits inline
    with text, buy back exactly the overflow — hence --notch living on .face. */
 .author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
-.nose.violet { background: var(--color-accent-gm); }
+.nose.gm { background: var(--color-accent-gm); }
 .nose.gold { background: gold; }
 
 /* Back button: same 44 px target as its siblings, but visually quieter than the
@@ -283,8 +283,8 @@
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #5c3ab8; box-shadow: 0 4px 0 #5c3ab8; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #1d8f5b; box-shadow: 0 4px 0 #1d8f5b; }
+.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #333C5A; box-shadow: 0 4px 0 #333C5A; }
+.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #2A8A63; box-shadow: 0 4px 0 #2A8A63; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }

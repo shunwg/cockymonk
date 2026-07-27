@@ -16,6 +16,11 @@
 
 ### Color (themes may override background layers only)
 
+**Repainted 2026-07-28** (DESIGN-DIRECTION.md §1/§6/§7). The violet-and-hot-pink chrome gives way to a
+near-neutral dark base with a slate / coral / ochre accent set: less saturation, one accent per state,
+and a background that no longer competes with the words. `private` is deliberately DARK — it is a
+**fill** carrying light text, not a text colour, so it has to clear 4.5:1 the other way round.
+
 **Amended 2026-07-28** (DESIGN-DIRECTION.md §7): palette entries are named by **role, never by hue**.
 A token called `bluffPink` leaks a hue into every file that names it, which is what pins a palette in
 place — so the values below can now be repainted without touching a single call site. The values
@@ -23,15 +28,15 @@ themselves are unchanged by that rename; the repaint is a separate, later change
 
 | Token | Hex | Use |
 |---|---|---|
-| `backdrop` | `#1B1B2E` | App background base |
-| `sheet` | `#FFF6E8` | Cards, sheets — the reading surface |
-| `ink` | `#23233B` | Text and borders on `sheet` |
-| `inkInverse` | `#F4EFE4` | Text on `backdrop` |
-| `confirmed` | `#3BD489` | Truth reveal, correct vote |
-| `alert` | `#FF5C97` | Bluff unmasking, bluff points, the Nose, urgent clock |
-| `action` | `#FFC53D` | Primary CTA, active player, goal |
-| `private` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, the secret card |
-| `quiet` | `#8A87B8` | Secondary text, dividers, eyebrows, pending, board path |
+| `backdrop` | `#14161C` | App background base |
+| `sheet` | `#FAF6EF` | Cards, sheets — the reading surface |
+| `ink` | `#1C1E26` | Text and borders on `sheet` |
+| `inkInverse` | `#E9E7E1` | Text on `backdrop` |
+| `confirmed` | `#3FB984` | Truth reveal, correct vote |
+| `alert` | `#E2614B` | Bluff unmasking, bluff points, the Nose, urgent clock |
+| `action` | `#E8B93F` | Primary CTA, active player, goal |
+| `private` | `#4E5A85` | Everything game-master: dashboard chrome, GM chip, decoys, the secret card |
+| `quiet` | `#7C8296` | Secondary text, dividers, eyebrows, pending, board path |
 
 Consumers name the **semantic** layer (`--color-surface`, `--color-accent-truth`,
 `--color-status-pending`, `--color-board-goal`), never the palette. `DESIGN-DIRECTION.md` §7 lists its

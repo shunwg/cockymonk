@@ -10,16 +10,16 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | Token | Hex | Use |
 |---|---|---|
-| `backdrop` | `#1B1B2E` |  |
-| `sheet` | `#FFF6E8` |  |
-| `ink` | `#23233B` |  |
-| `inkInverse` | `#F4EFE4` |  |
-| `confirmed` | `#3BD489` |  |
-| `alert` | `#FF5C97` |  |
-| `action` | `#FFC53D` |  |
-| `private` | `#9B6DFF` |  |
-| `quiet` | `#8A87B8` |  |
-| `quietText` | `#A6A2D4` |  |
+| `backdrop` | `#14161C` |  |
+| `sheet` | `#FAF6EF` |  |
+| `ink` | `#1C1E26` |  |
+| `inkInverse` | `#E9E7E1` |  |
+| `confirmed` | `#3FB984` |  |
+| `alert` | `#E2614B` |  |
+| `action` | `#E8B93F` |  |
+| `private` | `#4E5A85` |  |
+| `quiet` | `#7C8296` |  |
+| `quietText` | `#9DA3B5` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
@@ -38,40 +38,40 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | # | Hex |
 |---|---|
-| 1 | `#FFC53D` |
-| 2 | `#FF5C97` |
-| 3 | `#3BD489` |
-| 4 | `#9B6DFF` |
+| 1 | `#E8B93F` |
+| 2 | `#E2614B` |
+| 3 | `#3FB984` |
+| 4 | `#7480B5` |
 | 5 | `#4FC3F7` |
 
 ## Semantic roles
 
 | Role | References | Resolves to |
 |---|---|---|
-| `bg` | `{color.palette.backdrop}` | `#1B1B2E` |
-| `surface` | `{color.palette.sheet}` | `#FFF6E8` |
-| `surfaceSecret` | `{color.palette.private}` | `#9B6DFF` |
-| `text.onSurface` | `{color.palette.ink}` | `#23233B` |
-| `text.onBg` | `{color.palette.inkInverse}` | `#F4EFE4` |
-| `text.secondary` | `{color.palette.quietText}` | `#A6A2D4` |
-| `border` | `{color.palette.ink}` | `#23233B` |
-| `accent.truth` | `{color.palette.confirmed}` | `#3BD489` |
-| `accent.bluff` | `{color.palette.alert}` | `#FF5C97` |
-| `accent.gm` | `{color.palette.private}` | `#9B6DFF` |
-| `accent.turn` | `{color.palette.action}` | `#FFC53D` |
-| `status.success` | `{color.palette.confirmed}` | `#3BD489` |
-| `status.warning` | `{color.palette.action}` | `#FFC53D` |
-| `status.error` | `{color.palette.alert}` | `#FF5C97` |
-| `status.info` | `{color.palette.private}` | `#9B6DFF` |
-| `status.pending` | `{color.palette.quiet}` | `#8A87B8` |
-| `board.path` | `{color.palette.quiet}` | `#8A87B8` |
-| `board.goal` | `{color.palette.action}` | `#FFC53D` |
-| `timer.calm` | `{color.palette.quiet}` | `#8A87B8` |
-| `timer.warn` | `{color.palette.action}` | `#FFC53D` |
-| `timer.urgent` | `{color.palette.alert}` | `#FF5C97` |
-| `bgLayers.glowPrimary` | *(literal)* | `#9B6DFF26` |
-| `bgLayers.glowSecondary` | *(literal)* | `#FF5C9722` |
-| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF09` |
+| `bg` | `{color.palette.backdrop}` | `#14161C` |
+| `surface` | `{color.palette.sheet}` | `#FAF6EF` |
+| `surfaceSecret` | `{color.palette.private}` | `#4E5A85` |
+| `text.onSurface` | `{color.palette.ink}` | `#1C1E26` |
+| `text.onBg` | `{color.palette.inkInverse}` | `#E9E7E1` |
+| `text.secondary` | `{color.palette.quietText}` | `#9DA3B5` |
+| `border` | `{color.palette.ink}` | `#1C1E26` |
+| `accent.truth` | `{color.palette.confirmed}` | `#3FB984` |
+| `accent.bluff` | `{color.palette.alert}` | `#E2614B` |
+| `accent.gm` | `{color.palette.private}` | `#4E5A85` |
+| `accent.turn` | `{color.palette.action}` | `#E8B93F` |
+| `status.success` | `{color.palette.confirmed}` | `#3FB984` |
+| `status.warning` | `{color.palette.action}` | `#E8B93F` |
+| `status.error` | `{color.palette.alert}` | `#E2614B` |
+| `status.info` | `{color.palette.private}` | `#4E5A85` |
+| `status.pending` | `{color.palette.quiet}` | `#7C8296` |
+| `board.path` | `{color.palette.quiet}` | `#7C8296` |
+| `board.goal` | `{color.palette.action}` | `#E8B93F` |
+| `timer.calm` | `{color.palette.quiet}` | `#7C8296` |
+| `timer.warn` | `{color.palette.action}` | `#E8B93F` |
+| `timer.urgent` | `{color.palette.alert}` | `#E2614B` |
+| `bgLayers.glowPrimary` | *(literal)* | `#7480B516` |
+| `bgLayers.glowSecondary` | *(literal)* | `#E2614B0E` |
+| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF07` |
 
 ## Contrast (WCAG 2.1, AA text threshold 4.5:1)
 
@@ -79,16 +79,16 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 
 | Foreground | Background | Ratio | AA |
 |---|---|---|---|
-| `text.onSurface (inkText)` `#23233B` | `surface (paper)` `#FFF6E8` | 14.25 | ✓ |
-| `text.onBg (paperText)` `#F4EFE4` | `bg (inkNight)` `#1B1B2E` | 14.74 | ✓ |
-| `text.secondary (mutedViolet)` `#A6A2D4` | `bg (inkNight)` `#1B1B2E` | 7.03 | ✓ |
-| `accent.truth (truthGreen)` `#3BD489` | `bg (inkNight)` `#1B1B2E` | 8.82 | ✓ |
-| `accent.bluff (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
-| `accent.gm (gmViolet)` `#9B6DFF` | `bg (inkNight)` `#1B1B2E` | 4.85 | ✓ |
-| `accent.turn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
-| `timer.calm (mutedViolet)` `#8A87B8` | `bg (inkNight)` `#1B1B2E` | 5.02 | ✓ |
-| `timer.warn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
-| `timer.urgent (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
+| `text.onSurface (inkText)` `#1C1E26` | `surface (paper)` `#FAF6EF` | 15.43 | ✓ |
+| `text.onBg (paperText)` `#E9E7E1` | `bg (inkNight)` `#14161C` | 14.62 | ✓ |
+| `text.secondary (mutedViolet)` `#9DA3B5` | `bg (inkNight)` `#14161C` | 7.18 | ✓ |
+| `accent.truth (truthGreen)` `#3FB984` | `bg (inkNight)` `#14161C` | 7.31 | ✓ |
+| `accent.bluff (bluffPink)` `#E2614B` | `bg (inkNight)` `#14161C` | 5.21 | ✓ |
+| `accent.gm (gmViolet)` `#4E5A85` | `bg (inkNight)` `#14161C` | 2.69 | ⚠ |
+| `accent.turn (turnYellow)` `#E8B93F` | `bg (inkNight)` `#14161C` | 9.85 | ✓ |
+| `timer.calm (mutedViolet)` `#7C8296` | `bg (inkNight)` `#14161C` | 4.73 | ✓ |
+| `timer.warn (turnYellow)` `#E8B93F` | `bg (inkNight)` `#14161C` | 9.85 | ✓ |
+| `timer.urgent (bluffPink)` `#E2614B` | `bg (inkNight)` `#14161C` | 5.21 | ✓ |
 
 DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapshot-test all three.
 

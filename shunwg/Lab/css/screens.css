@@ -34,8 +34,8 @@
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
 @keyframes goalglow {
-  0%, 100% { box-shadow: 0 0 0 0 #ffc53d00, inset 0 0 0 2px #ffe38a99; }
-  50%      { box-shadow: 0 0 0 9px #ffc53d33, 0 0 20px 5px #ffc53d66, inset 0 0 0 2px #ffffff; }
+  0%, 100% { box-shadow: 0 0 0 0 #E8B93F00, inset 0 0 0 2px #F0D38799; }
+  50%      { box-shadow: 0 0 0 9px #E8B93F33, 0 0 20px 5px #E8B93F66, inset 0 0 0 2px #ffffff; }
 }
 
 /* ---------- pawns: domed physical pieces ---------- */
@@ -64,7 +64,7 @@
 .scoreline b {                               /* the +delta — a turnYellow chip you win */
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
   border: 2px solid var(--color-border); border-radius: var(--radius-chip);
-  padding: 1px 9px; box-shadow: 0 2px 0 #b8860bcc;
+  padding: 1px 9px; box-shadow: 0 2px 0 #A8801Fcc;
 }
 
 /* ---------- Home (front of house) ---------- */
@@ -90,7 +90,7 @@
 .step-n {
   flex: none; width: 36px; height: 36px; border-radius: 50%;
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #b8860bcc;
+  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #A8801Fcc;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 17px; font-family: var(--type-display-family);
 }
@@ -106,7 +106,7 @@
 }
 .pt.green  { background: var(--color-accent-truth); }
 .pt.pink   { background: var(--color-accent-bluff); }
-.pt.violet { background: var(--color-accent-gm); color: #fff; }
+.pt.gm { background: var(--color-accent-gm); color: #fff; }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The

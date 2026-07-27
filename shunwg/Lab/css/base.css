@@ -69,9 +69,9 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   /* The lavender gradient IS the background-image; it also overrides .card's paper
      grain, so no separate grain-suppression is needed. (A stray `background-image:
      none` here previously erased the gradient → transparent card → unreadable truth.) */
-  background: linear-gradient(145deg, #efe6ff, #ddccff);
+  background: linear-gradient(145deg, #ECEEF5, #DDE1EE);
   border-color: var(--color-accent-gm); border-style: dashed;   /* "classified" */
-  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;     /* faint dossier glow */
+  box-shadow: var(--shadow-hard), inset 0 0 22px #4E5A851f;     /* faint dossier glow */
 }
 
 .word {
@@ -84,15 +84,15 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
 .btn {
   display: block; width: 100%; border: 2.5px solid var(--color-border); border-radius: var(--radius-button);
   padding: 16px; font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 12px;
-  background: var(--color-accent-turn); color: var(--color-text-on-surface); box-shadow: 0 5px 0 #b8860bcc;
+  background: var(--color-accent-turn); color: var(--color-text-on-surface); box-shadow: 0 5px 0 #A8801Fcc;
   transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
 }
-.btn:active:not(:disabled) { transform: translateY(var(--shadow-press-translate)); box-shadow: 0 1px 0 #b8860bcc; }
+.btn:active:not(:disabled) { transform: translateY(var(--shadow-press-translate)); box-shadow: 0 1px 0 #A8801Fcc; }
 .btn:disabled { opacity: .35; cursor: default; box-shadow: none; }
 .btn.secondary { background: #ffffff0e; color: var(--color-text-on-bg); border-color: #ffffff3a; box-shadow: 0 5px 0 #00000055; font-weight: 600; }
 .btn.secondary:active { box-shadow: 0 1px 0 #00000055; }
-.btn.gm { background: var(--color-accent-gm); color: #fff; box-shadow: 0 5px 0 #5c3ab8; }
-.btn.gm:active { box-shadow: 0 1px 0 #5c3ab8; }
+.btn.gm { background: var(--color-accent-gm); color: #fff; box-shadow: 0 5px 0 #333C5A; }
+.btn.gm:active { box-shadow: 0 1px 0 #333C5A; }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .btn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 3px; }

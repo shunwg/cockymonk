@@ -576,7 +576,7 @@ SCREENS.RULES = () => {
      <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
      <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
      <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
-     <div class="scorerow"><span class="pt violet">+2</span><span>${t("rulesScore3")}</span></div>
+     <div class="scorerow"><span class="pt gm">+2</span><span>${t("rulesScore3")}</span></div>
      <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
    </div>
    <div style="flex:1"></div>
@@ -916,7 +916,7 @@ SCREENS.GM_INTRO = () => {
      <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
+       ${face({ color: gm.color, size: 68, tone: "gm", brand: true, bob: true })}</div>
    </div>
    ${party() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
@@ -1279,7 +1279,7 @@ SCREENS.REVEAL = () => {
               // just took the round finally smirks about it. Only once the truth is
               // out — before that nobody knows they stole anything.
               const mood = gmA && done && G.gmStole ? "smug" : "";
-              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "violet" : "" })}
+              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "gm" : "" })}
                       <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}

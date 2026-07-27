@@ -25,16 +25,16 @@ enum Theme {
     enum ColorToken {
 
         // Core palette (DESIGN.md §2)
-        static let backdrop = Color(hex: 0x1B1B2E)  // #1B1B2E
-        static let sheet = Color(hex: 0xFFF6E8)  // #FFF6E8
-        static let ink = Color(hex: 0x23233B)  // #23233B
-        static let inkInverse = Color(hex: 0xF4EFE4)  // #F4EFE4
-        static let confirmed = Color(hex: 0x3BD489)  // #3BD489
-        static let alert = Color(hex: 0xFF5C97)  // #FF5C97
-        static let action = Color(hex: 0xFFC53D)  // #FFC53D
-        static let private = Color(hex: 0x9B6DFF)  // #9B6DFF
-        static let quiet = Color(hex: 0x8A87B8)  // #8A87B8
-        static let quietText = Color(hex: 0xA6A2D4)  // #A6A2D4
+        static let backdrop = Color(hex: 0x14161C)  // #14161C
+        static let sheet = Color(hex: 0xFAF6EF)  // #FAF6EF
+        static let ink = Color(hex: 0x1C1E26)  // #1C1E26
+        static let inkInverse = Color(hex: 0xE9E7E1)  // #E9E7E1
+        static let confirmed = Color(hex: 0x3FB984)  // #3FB984
+        static let alert = Color(hex: 0xE2614B)  // #E2614B
+        static let action = Color(hex: 0xE8B93F)  // #E8B93F
+        static let private = Color(hex: 0x4E5A85)  // #4E5A85
+        static let quiet = Color(hex: 0x7C8296)  // #7C8296
+        static let quietText = Color(hex: 0x9DA3B5)  // #9DA3B5
 
         /// 8 fixed player identity colors (demo AVA[]) — fills with ink borders.
         /// Never the ONLY signal of identity: the name and marker carry it too (DESIGN.md §9).
@@ -51,38 +51,38 @@ enum Theme {
 
         /// 5 confetti colors (demo confetti()).
         static let confettiPalette: [Color] = [
-            Color(hex: 0xFFC53D),  // #FFC53D
-            Color(hex: 0xFF5C97),  // #FF5C97
-            Color(hex: 0x3BD489),  // #3BD489
-            Color(hex: 0x9B6DFF),  // #9B6DFF
+            Color(hex: 0xE8B93F),  // #E8B93F
+            Color(hex: 0xE2614B),  // #E2614B
+            Color(hex: 0x3FB984),  // #3FB984
+            Color(hex: 0x7480B5),  // #7480B5
             Color(hex: 0x4FC3F7),  // #4FC3F7
         ]
 
         // Semantic roles (resolve to core — keep Views on these, not on core names)
-        static let bg = backdrop  // #1B1B2E
-        static let surface = sheet  // #FFF6E8
-        static let surfaceSecret = private  // #9B6DFF
-        static let textOnSurface = ink  // #23233B
-        static let textOnBg = inkInverse  // #F4EFE4
-        static let textSecondary = quietText  // #A6A2D4
-        static let border = ink  // #23233B
-        static let accentTruth = confirmed  // #3BD489
-        static let accentBluff = alert  // #FF5C97
-        static let accentGm = private  // #9B6DFF
-        static let accentTurn = action  // #FFC53D
-        static let statusSuccess = confirmed  // #3BD489
-        static let statusWarning = action  // #FFC53D
-        static let statusError = alert  // #FF5C97
-        static let statusInfo = private  // #9B6DFF
-        static let statusPending = quiet  // #8A87B8
-        static let boardPath = quiet  // #8A87B8
-        static let boardGoal = action  // #FFC53D
-        static let timerCalm = quiet  // #8A87B8
-        static let timerWarn = action  // #FFC53D
-        static let timerUrgent = alert  // #FF5C97
-        static let bgLayersGlowPrimary = Color(hex: 0x9B6DFF, opacity: 0.149)  // #9B6DFF26
-        static let bgLayersGlowSecondary = Color(hex: 0xFF5C97, opacity: 0.133)  // #FF5C9722
-        static let bgLayersDotGrid = Color(hex: 0xFFFFFF, opacity: 0.035)  // #FFFFFF09
+        static let bg = backdrop  // #14161C
+        static let surface = sheet  // #FAF6EF
+        static let surfaceSecret = private  // #4E5A85
+        static let textOnSurface = ink  // #1C1E26
+        static let textOnBg = inkInverse  // #E9E7E1
+        static let textSecondary = quietText  // #9DA3B5
+        static let border = ink  // #1C1E26
+        static let accentTruth = confirmed  // #3FB984
+        static let accentBluff = alert  // #E2614B
+        static let accentGm = private  // #4E5A85
+        static let accentTurn = action  // #E8B93F
+        static let statusSuccess = confirmed  // #3FB984
+        static let statusWarning = action  // #E8B93F
+        static let statusError = alert  // #E2614B
+        static let statusInfo = private  // #4E5A85
+        static let statusPending = quiet  // #7C8296
+        static let boardPath = quiet  // #7C8296
+        static let boardGoal = action  // #E8B93F
+        static let timerCalm = quiet  // #7C8296
+        static let timerWarn = action  // #E8B93F
+        static let timerUrgent = alert  // #E2614B
+        static let bgLayersGlowPrimary = Color(hex: 0x7480B5, opacity: 0.086)  // #7480B516
+        static let bgLayersGlowSecondary = Color(hex: 0xE2614B, opacity: 0.055)  // #E2614B0E
+        static let bgLayersDotGrid = Color(hex: 0xFFFFFF, opacity: 0.027)  // #FFFFFF07
     }
 
     /// Per-theme BACKGROUND-LAYER overrides only (DESIGN.md §3). Rules code never branches on theme.

@@ -76,8 +76,8 @@
 @keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
 .theme-rom .space {
   background: radial-gradient(circle at 50% 50%, #1c1c46 0 54%, #141430 55%);
-  border: 2.5px solid var(--color-accent-gm); color: #d6c8ff;
-  box-shadow: 0 0 0 2px #9b6dff22, 0 0 12px #9b6dff66 inset, 0 0 10px #9b6dff33;   /* orbit-ring halo */
+  border: 2.5px solid var(--color-accent-gm); color: #C3CAE0;
+  box-shadow: 0 0 0 2px #4E5A8522, 0 0 12px #4E5A8566 inset, 0 0 10px #4E5A8533;   /* orbit-ring halo */
 }
 
 /* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
