@@ -14,38 +14,47 @@
 
 ## 2. Tokens
 
-### Color (themes may override background layers only)
+### Color — MONOCHROME (redesigned 2026-07-28)
 
-**Repainted 2026-07-28** (DESIGN-DIRECTION.md §1/§6/§7). The violet-and-hot-pink chrome gives way to a
-near-neutral dark base with a slate / coral / ochre accent set: less saturation, one accent per state,
-and a background that no longer competes with the words. `private` is deliberately DARK — it is a
-**fill** carrying light text, not a text colour, so it has to clear 4.5:1 the other way round.
-
-**Amended 2026-07-28** (DESIGN-DIRECTION.md §7): palette entries are named by **role, never by hue**.
-A token called `bluffPink` leaks a hue into every file that names it, which is what pins a palette in
-place — so the values below can now be repainted without touching a single call site. The values
-themselves are unchanged by that rename; the repaint is a separate, later change.
+One greyscale ramp. No hue anywhere: not in the chrome, not in the player
+identities, not in the three board themes. Requested directly ("så svart, hvitt
+og grått som mulig, men på en moderne og minimalistisk måte"), and it sharpens
+§9 rather than fighting it — *never colour alone* becomes *never colour at all*,
+so every distinction has to be carried by value, fill, weight or shape.
 
 | Token | Hex | Use |
 |---|---|---|
-| `backdrop` | `#14161C` | App background base |
-| `sheet` | `#FAF6EF` | Cards, sheets — the reading surface |
-| `ink` | `#1C1E26` | Text and borders on `sheet` |
-| `inkInverse` | `#E9E7E1` | Text on `backdrop` |
-| `confirmed` | `#3FB984` | Truth reveal, correct vote |
-| `alert` | `#E2614B` | Bluff unmasking, bluff points, the Nose, urgent clock |
-| `action` | `#E8B93F` | Primary CTA, active player, goal |
-| `private` | `#4E5A85` | Everything game-master: dashboard chrome, GM chip, decoys, the secret card |
-| `quiet` | `#7C8296` | Secondary text, dividers, eyebrows, pending, board path |
+| `backdrop` | `#0B0B0C` | App background |
+| `raised` | `#17171C` | Inputs and recessed fields on the backdrop |
+| `line` | `#2A2A2F` | Hairlines — the only border weight left |
+| `sheet` | `#F4F4F2` | Cards, options — the reading surface |
+| `sheetSunk` | `#E4E4E1` | An option that has receded (a revealed bluff) |
+| `ink` | `#0B0B0C` | Text on `sheet` |
+| `inkInverse` | `#F4F4F2` | Text on `backdrop` |
+| `confirmed` | `#FFFFFF` | The truth. The brightest value in the app |
+| `alert` | `#8F8F94` | Bluff. A MID grey — it carries dark text, never light |
+| `action` | `#F4F4F2` | Primary CTA: the brightest plate, black label |
+| `private` | `#3D3D42` | Game-master, and the inverted secret card |
+| `quiet` | `#6F6F74` | Dividers, pending, board path |
 
-Consumers name the **semantic** layer (`--color-surface`, `--color-accent-truth`,
-`--color-status-pending`, `--color-board-goal`), never the palette. `DESIGN-DIRECTION.md` §7 lists its
-categories as examples and leaves values open, so established semantic names are kept where they
-already read as roles — what changed is that none of them is named after a colour any more.
+**What replaced the colours that carried meaning.** Green-truth and pink-bluff
+were doing real work in the reveal, so three separate mechanisms took over:
+truth is a pure-white plate with a heavy ink ring, a revealed bluff *sinks* to
+`sheetSunk` and dims, and a GM decoy keeps the dashed "classified" edge. Three
+different channels, so they survive greyscale, Dynamic Type XL and colour
+blindness alike.
 
-8 player identity colours (`player.one`…`player.eight`): a fixed palette readable on both `backdrop`
-and `sheet`, contrast ≥ 4.5:1. **Identity must survive without hue** (§9 and DESIGN-DIRECTION.md §7)
-— the name and marker always carry it too, so colour is never the only signal.
+**Player identity.** Eight greys are not eight hues — at 18 px they are a
+guessing game. So the player's **initial is drawn inside the token** and the
+value only reinforces it. The ramp is bounded below by the black initial needing
+4.5:1 *inside* the token, and ordered to maximise the weakest adjacent pair
+(2.09:1, found exhaustively across all 8! orderings; a naive light/dark zigzag
+scored 1.24).
+
+**The board themes are desaturated by luminance**, not by an HSL saturation
+wipe — that preserves every value relationship (dark wood stays dark, snow stays
+bright) while removing hue, so Salongen/Fjellet/Verdensrommet stay distinguishable
+by texture and form rather than by colour.
 
 ### Type
 | Role | Face | Notes |
@@ -54,13 +63,29 @@ and `sheet`, contrast ≥ 4.5:1. **Identity must survive without hue** (§9 and 
 | Body / UI | SF Pro | Dynamic Type throughout |
 | Eyebrows (section labels like "ORDET ER") | Fredoka 12 pt, uppercase, +0.14 em tracking, `quietText` | Quiet structure without headers |
 
-### Surface language — "pieces on a table"
-- **Hard offset shadows** (≈4 pt x / 5 pt y, near-black, no blur) on cards, options, buttons. Never soft material shadows.
-- **Mechanical press:** buttons carry a colored under-shadow; on press the button translates 4 pt down and the shadow compresses to 1 pt.
-- **Paper grain:** cards get a faint 1-pt horizontal line texture at ~2% ink. The secret-truth card is **dashed-border "classified"** in `private` with no grain.
-- **Layered background:** two very faint glows and a dot grid over `backdrop`. Never a flat fill — but *quiet*: DESIGN-DIRECTION.md §6 wants a background that stays readable in a screenshot, so these run at roughly a third of their original alpha.
-- Shapes: 22 pt card radius, 16 pt buttons, capsule chips; 2.5 pt ink borders everywhere. Nothing sharp.
-- **Iconography:** functional emoji only (👑 leader crown, theme landmark marks). Everything decorative is *drawn* — the logo, the mode-select phone icons. Never emoji in the brand line.
+### Surface language — minimal, not "pieces on a table"
+
+*Rewritten 2026-07-28.* The previous language stacked three separate ways of
+saying "physical object": a 2.5 pt ink outline, a hard offset shadow, and paper
+grain — on every card, option and button. In greyscale those stop reading as
+texture and start reading as noise, and DESIGN-DIRECTION.md §6 is explicit:
+one dominant idea per screen, remove decoration before adding it.
+
+- **No outlines by default.** A near-white plane on a near-black ground is
+  already the strongest edge available; drawing one on top is redundant.
+- **Hairlines, 1 px, `line`** — for the things that genuinely need an edge
+  without a fill: secondary buttons, chips, inputs, segment controls.
+- **No hard offset shadows. No paper grain. No letterpress.**
+- **The press survives.** `translateY(2px)` plus a slight dim: it is a named
+  beat (§7) and the only tactile feedback a flat control has. What went is the
+  coloured 5 px under-shadow, which was drawing a plastic toy.
+- **Hierarchy is value.** The primary action is simply the brightest thing on
+  the screen — there is no "yellow means go" left to lean on.
+- **The one inversion is the secret card**: dark plane, light text, dashed edge.
+  Inversion is the loudest statement a greyscale system can make, so it is spent
+  on the one surface a player is forbidden to see, and nowhere else.
+- Shapes: 22 pt card radius, 16 pt buttons, capsule chips. Nothing sharp.
+- **Iconography:** functional emoji only. Everything decorative is *drawn*.
 
 ## 3. The three boards
 One `BoardLayout` (a winding serpentine of *target* spaces, Start → Mål) rendered by three `BoardTheme`s. Raw sprite material: Kenney CC0 packs in `AssetsIncoming/` (see ASSETS.md) — recolor and curate; never ship raw defaults.

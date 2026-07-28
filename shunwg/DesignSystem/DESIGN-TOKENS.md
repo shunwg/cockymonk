@@ -10,68 +10,74 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | Token | Hex | Use |
 |---|---|---|
-| `backdrop` | `#14161C` |  |
-| `sheet` | `#FAF6EF` |  |
-| `ink` | `#1C1E26` |  |
-| `inkInverse` | `#E9E7E1` |  |
-| `confirmed` | `#3FB984` |  |
-| `alert` | `#E2614B` |  |
-| `action` | `#E8B93F` |  |
-| `private` | `#4E5A85` |  |
-| `quiet` | `#7C8296` |  |
-| `quietText` | `#9DA3B5` |  |
+| `backdrop` | `#0b0b10` |  |
+| `raised` | `#17171c` |  |
+| `line` | `#2a2a2f` |  |
+| `sheet` | `#f4f4f9` |  |
+| `sheetSunk` | `#e4e4e9` |  |
+| `ink` | `#0b0b10` |  |
+| `inkInverse` | `#f4f4f9` |  |
+| `confirmed` | `#FFFFFF` |  |
+| `alert` | `#8f8f94` |  |
+| `action` | `#f4f4f9` |  |
+| `private` | `#3d3d42` |  |
+| `quiet` | `#6f6f74` |  |
+| `quietText` | `#a4a4a9` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
 | # | Hex |
 |---|---|
-| 1 | `#FFB020` |
-| 2 | `#4FC3F7` |
-| 3 | `#FF7043` |
-| 4 | `#9CCC65` |
-| 5 | `#BA68C8` |
-| 6 | `#4DD0E1` |
-| 7 | `#F06292` |
-| 8 | `#AED581` |
+| 1 | `#b3b3b8` |
+| 2 | `#FFFFFF` |
+| 3 | `#a0a0a5` |
+| 4 | `#ededf2` |
+| 5 | `#8d8d92` |
+| 6 | `#dadadf` |
+| 7 | `#7a7a7f` |
+| 8 | `#c7c7cc` |
 
 ### Confetti palette (demo `confetti()`, 5)
 
 | # | Hex |
 |---|---|
-| 1 | `#E8B93F` |
-| 2 | `#E2614B` |
-| 3 | `#3FB984` |
-| 4 | `#7480B5` |
-| 5 | `#4FC3F7` |
+| 1 | `#FFFFFF` |
+| 2 | `#c8c8cd` |
+| 3 | `#8f8f94` |
+| 4 | `#5b5b60` |
+| 5 | `#e4e4e9` |
 
 ## Semantic roles
 
 | Role | References | Resolves to |
 |---|---|---|
-| `bg` | `{color.palette.backdrop}` | `#14161C` |
-| `surface` | `{color.palette.sheet}` | `#FAF6EF` |
-| `surfaceSecret` | `{color.palette.private}` | `#4E5A85` |
-| `text.onSurface` | `{color.palette.ink}` | `#1C1E26` |
-| `text.onBg` | `{color.palette.inkInverse}` | `#E9E7E1` |
-| `text.secondary` | `{color.palette.quietText}` | `#9DA3B5` |
-| `border` | `{color.palette.ink}` | `#1C1E26` |
-| `accent.truth` | `{color.palette.confirmed}` | `#3FB984` |
-| `accent.bluff` | `{color.palette.alert}` | `#E2614B` |
-| `accent.gm` | `{color.palette.private}` | `#4E5A85` |
-| `accent.turn` | `{color.palette.action}` | `#E8B93F` |
-| `status.success` | `{color.palette.confirmed}` | `#3FB984` |
-| `status.warning` | `{color.palette.action}` | `#E8B93F` |
-| `status.error` | `{color.palette.alert}` | `#E2614B` |
-| `status.info` | `{color.palette.private}` | `#4E5A85` |
-| `status.pending` | `{color.palette.quiet}` | `#7C8296` |
-| `board.path` | `{color.palette.quiet}` | `#7C8296` |
-| `board.goal` | `{color.palette.action}` | `#E8B93F` |
-| `timer.calm` | `{color.palette.quiet}` | `#7C8296` |
-| `timer.warn` | `{color.palette.action}` | `#E8B93F` |
-| `timer.urgent` | `{color.palette.alert}` | `#E2614B` |
-| `bgLayers.glowPrimary` | *(literal)* | `#7480B516` |
-| `bgLayers.glowSecondary` | *(literal)* | `#E2614B0E` |
-| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF07` |
+| `bg` | `{color.palette.backdrop}` | `#0b0b10` |
+| `bgRaised` | `{color.palette.raised}` | `#17171c` |
+| `surface` | `{color.palette.sheet}` | `#f4f4f9` |
+| `surfaceSunk` | `{color.palette.sheetSunk}` | `#e4e4e9` |
+| `surfaceSecret` | `{color.palette.private}` | `#3d3d42` |
+| `text.onSurface` | `{color.palette.ink}` | `#0b0b10` |
+| `text.onBg` | `{color.palette.inkInverse}` | `#f4f4f9` |
+| `text.secondary` | `{color.palette.quietText}` | `#a4a4a9` |
+| `border` | `{color.palette.ink}` | `#0b0b10` |
+| `hairline` | `{color.palette.line}` | `#2a2a2f` |
+| `accent.truth` | `{color.palette.confirmed}` | `#FFFFFF` |
+| `accent.bluff` | `{color.palette.alert}` | `#8f8f94` |
+| `accent.gm` | `{color.palette.private}` | `#3d3d42` |
+| `accent.turn` | `{color.palette.action}` | `#f4f4f9` |
+| `status.success` | `{color.palette.confirmed}` | `#FFFFFF` |
+| `status.warning` | `{color.palette.quietText}` | `#a4a4a9` |
+| `status.error` | `{color.palette.alert}` | `#8f8f94` |
+| `status.info` | `{color.palette.private}` | `#3d3d42` |
+| `status.pending` | `{color.palette.quiet}` | `#6f6f74` |
+| `board.path` | `{color.palette.line}` | `#2a2a2f` |
+| `board.goal` | `{color.palette.confirmed}` | `#FFFFFF` |
+| `timer.calm` | `{color.palette.quiet}` | `#6f6f74` |
+| `timer.warn` | `{color.palette.quietText}` | `#a4a4a9` |
+| `timer.urgent` | `{color.palette.confirmed}` | `#FFFFFF` |
+| `bgLayers.glowPrimary` | *(literal)* | `#FFFFFF08` |
+| `bgLayers.glowSecondary` | *(literal)* | `#FFFFFF05` |
+| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF06` |
 
 ## Contrast (WCAG 2.1, AA text threshold 4.5:1)
 
@@ -79,16 +85,16 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 
 | Foreground | Background | Ratio | AA |
 |---|---|---|---|
-| `text.onSurface (inkText)` `#1C1E26` | `surface (paper)` `#FAF6EF` | 15.43 | ✓ |
-| `text.onBg (paperText)` `#E9E7E1` | `bg (inkNight)` `#14161C` | 14.62 | ✓ |
-| `text.secondary (mutedViolet)` `#9DA3B5` | `bg (inkNight)` `#14161C` | 7.18 | ✓ |
-| `accent.truth (truthGreen)` `#3FB984` | `bg (inkNight)` `#14161C` | 7.31 | ✓ |
-| `accent.bluff (bluffPink)` `#E2614B` | `bg (inkNight)` `#14161C` | 5.21 | ✓ |
-| `accent.gm (gmViolet)` `#4E5A85` | `bg (inkNight)` `#14161C` | 2.69 | ⚠ |
-| `accent.turn (turnYellow)` `#E8B93F` | `bg (inkNight)` `#14161C` | 9.85 | ✓ |
-| `timer.calm (mutedViolet)` `#7C8296` | `bg (inkNight)` `#14161C` | 4.73 | ✓ |
-| `timer.warn (turnYellow)` `#E8B93F` | `bg (inkNight)` `#14161C` | 9.85 | ✓ |
-| `timer.urgent (bluffPink)` `#E2614B` | `bg (inkNight)` `#14161C` | 5.21 | ✓ |
+| `text.onSurface (inkText)` `#0b0b10` | `surface (paper)` `#f4f4f9` | 17.91 | ✓ |
+| `text.onBg (paperText)` `#f4f4f9` | `bg (inkNight)` `#0b0b10` | 17.91 | ✓ |
+| `text.secondary (mutedViolet)` `#a4a4a9` | `bg (inkNight)` `#0b0b10` | 7.91 | ✓ |
+| `accent.truth (truthGreen)` `#FFFFFF` | `bg (inkNight)` `#0b0b10` | 19.63 | ✓ |
+| `accent.bluff (bluffPink)` `#8f8f94` | `bg (inkNight)` `#0b0b10` | 6.10 | ✓ |
+| `accent.gm (gmViolet)` `#3d3d42` | `bg (inkNight)` `#0b0b10` | 1.82 | ⚠ |
+| `accent.turn (turnYellow)` `#f4f4f9` | `bg (inkNight)` `#0b0b10` | 17.91 | ✓ |
+| `timer.calm (mutedViolet)` `#6f6f74` | `bg (inkNight)` `#0b0b10` | 3.93 | ⚠ |
+| `timer.warn (turnYellow)` `#a4a4a9` | `bg (inkNight)` `#0b0b10` | 7.91 | ✓ |
+| `timer.urgent (bluffPink)` `#FFFFFF` | `bg (inkNight)` `#0b0b10` | 19.63 | ✓ |
 
 DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapshot-test all three.
 
@@ -96,20 +102,20 @@ DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapsh
 
 | Theme | Layer | Value |
 |---|---|---|
-| salongen | `boardBase` | `#6B4A2F` |
-| salongen | `boardAlt` | `#7A5636` |
-| salongen | `rail` | `#3C2817` |
-| fjellet | `sky` | `#39507A` |
-| fjellet | `skyLow` | `#4C6A8F` |
-| fjellet | `forest` | `#5E7F74` |
-| fjellet | `forestLow` | `#6F8F6F` |
-| fjellet | `snow` | `#E8EDF2` |
+| salongen | `boardBase` | `#515156` |
+| salongen | `boardAlt` | `#5d5d62` |
+| salongen | `rail` | `#2c2c31` |
+| fjellet | `sky` | `#505055` |
+| fjellet | `skyLow` | `#68686d` |
+| fjellet | `forest` | `#78787d` |
+| fjellet | `forestLow` | `#87878c` |
+| fjellet | `snow` | `#ececf1` |
 | fjellet | `snowPeak` | `#FFFFFF` |
-| fjellet | `rail` | `#6B6558` |
-| verdensrommet | `space` | `#0D0D1F` |
+| fjellet | `rail` | `#65656a` |
+| verdensrommet | `space` | `#0f0f14` |
 | verdensrommet | `starBright` | `#FFFFFF66` |
 | verdensrommet | `starDim` | `#FFFFFF33` |
-| verdensrommet | `rail` | `#241A4A` |
+| verdensrommet | `rail` | `#222227` |
 
 Identical space geometry and pawn physics across themes; only layers, sprites, particles, and sounds differ.
 

@@ -490,6 +490,46 @@ test("storage that throws is survivable — never break the boot", () => {
   } finally { globalThis.localStorage = orig; }
 });
 
+/* -- the own-screen predicate ------------------------------------------------
+   ui.js needs the DOM, so it cannot be imported here — but this invariant is
+   worth a source check, because breaking it produced a bug that no unit test
+   could ever have caught and that looks, on the screen, like the wrong game.
+
+   "Does each player have their own device?" is a question about the TRANSPORT.
+   It used to be answered by a mode string (`U.mode === "party"`), which meant
+   four separate net entry points had to remember to assign that string. The
+   open room forgot, so its host was handed the pass-the-phone flow — a
+   handover screen and a "send telefonen videre" button, in a game where every
+   player is on a different phone.
+
+   Deriving it from online() makes the omission impossible. This test exists so
+   nobody quietly reintroduces the string form. */
+test("own-screen is derived from the transport, never from a mode string", async () => {
+  const raw = await readFile(new URL("./ui.js", import.meta.url), "utf8");
+
+  const decl = raw.match(/^const ownScreen = .*$/m)?.[0];
+  assert.ok(decl, "ui.js must define ownScreen()");
+  assert.match(decl, /online\(\)/, "ownScreen() must consult online(), not just U.mode");
+  assert.match(decl, /U\.mode === "party"/, "…with the practice-mode string as its other arm");
+
+  // Comments discuss the old predicate at length, on purpose — the history is
+  // the reason the rule exists. Strip them, or this test polices prose.
+  const code = raw
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+
+  assert.ok(!/\bconst party = /.test(code), "the old party() predicate must not come back");
+  assert.ok(!/\bparty\(\)/.test(code), "no call site may still call party()");
+
+  // Assignments (U.mode = "party") are fine and still happen. READING the mode
+  // string as the own-screen answer is what broke the open room.
+  const reads = [...code.matchAll(/U\.mode\s*===\s*"party"/g)];
+  assert.equal(
+    reads.length, 1,
+    `U.mode === "party" should be read once, inside ownScreen — found ${reads.length}`,
+  );
+});
+
 // -- bundle safety ------------------------------------------------------------
 // build-standalone.mjs concatenates every module into ONE IIFE, so two files
 // declaring the same top-level name is not a lint nit — it is a SyntaxError

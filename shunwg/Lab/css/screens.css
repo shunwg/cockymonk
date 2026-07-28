@@ -4,7 +4,7 @@
 
 /* ---------- board frame: a real routed box, lit from above ---------- */
 .boardwrap {
-  border-radius: var(--radius-card); border: 3px solid #0a0a18; padding: 18px; position: relative;
+  border-radius: var(--radius-card); border: 3px solid #0b0b10; padding: 18px; position: relative;
   overflow: hidden; min-height: 300px;
   box-shadow:
     var(--shadow-hard),
@@ -29,20 +29,20 @@
 
 /* Mål — a gold medallion that pulses "claim me" (all themes inherit; DESIGN §5) */
 .board .space.goal {
-  background: radial-gradient(circle at 50% 34%, #fff2c0 0%, var(--color-accent-turn) 46%, #d99a1a 100%);
-  border: 2.5px solid #8a5a12; color: #5a3d08;
+  background: radial-gradient(circle at 50% 34%, #f2f2f7 0%, var(--color-accent-turn) 46%, #a6a6ab 100%);
+  border: 2.5px solid #646469; color: #424247;
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
 @keyframes goalglow {
-  0%, 100% { box-shadow: 0 0 0 0 #E8B93F00, inset 0 0 0 2px #F0D38799; }
-  50%      { box-shadow: 0 0 0 9px #E8B93F33, 0 0 20px 5px #E8B93F66, inset 0 0 0 2px #ffffff; }
+  0%, 100% { box-shadow: 0 0 0 0 #FFFFFF00, inset 0 0 0 2px #FFFFFF55; }
+  50%      { box-shadow: 0 0 0 9px #FFFFFF26, 0 0 20px 5px #FFFFFF44, inset 0 0 0 2px #ffffff; }
 }
 
 /* ---------- pawns: domed physical pieces ---------- */
 .pawn {
   position: absolute; width: 31px; height: 31px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-size: 15px;
-  border: 2.5px solid #0a0a18; z-index: 5;
+  border: 2.5px solid #0b0b10; z-index: 5;
   background-image: radial-gradient(circle at 38% 28%, #ffffff55, transparent 55%);
   transition: left var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease),
               top var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease);
@@ -64,18 +64,26 @@
 .scoreline b {                               /* the +delta — a turnYellow chip you win */
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
   border: 2px solid var(--color-border); border-radius: var(--radius-chip);
-  padding: 1px 9px; box-shadow: 0 2px 0 #A8801Fcc;
+  padding: 1px 9px; 
 }
 
 /* ---------- Home (front of house) ---------- */
 .home-lang { max-width: 230px; margin: 2px auto 0; }
+/* The app icon, on screen. The mark inherits currentColor, so the badge has to
+   SET a colour — inheriting the page's light-on-dark text into a near-white
+   plate rendered the logo invisible, which is exactly the failure a
+   currentColor mark trades for its flexibility. Stated here so the trade is
+   visible at the one place that has to honour it. */
 .home-badge {
-  width: 128px; height: 128px; display: flex; align-items: center; justify-content: center;
-  background: var(--color-accent-turn); border: 3px solid var(--color-border);
-  border-radius: 28px; box-shadow: var(--shadow-hard);
-  background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000008 3px 4px);   /* paper grain */
+  width: 120px; height: 120px; display: flex; align-items: center; justify-content: center;
+  background: var(--color-accent-turn); color: var(--color-text-on-surface);
+  border: 0; border-radius: 30px;
 }
-.home-badge .logo { width: 92px; height: auto; }   /* shadow is drawn inside LOGO() */
+.home-badge .logo { width: 84px; height: auto; }
+/* The hero is now vertically centred between two flexible gaps rather than
+   pinned to the top with ~300 px of nothing beneath it. Dead vertical space is
+   a composition decision, and it was not one anybody had made on purpose. */
+.hero { margin: 0; }
 .linkbtn {
   display: block; width: 100%; background: none; border: none; cursor: pointer; min-height: 44px;
   color: var(--color-text-secondary); font: inherit; font-weight: 600; font-size: 15px;
@@ -90,7 +98,7 @@
 .step-n {
   flex: none; width: 36px; height: 36px; border-radius: 50%;
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #A8801Fcc;
+  border: 2.5px solid var(--color-border); 
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 17px; font-family: var(--type-display-family);
 }

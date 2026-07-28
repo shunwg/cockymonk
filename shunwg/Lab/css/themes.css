@@ -9,7 +9,7 @@
 .theme-salongen .boardwrap {
   --board-rail: var(--color-theme-salongen-rail);
   background:
-    radial-gradient(130% 90% at 50% -12%, #b3823f66 0%, transparent 55%),          /* overhead lamp pool */
+    radial-gradient(130% 90% at 50% -12%, #8b8b9066 0%, transparent 55%),          /* overhead lamp pool */
     repeating-linear-gradient(93deg,                                                /* fine grain (3° skew) */
       #00000016 0 2px, transparent 2px 5px, #ffffff0c 5px 6px, transparent 6px 24px),
     repeating-linear-gradient(90deg,                                                /* plank seams */
@@ -18,8 +18,8 @@
     var(--color-theme-salongen-board-base);
 }
 .theme-salongen .space {
-  background: radial-gradient(circle at 38% 30%, #e6c79a 0%, #c49a63 46%, #9a7038 100%);
-  border: 2.5px solid #4d341f; color: #3a2614;
+  background: radial-gradient(circle at 38% 30%, #cbcbd0 0%, #a1a1a6 46%, #78787d 100%);
+  border: 2.5px solid #39393e; color: #2a2a2f;
   box-shadow:
     inset 0 2px 2px #ffffff55, inset 0 -3px 4px #00000066,
     inset 0 0 0 3px #ffffff22,        /* concentric inlay ring — turned wood */
@@ -43,9 +43,9 @@
 }
 .theme-fjellet .space {
   background:
-    radial-gradient(circle at 50% 20%, #f2efe9 0 16%, transparent 17%),   /* crown-stone glint */
-    radial-gradient(circle at 36% 34%, #d9d3c7, #a9a294 68%, #837c6e 100%);
-  border: 2.5px solid #5a544a; color: #3f3b32;
+    radial-gradient(circle at 50% 20%, #efeff4 0 16%, transparent 17%),   /* crown-stone glint */
+    radial-gradient(circle at 36% 34%, #d3d3d8, #a3a3a8 68%, #7d7d82 100%);
+  border: 2.5px solid #55555a; color: #3b3b40;
   box-shadow: inset 0 2px 2px #ffffff66, inset 0 -3px 5px #00000044, 0 2px 0 #00000044;
 }
 
@@ -55,8 +55,8 @@
 .theme-rom .boardwrap {
   --board-rail: var(--color-theme-verdensrommet-rail);
   background:
-    radial-gradient(90% 60% at 18% 8%,  #3a2a6a66, transparent 60%),   /* nebula 1 */
-    radial-gradient(80% 60% at 88% 92%, #6d3a9a4d, transparent 60%),   /* nebula 2 */
+    radial-gradient(90% 60% at 18% 8%,  #35353a66, transparent 60%),   /* nebula 1 */
+    radial-gradient(80% 60% at 88% 92%, #5353584d, transparent 60%),   /* nebula 2 */
     var(--color-theme-verdensrommet-space);
   background-image:
     radial-gradient(var(--color-theme-verdensrommet-star-bright) 1.2px, transparent 1.2px),
@@ -68,27 +68,27 @@
   content: ""; position: absolute; inset: -20%; pointer-events: none;
   background-image:
     radial-gradient(1.6px 1.6px at 40px 60px,   #ffffff, transparent),
-    radial-gradient(1.3px 1.3px at 150px 120px, #cfe3ff, transparent),
+    radial-gradient(1.3px 1.3px at 150px 120px, #e1e1e6, transparent),
     radial-gradient(1px 1px     at 240px 200px, #ffffffcc, transparent);
   background-size: 260px 260px;
   animation: starDrift 42s linear infinite; will-change: transform;
 }
 @keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
 .theme-rom .space {
-  background: radial-gradient(circle at 50% 50%, #1c1c46 0 54%, #141430 55%);
-  border: 2.5px solid var(--color-accent-gm); color: #C3CAE0;
-  box-shadow: 0 0 0 2px #4E5A8522, 0 0 12px #4E5A8566 inset, 0 0 10px #4E5A8533;   /* orbit-ring halo */
+  background: radial-gradient(circle at 50% 50%, #212126 0 54%, #17171c 55%);
+  border: 2.5px solid var(--color-accent-gm); color: var(--color-text-on-bg);
+  box-shadow: 0 0 0 2px #FFFFFF14, 0 0 12px #FFFFFF33 inset, 0 0 10px #FFFFFF1F;   /* orbit-ring halo */
 }
 
 /* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
-.theme-salongen .track-path polyline { stroke: #caa15a; }   /* inlaid brass groove */
+.theme-salongen .track-path polyline { stroke: #a7a7ac; }   /* inlaid brass groove */
 .theme-fjellet  .track-path polyline { stroke: #ffffffaa; }  /* dotted snow trail */
-.theme-rom      .track-path polyline { stroke: #b79bffcc; }  /* faint orbit dashes */
+.theme-rom      .track-path polyline { stroke: #ababb0cc; }  /* faint orbit dashes */
 
 /* ---------- per-theme pawn flavor (shared physics live in screens.css) ---------- */
 .theme-fjellet .pawn { box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25), 0 0 0 2px #ffffff33; }
 .theme-rom .pawn::after {                /* exhaust puff on hop (ui.js adds .hopping ~350 ms) */
-  content: ""; position: absolute; bottom: -6px; width: 8px; height: 8px; border-radius: 50%; background: #ffd18a; opacity: 0;
+  content: ""; position: absolute; bottom: -6px; width: 8px; height: 8px; border-radius: 50%; background: #d8d8dd; opacity: 0;
 }
 .theme-rom .pawn.hopping::after { animation: puff .35s ease-out; }
 @keyframes puff { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: translateY(8px) scale(1.3); } }

@@ -2,21 +2,23 @@
  * handover hold-button, confetti. Lane B. Token-pure. */
 
 .modebtn {
-  text-align: left; background: var(--color-surface); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); border-radius: var(--radius-card); padding: 16px;
-  box-shadow: var(--shadow-hard); display: flex; gap: 14px; align-items: center;
+  text-align: left; background: transparent; color: var(--color-text-on-bg);
+  box-shadow: inset 0 0 0 1px var(--color-hairline); border: 0;
+  border-radius: var(--radius-card); padding: 18px;
+  display: flex; gap: 16px; align-items: center; margin-top: 10px;
+  transition: background var(--motion-dur-button-press), transform var(--motion-dur-button-press);
 }
-.modebtn:active { transform: translateY(var(--shadow-press-translate)); box-shadow: var(--shadow-hard-pressed); }
-.modebtn small { display: block; font-weight: 500; color: #5c5645; margin-top: 3px; line-height: 1.35; }
-.modebtn b { font-size: 18px; }
+.modebtn:active { transform: translateY(2px); background: #ffffff08; }
+.modebtn small { display: block; font-weight: 400; color: var(--color-text-secondary); margin-top: 4px; line-height: 1.45; }
+.modebtn b { font-size: 17px; font-weight: 600; }
 .phones { flex: none; display: flex; gap: 4px; align-items: flex-end; }
-.phoneico { width: 20px; height: 32px; border: 2.5px solid var(--color-border); border-radius: 6px; background: #fff; position: relative; }
+.phoneico { width: 18px; height: 30px; border: 1.5px solid var(--color-text-secondary); border-radius: 5px; background: transparent; position: relative; }
 .phoneico::after {
   content: ""; position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
-  width: 6px; height: 2.5px; border-radius: 2px; background: var(--color-border);
+  width: 6px; height: 2px; border-radius: 2px; background: var(--color-text-secondary);
 }
-.phoneico.p2 { height: 26px; background: var(--color-accent-turn); }
-.phoneico.p3 { height: 29px; background: #E6E3DB; }
+.phoneico.p2 { height: 24px; background: var(--color-accent-turn); border-color: var(--color-accent-turn); }
+.phoneico.p3 { height: 27px; }
 
 /* ---- phase countdown (PRD §5.2a) ----------------------------------------
    --p is the fraction still to run, 1 → 0, and is the ONLY property the
@@ -95,43 +97,64 @@
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .pchip {
   display: flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: var(--radius-chip);
-  font-weight: 600; font-size: 14px; background: #ffffff14; border: 2px solid #ffffff2a;
+  font-weight: 500; font-size: 14px; background: transparent; border: 1px solid var(--color-hairline);
   transition: transform var(--spring-chip-flip-duration) var(--spring-chip-flip-ease),
               background var(--spring-chip-flip-duration), box-shadow var(--spring-chip-flip-duration);
-  color: var(--color-text-on-bg); box-shadow: 0 2px 0 rgba(0,0,0,.28);
+  color: var(--color-text-on-bg);
 }
-.card .pchip { color: var(--color-text-on-surface); background: #00000010; border-color: #00000022; }
-.pchip .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(0,0,0,.25); }
+.card .pchip { color: var(--color-text-on-surface); background: transparent; border-color: #00000022; }
+/* The identity token. Eight greys alone would be a guessing game at 14 px, so the
+   player INITIAL is drawn inside — the mark carries the identity and the value
+   only reinforces it (DESIGN.md §9, DESIGN-DIRECTION.md §7). */
+.dot {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  color: var(--color-text-on-surface); font-family: var(--type-display-family);
+}
 .pchip.done {
   background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth);
-  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #2A8A63;   /* mechanical snap + truthGreen under-shadow */
+  transform: rotateX(360deg) scale(1.04);
 }
 
 .seg { display: flex; gap: 8px; margin: 8px 0; }
 .seg button {
-  flex: 1; padding: 12px 6px; border-radius: var(--radius-button); border: 2px solid #ffffff30;
-  background: #ffffff0a; color: var(--color-text-on-bg); font: inherit; font-weight: 600; cursor: pointer; font-size: 14px;
+  flex: 1; padding: 12px 6px; border-radius: var(--radius-button); border: 1px solid var(--color-hairline);
+  background: transparent; color: var(--color-text-secondary); font: inherit; font-weight: 500; cursor: pointer; font-size: 14px;
+  transition: background var(--motion-dur-button-press), color var(--motion-dur-button-press);
 }
 .seg button.on {
   background: var(--color-accent-turn); color: var(--color-text-on-surface); border-color: var(--color-accent-turn);
-  box-shadow: 0 3px 0 #A8801Fcc; font-weight: 700;
+  font-weight: 600;
 }
 
 .opt {
   display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); border-radius: var(--radius-card); padding: 14px; margin-bottom: 11px;
-  cursor: pointer; box-shadow: var(--shadow-hard);
-  transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
+  border: 0; border-radius: var(--radius-card); padding: 15px; margin-bottom: 10px;
+  cursor: pointer;
+  transition: transform var(--motion-dur-button-press), opacity var(--motion-dur-button-press);
 }
-.opt:active { transform: translateY(3px); box-shadow: var(--shadow-hard-pressed); }
+.opt:active { transform: translateY(2px); opacity: .9; }
 .opt .letter {
-  flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--color-border); color: var(--color-surface);
-  font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family: var(--type-display-family);
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); color: var(--color-text-on-surface);
+  font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 16px; font-family: var(--type-display-family);
 }
-/* tinted hard shadows → each option reads as a colored physical tile (color means something) */
-.opt.truth { border-color: var(--color-accent-truth); background: #E8F7EF; box-shadow: 4px 5px 0 #2A8A6388, 0 0 22px #3FB98444; }
-.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #A8412E88; }
-.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #4E5A8588; }
+/* THE REVEAL, WITHOUT COLOUR. Green-truth and pink-bluff carried this moment; in
+   greyscale the same three states have to come from value, fill and edge:
+     truth  — pure white plate + a heavy ink ring. The brightest thing on screen.
+     bluff  — a SUNK, dimmer plate that visibly recedes behind the truth.
+     decoy  — the dashed "classified" edge the secret card already uses.
+   Three different mechanisms, so they stay apart in greyscale, at Dynamic Type
+   XL, and for a colour-blind player (DESIGN.md §9). */
+.opt.truth {
+  background: var(--color-accent-truth);
+  box-shadow: inset 0 0 0 2.5px var(--color-text-on-surface);
+}
+.opt.truth .letter { background: var(--color-text-on-surface); color: var(--color-accent-truth); box-shadow: none; }
+.opt.bluff { background: var(--color-surface-sunk); opacity: .82; }
+.opt.decoy { background: var(--color-surface-sunk); box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
+.opt.decoy .letter { box-shadow: none; border: 1.5px dashed var(--color-text-on-surface); }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
 @keyframes pop { 0% { opacity: 0; transform: scale(.85) rotate(-1.5deg); } 100% { opacity: 1; transform: none; } }
@@ -283,8 +306,8 @@
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #333C5A; box-shadow: 0 4px 0 #333C5A; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #2A8A63; box-shadow: 0 4px 0 #2A8A63; }
+.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); border-color: transparent; }
+.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
@@ -292,7 +315,7 @@
 .handover {
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 24px; z-index: 50;
-  background: radial-gradient(500px 400px at 50% 30%, #2a2a46, var(--color-bg) 75%);
+  background: radial-gradient(500px 400px at 50% 30%, #2d2d32, var(--color-bg) 75%);
 }
 .holdbtn {
   width: 156px; height: 156px; border-radius: 50%; border: none; cursor: pointer; margin-top: 28px;
