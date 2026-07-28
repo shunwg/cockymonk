@@ -1,0 +1,336 @@
+/* app.css — The Daily Cock's own screens, built entirely on tokens.css.
+ * No ad-hoc colors/fonts (same rule as shunwg's Definition of Done). */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  /* Page chrome is plain white — the game itself (its dark blue) lives only
+   * inside the portrait #app column, since the intended surface is a phone,
+   * not a desktop browser tab. */
+  background: #ffffff;
+  color: #000000;
+  font-family: -apple-system, "SF Pro", system-ui, sans-serif;
+  font-size: var(--type-body-size);
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--color-bg);
+  color: var(--color-text-on-bg);
+}
+
+/* -- persistent header: icon, name, points, streak — visible on every
+ * gameplay screen (not onboarding, where there's nothing to show yet). Lives
+ * outside #screen-root so it survives screen replacements; only ui.js's
+ * updateHeader() ever touches its numbers, deliberately delayed after a
+ * point-changing reveal (see the flash classes below). */
+#header:empty { display: none; }
+#header {
+  margin: -24px -20px 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.header-name { font-family: var(--type-display-family); font-weight: 600; font-size: 15px; }
+.header-stats { margin-left: auto; text-align: right; font-size: var(--type-sub-size); }
+.header-points { font-weight: 700; }
+
+/* Big-number reveals (score/welcome/done steps) pulse once their count-up
+ * finishes; the header only updates to match AFTER this plays (see ui.js). */
+@keyframes flash-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--color-accent-turn); } }
+.flash { animation: flash-pulse 400ms ease-in-out; }
+
+/* Every screen transition gets a soft rise-and-fade entrance — reuses the
+ * token literally named for this (tokens.json motion.durations.screenIn). */
+.screen { animation: screen-in var(--motion-dur-screen-in) ease-out; }
+@keyframes screen-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* The final step of the day: full-bleed green, no card — "you're done,
+ * everything is fine" should read at a glance, not from reading a box. */
+.screen-success {
+  margin: -24px -20px -48px;
+  padding: 24px 20px 48px;
+  min-height: 100vh;
+  background: var(--color-accent-truth);
+  color: var(--color-ink-night, #1B1B2E);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
+}
+
+/* -- dev toolbar: testing-only, see CLAUDE.md — not part of the shipped UX --
+ * Deliberately monochrome and far from the game's palette (light gray, black
+ * text, white/black-outline controls) so it reads as tooling, not game UI. */
+#devbar {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ececec;
+  border-bottom: 1px solid #000000;
+  font-size: 12px;
+}
+.devbar-label {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #000000;
+  flex-shrink: 0;
+}
+#devbar select {
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #000000;
+  background: #ffffff;
+  color: #000000;
+  padding: 4px 8px;
+  max-width: 45%;
+}
+
+.eyebrow {
+  font-size: var(--type-eyebrow-size);
+  font-weight: var(--type-eyebrow-weight);
+  letter-spacing: var(--type-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+h1 {
+  font-family: var(--type-display-family);
+  font-size: var(--type-h1-size);
+  font-weight: var(--type-h1-weight);
+  letter-spacing: var(--type-h1-tracking);
+  line-height: var(--type-h1-line-height);
+  margin: 0;
+}
+
+h2 {
+  font-family: var(--type-display-family);
+  font-size: var(--type-h2-size);
+  font-weight: var(--type-h2-weight);
+  letter-spacing: var(--type-h2-tracking);
+  margin: 0 0 12px;
+}
+
+p { margin: 0; line-height: 1.4; }
+
+.mascot { width: 96px; height: 96px; display: block; margin: 0 auto; }
+.mascot.small { width: 48px; height: 48px; margin: 0; }
+
+.card {
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+  padding: 20px;
+}
+
+.btn {
+  font-family: var(--type-display-family);
+  font-weight: 600;
+  font-size: 17px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  box-shadow: var(--shadow-hard);
+  background: var(--color-accent-turn);
+  color: var(--color-ink-night, #1B1B2E);
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: transform var(--spring-button-press-duration) var(--spring-button-press-ease);
+}
+.btn:active { transform: translateY(var(--shadow-press-translate)); box-shadow: var(--shadow-hard-pressed); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.secondary { background: var(--color-surface); color: var(--color-text-on-surface); }
+.btn.full { width: 100%; }
+
+textarea, input[type="text"] {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.word-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.word-block:last-child { margin-bottom: 0; }
+.word-title {
+  font-family: var(--type-display-family);
+  font-size: var(--type-card-word-size);
+  font-weight: var(--type-card-word-weight);
+  letter-spacing: var(--type-card-word-tracking);
+  line-height: var(--type-card-word-line-height);
+}
+
+.chip {
+  display: inline-block;
+  font-size: var(--type-sub-size);
+  font-weight: 600;
+  border-radius: var(--radius-chip);
+  padding: 4px 12px;
+  background: var(--color-accent-truth);
+  color: var(--color-ink-night, #1B1B2E);
+}
+
+.option-list { display: flex; flex-direction: column; gap: 10px; }
+.option-btn {
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.option-btn:disabled { cursor: default; }
+.option-btn.correct { background: var(--color-accent-truth); border-color: var(--color-accent-truth); }
+.option-btn.wrong { background: var(--color-accent-bluff); border-color: var(--color-accent-bluff); }
+
+.progress-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--type-display-family);
+  font-weight: 600;
+  color: var(--color-accent-truth);
+  animation: pop-in var(--spring-tally-pop-duration) var(--spring-tally-pop-ease);
+}
+.progress-chip .tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent-truth);
+  color: var(--color-ink-night, #1B1B2E);
+  font-size: 13px;
+  animation: tick-pop var(--motion-dur-reveal-pop) var(--spring-reveal-pop-ease);
+}
+@keyframes tick-pop { from { transform: scale(0) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+
+.done-box {
+  background: var(--color-accent-truth);
+  color: var(--color-ink-night, #1B1B2E);
+  border-radius: var(--radius-card);
+  padding: 22px;
+  text-align: center;
+  font-family: var(--type-display-family);
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: var(--shadow-hard);
+  animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
+}
+
+.streak-pct {
+  font-size: var(--type-sub-size);
+  font-weight: 700;
+  color: var(--color-accent-truth);
+  margin-left: 6px;
+}
+
+.recap-points {
+  font-family: var(--type-display-family);
+  font-size: 56px;
+  font-weight: 700;
+  text-align: center;
+  animation: pop-in var(--spring-tally-pop-duration) var(--spring-tally-pop-ease);
+}
+
+@keyframes pop-in { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.stat-row { display: flex; justify-content: space-between; gap: 12px; font-size: var(--type-sub-size); color: var(--color-text-secondary); }
+.streak-badge { font-weight: 700; color: var(--color-accent-turn); }
+.done-banner { text-align: center; color: var(--color-accent-truth); font-weight: 700; }
+.empty-note { color: var(--color-text-secondary); font-style: italic; }
+
+/* -- countdown bar: one word, one timer. animation-duration is set inline
+ * per word (30s guess / 60s write — config.js TIMERS) so this one keyframe
+ * serves both. Color rides calm -> warn -> urgent, same tokens the design
+ * system already reserves for exactly this. The seconds label is a plain
+ * once-a-second JS tick (startCountdownSeconds), independent of the CSS bar —
+ * gives the bar's width an actual scale to read against. */
+.countdown-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.countdown-seconds { font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--type-sub-size); color: var(--color-text-secondary); flex-shrink: 0; min-width: 2.5em; text-align: right; }
+.countdown-bar { flex: 1; height: 6px; border-radius: var(--radius-chip); overflow: hidden; background: rgba(0,0,0,0.15); }
+.countdown-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  animation-name: countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes countdown {
+  0% { width: 100%; background: var(--color-timer-calm); }
+  60% { background: var(--color-timer-calm); }
+  85% { background: var(--color-timer-warn); }
+  100% { width: 0%; background: var(--color-timer-urgent); }
+}
+
+/* -- timeout screen: "du rakk ikke..." — muted, not a failure state, just a
+ * miss. Deliberately NOT red/bluff-pink (that's reserved for a wrong guess). */
+.timeout-box {
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+  padding: 24px;
+  text-align: center;
+  animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
+}
+.timeout-box h2 { margin-bottom: 8px; }
+
+/* -- expandable per-word review (score step) ------------------------------- */
+.review-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.review-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  font-weight: 600;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  padding: 10px 14px;
+  cursor: pointer;
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+}
+.review-toggle.correct { background: var(--color-accent-truth); border-color: var(--color-accent-truth); }
+.review-toggle.wrong { background: var(--color-accent-bluff); border-color: var(--color-accent-bluff); }
+.review-toggle .review-arrow { margin-left: auto; transition: transform 150ms ease-out; }
+.review-toggle[aria-expanded="true"] .review-arrow { transform: rotate(180deg); }
+.review-detail { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 2px; }
+.review-detail[hidden] { display: none; }
+.review-option {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  padding: 8px 12px;
+  font-size: var(--type-sub-size);
+}
+.review-option.truth { border-color: var(--color-accent-truth); }
+.review-option.mine:not(.truth) { border-color: var(--color-accent-bluff); }
+.review-option-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; display: block; margin-bottom: 2px; }

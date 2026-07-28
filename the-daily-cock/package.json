@@ -1,0 +1,14 @@
+{
+  "name": "the-daily-cock",
+  "private": true,
+  "description": "Async daily word-bluffing mode, spun off from Cocky Monk. Zero-dependency Node toolchain.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "serve": "node server/dev-server.mjs",
+    "test": "node --test js/engine.test.mjs",
+    "build-words": "node Tools/build-words.mjs",
+    "sync-tokens": "node Tools/sync-tokens.mjs",
+    "simulate": "node Tools/simulate-day.mjs"
+  }
+}

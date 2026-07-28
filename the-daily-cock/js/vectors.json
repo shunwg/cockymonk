@@ -1,0 +1,90 @@
+{
+  "_comment": "Test vectors coupled to js/config.js's CURRENT values (guessScoreByCorrectCount=[-50,0,120,300], voteReceivedPoints=40, closeMatchBonus=150, streakBonus.stepPct=10/maxPct=70, rating.base=800). If a vector fails, the engine is wrong — not the vector (change vectors only alongside a deliberate config/rule change).",
+
+  "scoreGuesses": [
+    { "id": "SG1-three-correct", "results": [true, true, true], "expected": { "points": 300, "correctCount": 3 } },
+    { "id": "SG2-two-correct-order-independent", "results": [true, false, true], "expected": { "points": 120, "correctCount": 2 } },
+    { "id": "SG3-one-correct-breaks-even", "results": [false, true, false], "expected": { "points": 0, "correctCount": 1 } },
+    { "id": "SG4-none-correct-is-a-penalty", "results": [false, false, false], "expected": { "points": -50, "correctCount": 0 } }
+  ],
+
+  "applyStreakBonus": [
+    { "id": "ASB1-positive-gets-boosted", "basePoints": 100, "pct": 20, "expected": 120 },
+    { "id": "ASB2-negative-untouched-by-streak", "basePoints": -50, "pct": 70, "expected": -50 },
+    { "id": "ASB3-zero-untouched", "basePoints": 0, "pct": 30, "expected": 0 },
+    { "id": "ASB4-no-bonus-passthrough", "basePoints": 300, "pct": 0, "expected": 300 }
+  ],
+
+  "mergeSubmissions": [
+    {
+      "id": "MS1-dedupe-and-close-match",
+      "truth": "Ekte definisjon av ordet",
+      "submissions": [
+        { "userId": "a", "text": "En bløff her" },
+        { "userId": "b", "text": "EN BLØFF HER" },
+        { "userId": "c", "text": "Ekte definisjon av ordet" },
+        { "userId": "d", "text": "   " }
+      ],
+      "expected": {
+        "options": [{ "kind": "human", "authors": ["a", "b"], "text": "En bløff her" }],
+        "closeMatches": ["c"]
+      }
+    }
+  ],
+
+  "scoreFooledVotes": [
+    {
+      "id": "FV1-split-merged-authors",
+      "options": [
+        { "id": "a", "kind": "human", "authors": ["p1", "p2"], "text": "bløff" },
+        { "id": "b", "kind": "truth", "authors": [], "text": "sannhet" },
+        { "id": "c", "kind": "bot", "authors": ["bot:1:0"], "text": "bot-bløff" }
+      ],
+      "guesses": [
+        { "userId": "g1", "choiceId": "a" },
+        { "userId": "g2", "choiceId": "a" },
+        { "userId": "g3", "choiceId": "c" }
+      ],
+      "expected": {
+        "deltas": { "p1": 40, "p2": 40 },
+        "fooledCounts": { "p1": 2, "p2": 2 }
+      }
+    }
+  ],
+
+  "scoreCloseMatches": [
+    { "id": "CM1-accumulates", "closeMatches": ["c", "c"], "expected": { "c": 300 } }
+  ],
+
+  "creditPoints": [
+    { "id": "R1-first-day", "priorCountedDays": [], "dayKey": "2026-07-20", "points": 300, "expected": { "ratingSum": 300, "countedDays": ["2026-07-20"] } },
+    { "id": "R2-consecutive-day", "priorCountedDays": ["2026-07-20"], "priorRatingSum": 300, "dayKey": "2026-07-21", "points": 200, "expected": { "ratingSum": 500, "countedDays": ["2026-07-20", "2026-07-21"] } },
+    { "id": "R3-gap-is-fine-no-penalty", "priorCountedDays": ["2026-07-20", "2026-07-21"], "priorRatingSum": 500, "dayKey": "2026-07-23", "points": 150, "expected": { "ratingSum": 650, "countedDays": ["2026-07-20", "2026-07-21", "2026-07-23"] } },
+    { "id": "R4-second-touch-of-a-day-only-adds-points", "priorCountedDays": ["2026-07-20"], "priorRatingSum": 300, "dayKey": "2026-07-20", "points": 150, "expected": { "ratingSum": 450, "countedDays": ["2026-07-20"] } }
+  ],
+
+  "currentStreak": [
+    { "id": "S1-three-in-a-row", "days": ["2026-07-19", "2026-07-20", "2026-07-21"], "expected": 3 },
+    { "id": "S2-gap-breaks-streak", "days": ["2026-07-18", "2026-07-20", "2026-07-21"], "expected": 2 },
+    { "id": "S3-empty", "days": [], "expected": 0 }
+  ],
+
+  "streakEndingAt": [
+    { "id": "SE1-mid-run-ignores-later-days", "days": ["2026-07-18", "2026-07-19", "2026-07-20", "2026-07-22"], "dayKey": "2026-07-19", "expected": 2 },
+    { "id": "SE2-day-not-participated", "days": ["2026-07-19", "2026-07-20"], "dayKey": "2026-07-25", "expected": 0 }
+  ],
+
+  "streakBonusPct": [
+    { "id": "SBP1-day-one", "streakDays": 1, "expected": 10 },
+    { "id": "SBP2-day-two", "streakDays": 2, "expected": 20 },
+    { "id": "SBP3-day-three", "streakDays": 3, "expected": 30 },
+    { "id": "SBP4-day-seven-hits-cap", "streakDays": 7, "expected": 70 },
+    { "id": "SBP5-capped-beyond", "streakDays": 40, "expected": 70 },
+    { "id": "SBP6-zero-streak-no-bonus", "streakDays": 0, "expected": 0 }
+  ],
+
+  "currentRating": [
+    { "id": "CR1", "ratingSum": 500, "countedDays": ["2026-07-20", "2026-07-21"], "expected": 1050 },
+    { "id": "CR2-unplayed", "ratingSum": 0, "countedDays": [], "expected": 800 }
+  ]
+}
