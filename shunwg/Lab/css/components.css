@@ -339,10 +339,11 @@
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
 
 .banner {
+  color: var(--color-text-on-surface);
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); border-color: transparent; }
+.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); border-color: transparent; }
 .banner.ok { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }

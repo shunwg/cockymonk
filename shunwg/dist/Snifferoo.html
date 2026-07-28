@@ -48,14 +48,15 @@
   --color-private: #2A2A33;
   --color-quiet: #8C8C94;
   --color-quiet-text: #5A5A62;
-  --color-player-1: #4f4f55;
-  --color-player-2: #77777d;
-  --color-player-3: #414147;
-  --color-player-4: #6e6e74;
+  --color-quiet-on-surface: #A8A8B0;
+  --color-player-1: #49494f;
+  --color-player-2: #6d6d73;
+  --color-player-3: #3b3b41;
+  --color-player-4: #66666c;
   --color-player-5: #000006;
-  --color-player-6: #5b5b61;
-  --color-player-7: #2d2d33;
-  --color-player-8: #65656b;
+  --color-player-6: #54545a;
+  --color-player-7: #29292f;
+  --color-player-8: #5d5d63;
   --color-confetti-1: #000006;
   --color-confetti-2: #3f3f45;
   --color-confetti-3: #59595f;
@@ -71,6 +72,7 @@
   --color-text-on-surface: #F6F6F4;
   --color-text-on-bg: #16161A;
   --color-text-secondary: #5A5A62;
+  --color-text-secondary-on-surface: #A8A8B0;
   --color-border: #F6F6F4;
   --color-hairline: #D9D9D5;
   --color-accent-truth: #000000;
@@ -227,6 +229,35 @@
   --mark-cheese: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 40"><path fill="black" d="M4 30V16.5c0-1 .7-1.9 1.7-2.1L41.4 6.1c1.6-.4 3.1.9 3.1 2.5V30a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9.5-9.2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm18 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8ZM24 13.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>');
 }
 
+
+/* ---------- TEXT POLARITY ----------
+   The inversion made the PAGE light and the CARDS dark, which split one rule
+   into two: text on the page is dark, text on a card is light. Components that
+   named a page colour while sitting on a card went invisible — "Kopier lenke"
+   and "Hemmelig sannhet" both measured 1.00:1, which is not low contrast, it is
+   the same colour twice.
+
+   Scoped here ONCE rather than patched per component, so a new element dropped
+   inside a card inherits the right polarity instead of joining the bug. */
+.card, .opt, .wordchip, .banner.gm, .btn.gm, .pt.gm {
+  color: var(--color-text-on-surface);
+}
+.card .small, .card .sub, .card .eyebrow,
+.opt .small, .opt .sub, .wordchip .eyebrow, .wordchip .small,
+.banner.gm .small, .btn.gm .small {
+  color: var(--color-text-secondary-on-surface);
+}
+/* A secondary button inside a card is a card citizen: light text, light rule. */
+.card .btn.secondary, .opt .btn.secondary {
+  color: var(--color-text-on-surface);
+  box-shadow: inset 0 0 0 1px #ffffff2e;
+}
+.card .btn.secondary:active, .opt .btn.secondary:active { background: #ffffff10; }
+/* Chips and pills likewise. */
+.card .pchip, .card .ratingpill, .opt .ratingpill {
+  color: var(--color-text-secondary-on-surface); border-color: #ffffff2e;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 
@@ -304,10 +335,10 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
    greyscale system can make, which is why it is spent here and nowhere else. */
 .card.secret {
   background: var(--color-surface-secret);
-  color: var(--color-text-on-bg);
+  color: var(--color-text-on-surface);
   border: 1.5px dashed var(--color-text-secondary);
 }
-.card.secret .eyebrow, .card.secret .small { color: var(--color-text-secondary); }
+.card.secret .eyebrow, .card.secret .small { color: var(--color-text-secondary-on-surface); }
 
 .word {
   font-family: var(--type-display-family); font-size: var(--type-card-word-size);
@@ -336,7 +367,7 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   box-shadow: inset 0 0 0 1px var(--color-hairline); font-weight: 500;
 }
 .btn.secondary:active { background: #00000008; }
-.btn.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
+.btn.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .btn:focus-visible { outline: 2px solid var(--color-accent-turn); outline-offset: 3px; }
@@ -749,10 +780,11 @@ html, body { overscroll-behavior-y: contain; }
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
 
 .banner {
+  color: var(--color-text-on-surface);
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); border-color: transparent; }
+.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); border-color: transparent; }
 .banner.ok { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
@@ -873,26 +905,50 @@ html, body { overscroll-behavior-y: contain; }
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin: 26px 0 18px; }
 
 /* ---------- board frame: a real routed box, lit from above ---------- */
+/* THE MAZE BLOCK. The board is one solid mass and the route is cut out of it —
+   that is the whole idea, and it only works if the corridor is LIGHTER than the
+   material around it. The bevels, vignette and routed frame are gone: they were
+   describing a wooden tray, which is a different object from a maze. */
 .boardwrap {
-  border-radius: var(--radius-card); border: 3px solid #0b0b10; padding: 18px; position: relative;
+  border-radius: var(--radius-card); border: 0; padding: 18px; position: relative;
   overflow: hidden; min-height: 300px;
-  box-shadow:
-    var(--shadow-hard),
-    inset 0 1px 0 rgba(255,255,255,.10),   /* top bevel highlight */
-    inset 0 0 0 2px rgba(0,0,0,.35),        /* routed inner frame line */
-    inset 0 0 64px rgba(0,0,0,.42);         /* vignette → focus the track */
+  background: var(--color-surface);
 }
 .boardwrap::after {                          /* themed material rail; never intercepts taps */
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: inset 0 0 0 6px var(--board-rail, transparent);
 }
+/* THE WALLS. A maze needs something for the corridor to be carved out of, and
+   a background grid is the cheapest honest way to say "walls" without drawing
+   an actual labyrinth nobody can solve. Kept faint: DESIGN-DIRECTION.md §6 wants
+   maze lines thin, low contrast, and away from the text that matters. */
+.boardwrap::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--color-bg) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-bg) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: .16;
+  z-index: 0;
+}
+
 .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; position: relative; z-index: 1; }
 .track-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
-.track-path polyline { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; opacity: .7; }
+/* THE CORRIDOR. Was a dotted line between stones; now one continuous solid
+   route, wide enough to read as a passage cut through the wall grid behind it.
+   Square joins and caps, not round: a maze is orthogonal, and rounded corners
+   read as a garden path. */
+.track-path polyline {
+  fill: none; stroke-width: 30; stroke-linecap: square; stroke-linejoin: miter;
+  stroke: var(--color-bg); opacity: 1;
+}
 
+/* Corridor tiles, not stones. A circle floats; a rounded square belongs to a
+   grid, which is what a maze is. Small radius so the orthogonal geometry wins. */
 .space {
-  aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
+  background: var(--color-bg); color: var(--color-text-on-bg);
   box-shadow: none;
 }
 .space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
@@ -904,7 +960,7 @@ html, body { overscroll-behavior-y: contain; }
    §4 requires the numeral to stay visible alongside any cheese. */
 .board .space.goal {
   background: var(--color-board-goal); color: var(--color-text-on-surface);
-  border: 0;
+  border: 0; border-radius: 5px; box-shadow: 0 0 0 3px var(--color-bg);
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
 .board .space.goal::before {
@@ -1008,7 +1064,7 @@ html, body { overscroll-behavior-y: contain; }
 }
 .pt.truth  { background: var(--color-accent-truth); }
 .pt.bluff  { background: var(--color-accent-bluff); }
-.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
+.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
@@ -1049,14 +1105,7 @@ html, body { overscroll-behavior-y: contain; }
       var(--color-theme-salongen-board-alt)  50px 97px, #0000002e 97px 100px),
     var(--color-theme-salongen-board-base);
 }
-.theme-salongen .space {
-  background: radial-gradient(circle at 38% 30%, #cbcbd0 0%, #a1a1a6 46%, #78787d 100%);
-  border: 2.5px solid #39393e; color: #2a2a2f;
-  box-shadow:
-    inset 0 2px 2px #ffffff55, inset 0 -3px 4px #00000066,
-    inset 0 0 0 3px #ffffff22,        /* concentric inlay ring — turned wood */
-    0 2px 0 #00000055;
-}
+.theme-salongen .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ============================================================
    Fjellet — layered paper-cut ridges (sky→forest→snow) + cairn discs
@@ -1073,13 +1122,7 @@ html, body { overscroll-behavior-y: contain; }
       var(--color-theme-fjellet-forest-low) 80%,
       var(--color-theme-fjellet-snow)       100%);
 }
-.theme-fjellet .space {
-  background:
-    radial-gradient(circle at 50% 20%, #efeff4 0 16%, transparent 17%),   /* crown-stone glint */
-    radial-gradient(circle at 36% 34%, #d3d3d8, #a3a3a8 68%, #7d7d82 100%);
-  border: 2.5px solid #55555a; color: #3b3b40;
-  box-shadow: inset 0 2px 2px #ffffff66, inset 0 -3px 5px #00000044, 0 2px 0 #00000044;
-}
+.theme-fjellet .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ============================================================
    Verdensrommet — deep space: nebula + two star layers + drift + orbit-ring discs
@@ -1106,16 +1149,12 @@ html, body { overscroll-behavior-y: contain; }
   animation: starDrift 42s linear infinite; will-change: transform;
 }
 @keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
-.theme-rom .space {
-  background: radial-gradient(circle at 50% 50%, #212126 0 54%, #17171c 55%);
-  border: 2.5px solid var(--color-accent-gm); color: var(--color-text-on-bg);
-  box-shadow: 0 0 0 2px #FFFFFF14, 0 0 12px #FFFFFF33 inset, 0 0 10px #FFFFFF1F;   /* orbit-ring halo */
-}
+.theme-rom .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
-.theme-salongen .track-path polyline { stroke: #a7a7ac; }   /* inlaid brass groove */
-.theme-fjellet  .track-path polyline { stroke: #ffffffaa; }  /* dotted snow trail */
-.theme-rom      .track-path polyline { stroke: #ababb0cc; }  /* faint orbit dashes */
+/* The corridor is a SURFACE now, not a line, so it takes --color-surface in
+   every theme. Themes still differ in what surrounds it — that is the point of
+   the wall grid and theboard backdrop. */
 
 /* ---------- per-theme pawn flavor (shared physics live in screens.css) ---------- */
 .theme-fjellet .pawn { box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25), 0 0 0 2px #ffffff33; }
@@ -1124,6 +1163,19 @@ html, body { overscroll-behavior-y: contain; }
 }
 .theme-rom .pawn.hopping::after { animation: puff .35s ease-out; }
 @keyframes puff { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: translateY(8px) scale(1.3); } }
+
+/* THE BLOCK IS THE BOARD. Each theme used to paint .boardwrap as a material —
+   wood, snowfield, starfield — which was right when the board was a tray of
+   stones. Now the board is a solid the corridor is cut out of, and a painted
+   material behind a light corridor just makes the corridor look like a hole in
+   a photograph. The block is one flat token in every theme; the themes keep
+   their identity in the landmarks and the celebration, not in the substrate. */
+.theme-salongen .boardwrap,
+.theme-fjellet .boardwrap,
+.theme-rom .boardwrap {
+  background: var(--color-surface);
+  background-image: none;
+}
 
 </style>
 </head>
@@ -3735,33 +3787,41 @@ const app = document.getElementById("app");
 // face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
 // Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
 // than via a CSS filter so the mark carries it everywhere it appears.
-/* The mark: a rat in profile, and the snout IS the Nose.
+/* The mark: a rat in profile, extruded.
 
    DESIGN-DIRECTION.md §3 wants the rat as a TOKEN, not a character — small,
-   stylised, a silhouette rather than a face, no mascot and nothing that speaks.
-   That constraint serves the Nose rather than fighting it: the old monk was a
-   face with a nose bolted across it, whereas a rat in profile IS a snout. The
-   game's one reporting element becomes the mark's defining line, and the name
-   stops needing to be explained.
+   stylised, a silhouette. The snout IS the Nose, which is why it takes more
+   than half the width: earlier round-headed drafts every one of them read as a
+   bear, and length is what makes it both a rat and the brand at once.
 
-   THE SNOUT TAKES MORE THAN HALF THE WIDTH, and that is the whole drawing.
-   Earlier attempts gave it a round head with a stub — every one of them read as
-   a bear. Length is what makes it a rat, and length is also what makes it the
-   Nose, so the brand and the animal are the same decision.
+   DIMENSION WITHOUT A SECOND COLOUR. A gradient or a bevel would need greys the
+   palette does not have, and a blur would go muddy at 22 px. An EXTRUSION needs
+   neither: the same silhouette stacked five times along one axis, each step a
+   little more transparent. It is the one depth technique that is honestly
+   two-colour, because every layer is the same ink at a different alpha.
 
-   ONE COLOUR, `currentColor`. A monochrome system means the mark cannot own a
-   palette: it inherits from wherever it sits, so the same drawing is
-   light-on-dark in the topbar and dark-on-light in the hero badge with no
-   second asset. The eye is a MASKED HOLE rather than a painted dot — a hole is
-   correct on any background, a dot is only correct on the one it was drawn for. */
-const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.6).toFixed(1)}" height="${sz}" viewBox="0 0 64 40" fill="currentColor" role="img" aria-hidden="true">
-  <defs><mask id="snEye"><rect width="64" height="40" fill="#fff"/><circle cx="16" cy="21" r="2.9" fill="#000"/></mask></defs>
-  <g mask="url(#snEye)">
-    <circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/>
-    <circle cx="18" cy="22" r="12.6"/>
-    <path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/>
-  </g>
-</svg>`;
+   currentColor throughout, so the whole stack inherits — light-on-dark in the
+   topbar, dark-on-light in the hero, one drawing, no second asset. The eye is a
+   masked HOLE and only on the TOP face: you would not see through the side of
+   a solid extrusion, and a hole punched through every layer reads as a bug.
+
+   Candidates were rendered at 22/46/64 px on both polarities before choosing:
+   deeper stacks blurred at small sizes, a single offset read as a sticker. */
+const LOGO = (sz = 26) => {
+  const body = '<circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/>'
+    + '<path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/>';
+  let deck = "";
+  for (let i = 5; i >= 1; i--) {
+    const o = (0.16 + 0.84 * (1 - i / 5) * 0.55).toFixed(3);
+    const d = (1.15 * i).toFixed(2);
+    deck += '<g opacity="' + o + '" transform="translate(' + d + ',' + d + ')">' + body + '</g>';
+  }
+  return '<svg class="logo" width="' + (sz * 1.55).toFixed(1) + '" height="' + sz + '" viewBox="0 0 72 48"'
+    + ' fill="currentColor" role="img" aria-hidden="true">'
+    + '<defs><mask id="snEye"><rect width="72" height="48" fill="#fff"/>'
+    + '<circle cx="16" cy="21" r="2.9" fill="#000"/></mask></defs>'
+    + deck + '<g mask="url(#snEye)">' + body + '</g></svg>';
+};
 
 // Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
 // call sites used to hand-roll this markup with per-site pixel geometry, and two
@@ -4578,7 +4638,7 @@ SCREENS.GM_INTRO = () => {
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
      <div class="banner gm">${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</div>
-     <h1 style="color:var(--color-accent-gm)">${ownScreen() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
+     <h1 style="color:var(--color-text-on-bg)">${ownScreen() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
        ${face({ color: gm.color, size: 68, tone: "gm", brand: true, bob: true })}</div>
@@ -4672,7 +4732,7 @@ SCREENS.GM_DASH = () => {
    <p class="small">${t("gmHint")}</p>
    <div class="card"><span class="eyebrow">${t("theWord")}</span><div class="word">${esc(G.card.prompt)}</div></div>
    <div class="card secret" id="secret">
-     <b style="color:var(--color-accent-gm)">🔒 ${t("secret")}</b>
+     <b style="color:var(--color-text-secondary-on-surface)">🔒 ${t("secret")}</b>
      <div id="truthtxt" style="margin-top:6px;filter:blur(7px);transition:filter .2s;">${esc(G.card.truth)}</div>
      <div class="small">${t("peek")}</div></div>
    ${clockHtml("clockDecoy")}
@@ -4945,7 +5005,7 @@ SCREENS.REVEAL = () => {
               // out — before that nobody knows they stole anything.
               const mood = gmA && done && G.gmStole ? "smug" : "";
               return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "gm" : "" })}
-                      <span>${t("by")} ${a === mySeat() && ownScreen() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
+                      <span>${t("by")} ${a === mySeat() && ownScreen() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-text-secondary-on-surface)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
        </div></div>`;

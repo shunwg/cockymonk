@@ -3,26 +3,50 @@
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin: 26px 0 18px; }
 
 /* ---------- board frame: a real routed box, lit from above ---------- */
+/* THE MAZE BLOCK. The board is one solid mass and the route is cut out of it —
+   that is the whole idea, and it only works if the corridor is LIGHTER than the
+   material around it. The bevels, vignette and routed frame are gone: they were
+   describing a wooden tray, which is a different object from a maze. */
 .boardwrap {
-  border-radius: var(--radius-card); border: 3px solid #0b0b10; padding: 18px; position: relative;
+  border-radius: var(--radius-card); border: 0; padding: 18px; position: relative;
   overflow: hidden; min-height: 300px;
-  box-shadow:
-    var(--shadow-hard),
-    inset 0 1px 0 rgba(255,255,255,.10),   /* top bevel highlight */
-    inset 0 0 0 2px rgba(0,0,0,.35),        /* routed inner frame line */
-    inset 0 0 64px rgba(0,0,0,.42);         /* vignette → focus the track */
+  background: var(--color-surface);
 }
 .boardwrap::after {                          /* themed material rail; never intercepts taps */
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: inset 0 0 0 6px var(--board-rail, transparent);
 }
+/* THE WALLS. A maze needs something for the corridor to be carved out of, and
+   a background grid is the cheapest honest way to say "walls" without drawing
+   an actual labyrinth nobody can solve. Kept faint: DESIGN-DIRECTION.md §6 wants
+   maze lines thin, low contrast, and away from the text that matters. */
+.boardwrap::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--color-bg) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-bg) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: .16;
+  z-index: 0;
+}
+
 .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; position: relative; z-index: 1; }
 .track-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
-.track-path polyline { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; opacity: .7; }
+/* THE CORRIDOR. Was a dotted line between stones; now one continuous solid
+   route, wide enough to read as a passage cut through the wall grid behind it.
+   Square joins and caps, not round: a maze is orthogonal, and rounded corners
+   read as a garden path. */
+.track-path polyline {
+  fill: none; stroke-width: 30; stroke-linecap: square; stroke-linejoin: miter;
+  stroke: var(--color-bg); opacity: 1;
+}
 
+/* Corridor tiles, not stones. A circle floats; a rounded square belongs to a
+   grid, which is what a maze is. Small radius so the orthogonal geometry wins. */
 .space {
-  aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
+  background: var(--color-bg); color: var(--color-text-on-bg);
   box-shadow: none;
 }
 .space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
@@ -34,7 +58,7 @@
    §4 requires the numeral to stay visible alongside any cheese. */
 .board .space.goal {
   background: var(--color-board-goal); color: var(--color-text-on-surface);
-  border: 0;
+  border: 0; border-radius: 5px; box-shadow: 0 0 0 3px var(--color-bg);
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
 .board .space.goal::before {
@@ -138,7 +162,7 @@
 }
 .pt.truth  { background: var(--color-accent-truth); }
 .pt.bluff  { background: var(--color-accent-bluff); }
-.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
+.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The

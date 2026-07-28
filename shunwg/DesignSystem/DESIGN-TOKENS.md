@@ -23,19 +23,20 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 | `private` | `#2A2A33` |  |
 | `quiet` | `#8C8C94` |  |
 | `quietText` | `#5A5A62` |  |
+| `quietOnSurface` | `#A8A8B0` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
 | # | Hex |
 |---|---|
-| 1 | `#4f4f55` |
-| 2 | `#77777d` |
-| 3 | `#414147` |
-| 4 | `#6e6e74` |
+| 1 | `#49494f` |
+| 2 | `#6d6d73` |
+| 3 | `#3b3b41` |
+| 4 | `#66666c` |
 | 5 | `#000006` |
-| 6 | `#5b5b61` |
-| 7 | `#2d2d33` |
-| 8 | `#65656b` |
+| 6 | `#54545a` |
+| 7 | `#29292f` |
+| 8 | `#5d5d63` |
 
 ### Confetti palette (demo `confetti()`, 5)
 
@@ -59,6 +60,7 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 | `text.onSurface` | `{color.palette.ink}` | `#F6F6F4` |
 | `text.onBg` | `{color.palette.inkInverse}` | `#16161A` |
 | `text.secondary` | `{color.palette.quietText}` | `#5A5A62` |
+| `text.secondaryOnSurface` | `{color.palette.quietOnSurface}` | `#A8A8B0` |
 | `border` | `{color.palette.ink}` | `#F6F6F4` |
 | `hairline` | `{color.palette.line}` | `#D9D9D5` |
 | `accent.truth` | `{color.palette.confirmed}` | `#000000` |

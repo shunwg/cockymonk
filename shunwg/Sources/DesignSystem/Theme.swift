@@ -38,18 +38,19 @@ enum Theme {
         static let private = Color(hex: 0x2A2A33)  // #2A2A33
         static let quiet = Color(hex: 0x8C8C94)  // #8C8C94
         static let quietText = Color(hex: 0x5A5A62)  // #5A5A62
+        static let quietOnSurface = Color(hex: 0xA8A8B0)  // #A8A8B0
 
         /// 8 fixed player identity colors (demo AVA[]) — fills with ink borders.
         /// Never the ONLY signal of identity: the name and marker carry it too (DESIGN.md §9).
         static let playerPalette: [Color] = [
-            Color(hex: 0x4F4F55),  // #4f4f55
-            Color(hex: 0x77777D),  // #77777d
-            Color(hex: 0x414147),  // #414147
-            Color(hex: 0x6E6E74),  // #6e6e74
+            Color(hex: 0x49494F),  // #49494f
+            Color(hex: 0x6D6D73),  // #6d6d73
+            Color(hex: 0x3B3B41),  // #3b3b41
+            Color(hex: 0x66666C),  // #66666c
             Color(hex: 0x000006),  // #000006
-            Color(hex: 0x5B5B61),  // #5b5b61
-            Color(hex: 0x2D2D33),  // #2d2d33
-            Color(hex: 0x65656B),  // #65656b
+            Color(hex: 0x54545A),  // #54545a
+            Color(hex: 0x29292F),  // #29292f
+            Color(hex: 0x5D5D63),  // #5d5d63
         ]
 
         /// 5 confetti colors (demo confetti()).
@@ -70,6 +71,7 @@ enum Theme {
         static let textOnSurface = ink  // #F6F6F4
         static let textOnBg = inkInverse  // #16161A
         static let textSecondary = quietText  // #5A5A62
+        static let textSecondaryOnSurface = quietOnSurface  // #A8A8B0
         static let border = ink  // #F6F6F4
         static let hairline = line  // #D9D9D5
         static let accentTruth = confirmed  // #000000

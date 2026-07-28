@@ -13,6 +13,35 @@
   --mark-cheese: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 40"><path fill="black" d="M4 30V16.5c0-1 .7-1.9 1.7-2.1L41.4 6.1c1.6-.4 3.1.9 3.1 2.5V30a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9.5-9.2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm18 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8ZM24 13.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>');
 }
 
+
+/* ---------- TEXT POLARITY ----------
+   The inversion made the PAGE light and the CARDS dark, which split one rule
+   into two: text on the page is dark, text on a card is light. Components that
+   named a page colour while sitting on a card went invisible — "Kopier lenke"
+   and "Hemmelig sannhet" both measured 1.00:1, which is not low contrast, it is
+   the same colour twice.
+
+   Scoped here ONCE rather than patched per component, so a new element dropped
+   inside a card inherits the right polarity instead of joining the bug. */
+.card, .opt, .wordchip, .banner.gm, .btn.gm, .pt.gm {
+  color: var(--color-text-on-surface);
+}
+.card .small, .card .sub, .card .eyebrow,
+.opt .small, .opt .sub, .wordchip .eyebrow, .wordchip .small,
+.banner.gm .small, .btn.gm .small {
+  color: var(--color-text-secondary-on-surface);
+}
+/* A secondary button inside a card is a card citizen: light text, light rule. */
+.card .btn.secondary, .opt .btn.secondary {
+  color: var(--color-text-on-surface);
+  box-shadow: inset 0 0 0 1px #ffffff2e;
+}
+.card .btn.secondary:active, .opt .btn.secondary:active { background: #ffffff10; }
+/* Chips and pills likewise. */
+.card .pchip, .card .ratingpill, .opt .ratingpill {
+  color: var(--color-text-secondary-on-surface); border-color: #ffffff2e;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 
@@ -90,10 +119,10 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
    greyscale system can make, which is why it is spent here and nowhere else. */
 .card.secret {
   background: var(--color-surface-secret);
-  color: var(--color-text-on-bg);
+  color: var(--color-text-on-surface);
   border: 1.5px dashed var(--color-text-secondary);
 }
-.card.secret .eyebrow, .card.secret .small { color: var(--color-text-secondary); }
+.card.secret .eyebrow, .card.secret .small { color: var(--color-text-secondary-on-surface); }
 
 .word {
   font-family: var(--type-display-family); font-size: var(--type-card-word-size);
@@ -122,7 +151,7 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   box-shadow: inset 0 0 0 1px var(--color-hairline); font-weight: 500;
 }
 .btn.secondary:active { background: #00000008; }
-.btn.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
+.btn.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .btn:focus-visible { outline: 2px solid var(--color-accent-turn); outline-offset: 3px; }

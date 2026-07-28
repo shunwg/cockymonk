@@ -120,33 +120,41 @@ const app = document.getElementById("app");
 // face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
 // Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
 // than via a CSS filter so the mark carries it everywhere it appears.
-/* The mark: a rat in profile, and the snout IS the Nose.
+/* The mark: a rat in profile, extruded.
 
    DESIGN-DIRECTION.md §3 wants the rat as a TOKEN, not a character — small,
-   stylised, a silhouette rather than a face, no mascot and nothing that speaks.
-   That constraint serves the Nose rather than fighting it: the old monk was a
-   face with a nose bolted across it, whereas a rat in profile IS a snout. The
-   game's one reporting element becomes the mark's defining line, and the name
-   stops needing to be explained.
+   stylised, a silhouette. The snout IS the Nose, which is why it takes more
+   than half the width: earlier round-headed drafts every one of them read as a
+   bear, and length is what makes it both a rat and the brand at once.
 
-   THE SNOUT TAKES MORE THAN HALF THE WIDTH, and that is the whole drawing.
-   Earlier attempts gave it a round head with a stub — every one of them read as
-   a bear. Length is what makes it a rat, and length is also what makes it the
-   Nose, so the brand and the animal are the same decision.
+   DIMENSION WITHOUT A SECOND COLOUR. A gradient or a bevel would need greys the
+   palette does not have, and a blur would go muddy at 22 px. An EXTRUSION needs
+   neither: the same silhouette stacked five times along one axis, each step a
+   little more transparent. It is the one depth technique that is honestly
+   two-colour, because every layer is the same ink at a different alpha.
 
-   ONE COLOUR, `currentColor`. A monochrome system means the mark cannot own a
-   palette: it inherits from wherever it sits, so the same drawing is
-   light-on-dark in the topbar and dark-on-light in the hero badge with no
-   second asset. The eye is a MASKED HOLE rather than a painted dot — a hole is
-   correct on any background, a dot is only correct on the one it was drawn for. */
-const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.6).toFixed(1)}" height="${sz}" viewBox="0 0 64 40" fill="currentColor" role="img" aria-hidden="true">
-  <defs><mask id="snEye"><rect width="64" height="40" fill="#fff"/><circle cx="16" cy="21" r="2.9" fill="#000"/></mask></defs>
-  <g mask="url(#snEye)">
-    <circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/>
-    <circle cx="18" cy="22" r="12.6"/>
-    <path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/>
-  </g>
-</svg>`;
+   currentColor throughout, so the whole stack inherits — light-on-dark in the
+   topbar, dark-on-light in the hero, one drawing, no second asset. The eye is a
+   masked HOLE and only on the TOP face: you would not see through the side of
+   a solid extrusion, and a hole punched through every layer reads as a bug.
+
+   Candidates were rendered at 22/46/64 px on both polarities before choosing:
+   deeper stacks blurred at small sizes, a single offset read as a sticker. */
+const LOGO = (sz = 26) => {
+  const body = '<circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/>'
+    + '<path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/>';
+  let deck = "";
+  for (let i = 5; i >= 1; i--) {
+    const o = (0.16 + 0.84 * (1 - i / 5) * 0.55).toFixed(3);
+    const d = (1.15 * i).toFixed(2);
+    deck += '<g opacity="' + o + '" transform="translate(' + d + ',' + d + ')">' + body + '</g>';
+  }
+  return '<svg class="logo" width="' + (sz * 1.55).toFixed(1) + '" height="' + sz + '" viewBox="0 0 72 48"'
+    + ' fill="currentColor" role="img" aria-hidden="true">'
+    + '<defs><mask id="snEye"><rect width="72" height="48" fill="#fff"/>'
+    + '<circle cx="16" cy="21" r="2.9" fill="#000"/></mask></defs>'
+    + deck + '<g mask="url(#snEye)">' + body + '</g></svg>';
+};
 
 // Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
 // call sites used to hand-roll this markup with per-site pixel geometry, and two
@@ -963,7 +971,7 @@ SCREENS.GM_INTRO = () => {
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
      <div class="banner gm">${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</div>
-     <h1 style="color:var(--color-accent-gm)">${ownScreen() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
+     <h1 style="color:var(--color-text-on-bg)">${ownScreen() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
        ${face({ color: gm.color, size: 68, tone: "gm", brand: true, bob: true })}</div>
@@ -1057,7 +1065,7 @@ SCREENS.GM_DASH = () => {
    <p class="small">${t("gmHint")}</p>
    <div class="card"><span class="eyebrow">${t("theWord")}</span><div class="word">${esc(G.card.prompt)}</div></div>
    <div class="card secret" id="secret">
-     <b style="color:var(--color-accent-gm)">🔒 ${t("secret")}</b>
+     <b style="color:var(--color-text-secondary-on-surface)">🔒 ${t("secret")}</b>
      <div id="truthtxt" style="margin-top:6px;filter:blur(7px);transition:filter .2s;">${esc(G.card.truth)}</div>
      <div class="small">${t("peek")}</div></div>
    ${clockHtml("clockDecoy")}
@@ -1330,7 +1338,7 @@ SCREENS.REVEAL = () => {
               // out — before that nobody knows they stole anything.
               const mood = gmA && done && G.gmStole ? "smug" : "";
               return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "gm" : "" })}
-                      <span>${t("by")} ${a === mySeat() && ownScreen() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
+                      <span>${t("by")} ${a === mySeat() && ownScreen() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-text-secondary-on-surface)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
        </div></div>`;
