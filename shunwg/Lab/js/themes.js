@@ -9,7 +9,9 @@ export const THEMES = Object.freeze({
     id: "salongen",
     nameKey: "salongen",       // i18n key in state.js STR
     cssClass: "theme-salongen",
-    pawnIcon: "♟",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["☕", "🕰️", "🏆"],  // ⅓ · ⅔ · goal landmarks
     hopSound: "pawnHop",
   },
@@ -17,7 +19,9 @@ export const THEMES = Object.freeze({
     id: "fjellet",
     nameKey: "fjellet",
     cssClass: "theme-fjellet",
-    pawnIcon: "🥾",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["🌲", "❄️", "🚩"],
     hopSound: "pawnHop",
   },
@@ -25,7 +29,9 @@ export const THEMES = Object.freeze({
     id: "rom",
     nameKey: "rom",
     cssClass: "theme-rom",
-    pawnIcon: "🚀",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["🛰️", "☄️", "🌕"],
     hopSound: "pawnHop",
   },

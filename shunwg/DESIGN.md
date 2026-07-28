@@ -37,6 +37,12 @@ so every distinction has to be carried by value, fill, weight or shape.
 | `private` | `#3D3D42` | Game-master, and the inverted secret card |
 | `quiet` | `#6F6F74` | Dividers, pending, board path |
 
+**Value IS the hierarchy, so the values must differ.** Three steps, dim to bright:
+an option you may pick (`sheetSunk`), the button that commits (`sheet`), the revealed
+truth (`confirmed`, pure white + ink ring). The CTA and a vote option were briefly the
+*same* value — survivable in colour, fatal in greyscale, where it read as five equal
+buttons and broke §6's one-primary-action rule.
+
 **What replaced the colours that carried meaning.** Green-truth and pink-bluff
 were doing real work in the reveal, so three separate mechanisms took over:
 truth is a pure-white plate with a heavy ink ring, a revealed bluff *sinks* to

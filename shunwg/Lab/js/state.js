@@ -74,6 +74,10 @@ export const STR = {
     openConnecting: "Finner rommet…",
     openBotsOnly: "Du spiller mot roboter akkurat nå. Første som kommer inn, tar plassen til en av dem.",
     openHostLeft: "Verten dro. Vi starter en ny runde her.",
+    openReclaim: "Verten dro. Kobler til på nytt…",
+    againYours: "Du vant. Velg neste spill.",
+    againWaiting: (n) => `${n} vant, og velger neste spill…`,
+    againGo: "Start neste spill",
     lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
     lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
     lobbyPlayers: (n) => `${n} inne`,
@@ -183,6 +187,10 @@ export const STR = {
     openConnecting: "Finding the room…",
     openBotsOnly: "You're playing against bots right now. The next person in takes one of their seats.",
     openHostLeft: "The host left. Starting a fresh round here.",
+    openReclaim: "The host left. Reconnecting…",
+    againYours: "You won. Pick the next game.",
+    againWaiting: (n) => `${n} won, and is picking the next game…`,
+    againGo: "Start the next game",
     lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
     lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
     lobbyPlayers: (n) => `${n} in`,
@@ -320,6 +328,7 @@ export function freshUi() {
     // the host of the SAME room, and the screens must not start calling it a
     // private one.
     openRoom: false,
+    reclaiming: false,   // racing for the well-known id after the host left
     lostAt: 0,              // when the connection dropped, for the 30 s countdown
     backConfirm: false,     // the quit overlay is up (back pressed mid-game)
     netSeats: null,         // pids to seat as real peers, in order, at startGame

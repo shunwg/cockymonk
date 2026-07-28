@@ -23,15 +23,25 @@
 .space {
   aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
-  box-shadow: inset 0 2px 2px rgba(255,255,255,.30), inset 0 -3px 4px rgba(0,0,0,.28), 0 2px 0 rgba(0,0,0,.35);
+  box-shadow: none;
 }
 .space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
 
 /* Mål — a gold medallion that pulses "claim me" (all themes inherit; DESIGN §5) */
+/* Mål. The destination is where DESIGN-DIRECTION.md §4 allows cheese — a
+   goal, a milestone, an end-of-game payoff — and nowhere near a button or a
+   background. It is a small drawn wedge behind the number, never instead of it:
+   §4 requires the numeral to stay visible alongside any cheese. */
 .board .space.goal {
-  background: radial-gradient(circle at 50% 34%, #f2f2f7 0%, var(--color-accent-turn) 46%, #a6a6ab 100%);
-  border: 2.5px solid #646469; color: #424247;
+  background: var(--color-board-goal); color: var(--color-text-on-surface);
+  border: 0;
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
+}
+.board .space.goal::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--color-text-on-surface); opacity: .16;
+  -webkit-mask: var(--mark-cheese) center / 62% no-repeat;
+          mask: var(--mark-cheese) center / 62% no-repeat;
 }
 @keyframes goalglow {
   0%, 100% { box-shadow: 0 0 0 0 #FFFFFF00, inset 0 0 0 2px #FFFFFF55; }
@@ -41,15 +51,29 @@
 /* ---------- pawns: domed physical pieces ---------- */
 .pawn {
   position: absolute; width: 31px; height: 31px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
-  border: 2.5px solid #0b0b10; z-index: 5;
-  background-image: radial-gradient(circle at 38% 28%, #ffffff55, transparent 55%);
+  display: flex; align-items: center; justify-content: center;
+  /* The initial, INK. It inherited the page's light-on-dark text colour, and
+     every player value is a light grey — so the letter was white on white and
+     the pawns rendered blank. The one thing identifying the pawn, invisible. */
+  color: var(--color-text-on-surface); font-size: 13px; font-weight: 700;
+  font-family: var(--type-display-family);
+  border: 0; z-index: 5;
   transition: left var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease),
               top var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease);
-  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,.55);
 }
+/* THE LEADER WEARS THE RAT. This is the one place on the board the animal
+   appears, which is exactly the dose DESIGN-DIRECTION.md §3 asks for: a rat
+   where social comparison benefits from one, and nowhere else. It replaces a 👑
+   emoji — full-colour, and therefore the loudest thing on a greyscale board.
+   Drawn, not typed: DESIGN.md §2 keeps emoji functional and everything
+   decorative drawn. currentColor, so it inherits the pawn's own value. */
 .pawn.leader::after {
-  content: "👑"; position: absolute; top: -16px; font-size: 12px;
+  content: ""; position: absolute; top: -15px; width: 20px; height: 12px;
+  color: var(--color-text-on-bg);
+  background: currentColor;
+  -webkit-mask: var(--mark-rat) center / contain no-repeat;
+          mask: var(--mark-rat) center / contain no-repeat;
   animation: crownDrop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease) both;
 }
 @keyframes crownDrop { 0% { transform: translateY(-6px) scale(.6); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -112,9 +136,9 @@
   border: 2.5px solid var(--color-border); font-family: var(--type-display-family); font-weight: 800;
   color: var(--color-text-on-surface);
 }
-.pt.green  { background: var(--color-accent-truth); }
-.pt.pink   { background: var(--color-accent-bluff); }
-.pt.gm { background: var(--color-accent-gm); color: #fff; }
+.pt.truth  { background: var(--color-accent-truth); }
+.pt.bluff  { background: var(--color-accent-bluff); }
+.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The

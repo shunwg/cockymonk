@@ -128,8 +128,16 @@
   font-weight: 600;
 }
 
+/* VALUE IS THE HIERARCHY, so the values must actually differ. The CTA and a
+   vote option were both `sheet` — pixel-identical — which meant the one control
+   that COMMITS looked exactly like the four cards that merely OFFER. In colour
+   that was survivable; in greyscale, value is the only channel left, so it read
+   as five equal buttons and broke DESIGN-DIRECTION.md §6 (one primary action
+   per screen).
+   Three steps now, dim → bright: an option you may pick (sunk), the button that
+   commits (sheet), and the revealed truth (pure white + ink ring). */
 .opt {
-  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface); color: var(--color-text-on-surface);
+  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface-sunk); color: var(--color-text-on-surface);
   border: 0; border-radius: var(--radius-card); padding: 15px; margin-bottom: 10px;
   cursor: pointer;
   transition: transform var(--motion-dur-button-press), opacity var(--motion-dur-button-press);
@@ -152,8 +160,8 @@
   box-shadow: inset 0 0 0 2.5px var(--color-text-on-surface);
 }
 .opt.truth .letter { background: var(--color-text-on-surface); color: var(--color-accent-truth); box-shadow: none; }
-.opt.bluff { background: var(--color-surface-sunk); opacity: .82; }
-.opt.decoy { background: var(--color-surface-sunk); box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
+.opt.bluff { background: var(--color-surface-sunk); opacity: .62; }
+.opt.decoy { background: var(--color-surface-sunk); opacity: .78; box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
 .opt.decoy .letter { box-shadow: none; border: 1.5px dashed var(--color-text-on-surface); }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
@@ -277,7 +285,11 @@
    with text, buy back exactly the overflow — hence --notch living on .face. */
 .author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
 .nose.gm { background: var(--color-accent-gm); }
-.nose.gold { background: gold; }
+/* The Gullnese. Its whole job is "this is the special one", which colour used
+   to say with literal `gold` — the last named colour in the app, and invisible
+   to a hex scan. In monochrome the special one is simply the BRIGHTEST, with a
+   ring so it is not value alone (DESIGN.md §9). */
+.nose.gold { background: var(--color-accent-truth); box-shadow: 0 0 0 1.5px var(--color-text-on-surface); }
 
 /* Back button: same 44 px target as its siblings, but visually quieter than the
    help/theme buttons — it is an escape hatch, not an invitation. */
@@ -307,7 +319,7 @@
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
 .banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); border-color: transparent; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
+.banner.ok { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }

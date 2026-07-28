@@ -22,7 +22,7 @@ import {
   ratingNoseCap, ratingTier,
 } from "./rating.js";
 import {
-  NET, NET_CONFIG, netLoopback, netHost, netJoin, netOpen, netProject, netShareLink,
+  NET, NET_CONFIG, netLoopback, netHost, netJoin, netOpen, netReclaimDelay, netProject, netShareLink,
   netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby, netJoinOpen,
   netSeatKind, netStartScore,
 } from "./net.js";
@@ -98,6 +98,16 @@ const ownScreen = () => U.mode === "party" || online();
 
    Falls back to a dot when a name is missing, rather than rendering an empty
    circle that looks like a bug. */
+/* Inline drawn marks. DESIGN.md §2 allows functional emoji, but 👑 and 👃 are
+   FULL COLOUR — in a monochrome app they were the loudest pixels on the board,
+   and they were reporting real values (who is GM, how many votes a lie caught).
+   These are the same two shapes as the CSS masks in base.css, inlined where a
+   mask cannot reach (inside a text run). */
+const markRat = (h = 11) =>
+  `<svg viewBox="0 0 64 40" height="${h}" width="${(h * 1.6).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/><path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/></svg>`;
+const markCrown = (h = 11) =>
+  `<svg viewBox="0 0 24 18" height="${h}" width="${(h * 1.33).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M2 15.5 0.6 4.2c-.1-.9 1-1.5 1.7-.9L7 7 10.9.9c.5-.8 1.7-.8 2.2 0L17 7l4.7-3.7c.7-.6 1.8 0 1.7.9L22 15.5a1 1 0 0 1-1 .9H3a1 1 0 0 1-1-.9Z"/></svg>`;
+
 const dot = (color, name = "") => {
   const ch = String(name).trim().charAt(0).toUpperCase();
   return `<span class="dot" style="background:${color}">${ch ? esc(ch) : ""}</span>`;
@@ -509,7 +519,7 @@ function benched(seat = mySeat()) {
 // margin-bottom:11px, and wrapping it let that through where the original inline
 // `margin:10px 0 0` had zeroed it, growing the word card by 11px.
 const watchingBanner = (style = "") =>
-  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>👀 ${t("watchingRound")}</div>`;
+  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>${t("watchingRound")}</div>`;
 
 function lateNoteHtml() {
   const lj = G?.lateJoin;
@@ -614,8 +624,8 @@ SCREENS.RULES = () => {
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
      <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
-     <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
-     <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
+     <div class="scorerow"><span class="pt truth">+2</span><span>${t("rulesScore1")}</span></div>
+     <div class="scorerow"><span class="pt bluff">+1</span><span>${t("rulesScore2")}</span></div>
      <div class="scorerow"><span class="pt gm">+2</span><span>${t("rulesScore3")}</span></div>
      <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
    </div>
@@ -702,7 +712,7 @@ SCREENS.PARTYSETUP = () => {
    <input type="text" id="uname" maxlength="14" value="${esc(U.uname)}" placeholder="${t("namePh")}">
    <h2>${t("bots")}</h2>
    <div class="seg">${[2, 3, 4, 5].map((n) => `
-     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
+     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n}</button>`).join("")}</div>
    <div style="flex:1"></div>
    <button class="btn" id="tonext">${t("next")}</button>`);
   document.getElementById("uname").oninput = (e) => { U.uname = e.target.value; };
@@ -1032,7 +1042,7 @@ function refreshGmAction() {
   const allIn = allBluffsSubmitted();
   const waiting = bluffOrder().filter((i) => G.bluffs[i] === undefined).map((i) => G.players[i].name);
   el.innerHTML = allIn
-    ? `<div class="banner green">${t("allIn")}</div>
+    ? `<div class="banner ok">${t("allIn")}</div>
        <button class="btn pulse" id="openvote">🎉 ${t("openVote")}</button>`
     : `<p class="small">${t("waitingFor")}: ${waiting.map(esc).join(", ")}</p>
        ${ownScreen() ? "" : `<button class="btn gm" id="passbtn">${t("passOn")} →</button>`}`;
@@ -1169,7 +1179,7 @@ SCREENS.WAIT = () => {
   shell(`
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
-     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner green" style="margin:10px 0 0">✓</div>`}</div>
+     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner ok" style="margin:10px 0 0">✓</div>`}</div>
    ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
@@ -1177,7 +1187,7 @@ SCREENS.WAIT = () => {
          const p = G.players[i]; const done = G.bluffs[i] !== undefined;
          return `<span class="pchip ${done ? "done" : ""}" id="chip${i}">${dot(p.color, p.name)}${esc(p.name)} ${done ? "✓" : `<span class="thinking">${t("thinkingDots")}</span>`}</span>`;
        }).join("")}
-       <span class="pchip">${dot(gm.color, gm.name)}👑 <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
+       <span class="pchip">${dot(gm.color, gm.name)}${markCrown(11)} <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
      </div>
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
@@ -1261,7 +1271,7 @@ SCREENS.VOTEWAIT = () => {
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${wordChip()}
-   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner green">${t("youVoted")}</div>`)}
+   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner ok">${t("youVoted")}</div>`)}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
      const c = netTally(G, o.id);
@@ -1299,7 +1309,7 @@ SCREENS.REVEAL = () => {
    ${wordChip()}
    ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
-   ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
+   ${G.doubles.map((i) => `<div class="banner ok">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
    ${shown.map((o, si) => {
      const voters = Object.entries(G.votes).filter(([, id]) => id === o.id).map(([v]) => G.players[+v]);
      const isT = o.kind === "truth";
@@ -1412,7 +1422,7 @@ SCREENS.BOARD = () => {
    <div style="margin-top:10px">
      ${G.players.map((p, i) => `<div class="scoreline">
         <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
-        ${esc(p.name)} ${i === G.gm ? "👑" : ""} <span class="small">👃${p.bluffVotes}</span>
+        ${esc(p.name)} ${i === G.gm ? markCrown(11) : ""} <span class="small">${markRat(10)} ${p.bluffVotes}</span>
         ${G.deltas?.[i] ? `<b>+${G.deltas[i]}</b>` : ""}</span>
         <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
    </div>
@@ -1434,7 +1444,14 @@ function pawnEl(i) {
     el = document.createElement("div");
     el.id = "pw" + i; el.className = "pawn";
     el.style.background = G.players[i].color;
-    el.textContent = THEMES[U.theme].pawnIcon;
+    // The INITIAL, not a themed emoji. Two reasons, and the second is the one
+    // that matters: emoji are full colour, so ♟/🥾/🚀 were three coloured blobs
+    // sitting in a monochrome app. And DESIGN-DIRECTION.md §3 is explicit that
+    // the rat is SECONDARY to name and marker for identity — with eight grey
+    // pawns on one board, a letter is the only thing that reads at 31 px.
+    // Same identity language as the chips (see dot()), so a player learns it once.
+    el.textContent = String(G.players[i].name ?? "").trim().charAt(0).toUpperCase();
+    el.setAttribute("aria-label", G.players[i].name ?? "");
     document.getElementById("pawns").appendChild(el);
   }
   return el;
@@ -1623,7 +1640,7 @@ SCREENS.OMKAMP = () => {
      <div class="banner gm">⚔️ ${t("omkamp")}</div>
      <h1>${esc(names)}</h1>
      <p class="sub">${t("omkampSub", esc(names))}</p>
-     <p class="small">👑 ${esc(G.players[G.gm].name)}</p>
+     <p class="small">${markCrown(11)} ${esc(G.players[G.gm].name)}</p>
    </div>
    <button class="btn gm" id="startomkamp">${t("next")}</button>`);
   document.getElementById("startomkamp").onclick = () => newRound();
@@ -1635,18 +1652,18 @@ SCREENS.WINNER = () => {
   const liar = [...G.players].sort((a, b) => b.bluffVotes - a.bluffVotes)[0];
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
-     <h1 style="font-size:42px">🏆</h1>
+     <div style="display:flex;justify-content:center;margin-bottom:4px">${markRat(38)}</div>
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
        ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
-       <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
+       <b>${t("goldNose", esc(liar.name))} (${markRat(12)} ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
-        <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+        <div class="scoreline"><span>${dot(p.color, p.name)} ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
      ${G.ratingMine === undefined ? "" : `<p class="small" style="margin-top:10px">${t("ratingDelta", G.ratingMine)} → ${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</p>`}
    </div>
-   <button class="btn" id="replay">${t("playAgain")}</button>`);
+   ${onlineAgainHtml()}`);
   settleRating();
   wakeOff();          // the game is over; stop holding the screen awake
   // Celebration fires once per game (guard survives mute/theme re-renders).
@@ -1660,13 +1677,56 @@ SCREENS.WINNER = () => {
       confetti();   // CSS fallback when lottie-web is unavailable
     }
   }
-  document.getElementById("replay").onclick = () => {
-    resetTimers();
-    const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
-    U = Object.assign(freshUi(), keep, { screen: "SETUP" });
-    render();
-  };
+  bindAgain();
 };
+
+/* THE LOOP. Offline this is unchanged — one button back to setup.
+
+   Online, the room keeps running and the WINNER chooses: length and board, then
+   go. Everyone else is told whose choice they are waiting on, because a screen
+   that simply sits there after a game ends is indistinguishable from one that
+   has crashed. The winner is usually not the host, so the choice travels as an
+   intent the host applies — see netStartNextGame. */
+function iWon() {
+  return (G?.winnersIdx ?? []).includes(mySeat());
+}
+
+function onlineAgainHtml() {
+  if (!online()) return `<button class="btn" id="replay">${t("playAgain")}</button>`;
+  if (!iWon()) {
+    const w = G.players[(G.winnersIdx ?? [])[0]];
+    return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againWaiting", esc(w?.name ?? "?"))}</p>`;
+  }
+  return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againYours")}</p>
+   <div class="seg">${[["kort", 8], ["std", 15], ["mara", 25]].map(([k, v]) => `
+     <button class="${U.target === v ? "on" : ""}" data-again-target="${v}">${t(k)}</button>`).join("")}</div>
+   <div class="seg">${Object.keys(THEMES).map((th) => `
+     <button class="${U.theme === th ? "on" : ""}" data-again-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
+   <button class="btn" id="replay">${t("againGo")}</button>`;
+}
+
+function bindAgain() {
+  app.querySelectorAll("[data-again-target]").forEach((b) => b.onclick = () => {
+    U.target = Number(b.dataset.againTarget); play("toggle"); render();
+  });
+  app.querySelectorAll("[data-again-theme]").forEach((b) => b.onclick = () => {
+    U.theme = b.dataset.againTheme; play("toggle"); render();
+  });
+  const go = document.getElementById("replay");
+  if (!go) return;
+  go.onclick = () => {
+    play("confirm");
+    if (!online()) {
+      resetTimers();
+      const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
+      U = Object.assign(freshUi(), keep, { screen: "SETUP" });
+      render();
+      return;
+    }
+    if (isHost()) { netStartNextGame(U.target, U.theme); return; }
+    NET.send({ t: "again", pid: U.myPid, target: U.target, theme: U.theme });
+  };
+}
 
 /* ---------- online rooms (PRD §2.1) ----------
    Two rules, and everything else follows from them:
@@ -1759,8 +1819,39 @@ function netOnClientMessage(msg, conn) {
       netPush(); maybeAllVotesIn();
       return;
     }
+    // Another game, in the same room. Only a WINNER may ask — the winner-picks
+    // rule is the reward, and without the check any client could restart a game
+    // the moment it ended. Still an INTENT: the host applies it, because only
+    // the host advances the game (rule 1). A second authority here would be the
+    // one place two devices could disagree about what round it is.
+    case "again": {
+      if (G.phase !== "winner") return;
+      if (!(G.winnersIdx ?? []).includes(seat)) return;
+      netStartNextGame(msg.target, msg.theme);
+      return;
+    }
     default: return;
   }
+}
+
+/* Start the NEXT game in the same room. Not a reset: the connections, the
+   ratings and the roster all survive — only the board state is new.
+
+   Bots refill whatever the humans do not cover, which is what keeps the open
+   room playable when people drift away between games. Reads NET.peers fresh
+   rather than reusing U.names, so anyone who arrived during the winner screen
+   is dealt in and anyone who left is not left holding a ghost seat. */
+function netStartNextGame(target, theme) {
+  if (!isHost()) return;
+  const humans = NET.peers.filter((p) => p.connected);
+  const want = Math.max(NET_CONFIG.MIN_PLAYERS, humans.length + 1);
+  const bots = BOT_NAMES[U.lang].slice(0, Math.max(0, want - humans.length));
+  U.names = [...humans.map((p) => p.name), ...bots].slice(0, NET_CONFIG.MAX_PLAYERS);
+  U.netSeats = humans.map((p) => p.pid);
+  if (Number.isFinite(target)) U.target = target;
+  if (theme) U.theme = theme;
+  resetTimers();
+  startGame();
 }
 
 // Client: adopt what the host says. This is the whole client-side game loop.
@@ -1819,6 +1910,24 @@ function netHandle(msg, conn) {
 }
 
 function netFail(reason) {
+  // The open room has no single host to lose. When the one holding the
+  // well-known id leaves, whoever is left races for it after a RANDOMISED
+  // wait — fixed backoffs would have every orphan collide on the claim and all
+  // but one destroy their peer for nothing.
+  //
+  // The round in flight cannot be rescued and we do not pretend otherwise: only
+  // the host ever held card.truth, clients hold the redacted netProject view,
+  // and that asymmetry is exactly what makes online play safe. So the honest
+  // recovery is a NEW game, announced as such.
+  if (U.openRoom && reason === "host-gone") {
+    NET.close?.();
+    U.joinError = null;
+    U.screen = "LOBBY_WAIT";
+    U.reclaiming = true;
+    render();
+    later(() => { U.reclaiming = false; netDoOpen(); }, netReclaimDelay());
+    return;
+  }
   NET.error = reason;
   U.screen = "CONNLOST";
   U.lostAt = Date.now();

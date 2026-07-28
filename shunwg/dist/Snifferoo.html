@@ -215,6 +215,18 @@
 /* base.css — app shell, typography, cards, buttons, inputs. Lane B.
  * Every value that exists as a token MUST come from tokens.css. */
 
+
+/* ---------- drawn marks ----------
+   Two shapes the interface needs as ICONS rather than as illustrations: the rat
+   (the leader's marker) and the cheese wedge (the goal). Kept as CSS masks so
+   they inherit currentColor and cost nothing at any size — and so there is
+   exactly ONE copy of each, rather than an emoji at every call site.
+   Data URIs, not files, so the single-file bundle stays single-file. */
+:root {
+  --mark-rat: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><g fill="black"><circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/><path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/></g></svg>');
+  --mark-cheese: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 40"><path fill="black" d="M4 30V16.5c0-1 .7-1.9 1.7-2.1L41.4 6.1c1.6-.4 3.1.9 3.1 2.5V30a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9.5-9.2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm18 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8ZM24 13.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>');
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 
@@ -526,8 +538,16 @@ html, body { overscroll-behavior-y: contain; }
   font-weight: 600;
 }
 
+/* VALUE IS THE HIERARCHY, so the values must actually differ. The CTA and a
+   vote option were both `sheet` — pixel-identical — which meant the one control
+   that COMMITS looked exactly like the four cards that merely OFFER. In colour
+   that was survivable; in greyscale, value is the only channel left, so it read
+   as five equal buttons and broke DESIGN-DIRECTION.md §6 (one primary action
+   per screen).
+   Three steps now, dim → bright: an option you may pick (sunk), the button that
+   commits (sheet), and the revealed truth (pure white + ink ring). */
 .opt {
-  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface); color: var(--color-text-on-surface);
+  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface-sunk); color: var(--color-text-on-surface);
   border: 0; border-radius: var(--radius-card); padding: 15px; margin-bottom: 10px;
   cursor: pointer;
   transition: transform var(--motion-dur-button-press), opacity var(--motion-dur-button-press);
@@ -550,8 +570,8 @@ html, body { overscroll-behavior-y: contain; }
   box-shadow: inset 0 0 0 2.5px var(--color-text-on-surface);
 }
 .opt.truth .letter { background: var(--color-text-on-surface); color: var(--color-accent-truth); box-shadow: none; }
-.opt.bluff { background: var(--color-surface-sunk); opacity: .82; }
-.opt.decoy { background: var(--color-surface-sunk); box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
+.opt.bluff { background: var(--color-surface-sunk); opacity: .62; }
+.opt.decoy { background: var(--color-surface-sunk); opacity: .78; box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
 .opt.decoy .letter { box-shadow: none; border: 1.5px dashed var(--color-text-on-surface); }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
@@ -675,7 +695,11 @@ html, body { overscroll-behavior-y: contain; }
    with text, buy back exactly the overflow — hence --notch living on .face. */
 .author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
 .nose.gm { background: var(--color-accent-gm); }
-.nose.gold { background: gold; }
+/* The Gullnese. Its whole job is "this is the special one", which colour used
+   to say with literal `gold` — the last named colour in the app, and invisible
+   to a hex scan. In monochrome the special one is simply the BRIGHTEST, with a
+   ring so it is not value alone (DESIGN.md §9). */
+.nose.gold { background: var(--color-accent-truth); box-shadow: 0 0 0 1.5px var(--color-text-on-surface); }
 
 /* Back button: same 44 px target as its siblings, but visually quieter than the
    help/theme buttons — it is an escape hatch, not an invitation. */
@@ -705,7 +729,7 @@ html, body { overscroll-behavior-y: contain; }
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
 .banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); border-color: transparent; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
+.banner.ok { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
@@ -845,15 +869,25 @@ html, body { overscroll-behavior-y: contain; }
 .space {
   aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
-  box-shadow: inset 0 2px 2px rgba(255,255,255,.30), inset 0 -3px 4px rgba(0,0,0,.28), 0 2px 0 rgba(0,0,0,.35);
+  box-shadow: none;
 }
 .space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
 
 /* Mål — a gold medallion that pulses "claim me" (all themes inherit; DESIGN §5) */
+/* Mål. The destination is where DESIGN-DIRECTION.md §4 allows cheese — a
+   goal, a milestone, an end-of-game payoff — and nowhere near a button or a
+   background. It is a small drawn wedge behind the number, never instead of it:
+   §4 requires the numeral to stay visible alongside any cheese. */
 .board .space.goal {
-  background: radial-gradient(circle at 50% 34%, #f2f2f7 0%, var(--color-accent-turn) 46%, #a6a6ab 100%);
-  border: 2.5px solid #646469; color: #424247;
+  background: var(--color-board-goal); color: var(--color-text-on-surface);
+  border: 0;
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
+}
+.board .space.goal::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--color-text-on-surface); opacity: .16;
+  -webkit-mask: var(--mark-cheese) center / 62% no-repeat;
+          mask: var(--mark-cheese) center / 62% no-repeat;
 }
 @keyframes goalglow {
   0%, 100% { box-shadow: 0 0 0 0 #FFFFFF00, inset 0 0 0 2px #FFFFFF55; }
@@ -863,15 +897,29 @@ html, body { overscroll-behavior-y: contain; }
 /* ---------- pawns: domed physical pieces ---------- */
 .pawn {
   position: absolute; width: 31px; height: 31px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
-  border: 2.5px solid #0b0b10; z-index: 5;
-  background-image: radial-gradient(circle at 38% 28%, #ffffff55, transparent 55%);
+  display: flex; align-items: center; justify-content: center;
+  /* The initial, INK. It inherited the page's light-on-dark text colour, and
+     every player value is a light grey — so the letter was white on white and
+     the pawns rendered blank. The one thing identifying the pawn, invisible. */
+  color: var(--color-text-on-surface); font-size: 13px; font-weight: 700;
+  font-family: var(--type-display-family);
+  border: 0; z-index: 5;
   transition: left var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease),
               top var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease);
-  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,.55);
 }
+/* THE LEADER WEARS THE RAT. This is the one place on the board the animal
+   appears, which is exactly the dose DESIGN-DIRECTION.md §3 asks for: a rat
+   where social comparison benefits from one, and nowhere else. It replaces a 👑
+   emoji — full-colour, and therefore the loudest thing on a greyscale board.
+   Drawn, not typed: DESIGN.md §2 keeps emoji functional and everything
+   decorative drawn. currentColor, so it inherits the pawn's own value. */
 .pawn.leader::after {
-  content: "👑"; position: absolute; top: -16px; font-size: 12px;
+  content: ""; position: absolute; top: -15px; width: 20px; height: 12px;
+  color: var(--color-text-on-bg);
+  background: currentColor;
+  -webkit-mask: var(--mark-rat) center / contain no-repeat;
+          mask: var(--mark-rat) center / contain no-repeat;
   animation: crownDrop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease) both;
 }
 @keyframes crownDrop { 0% { transform: translateY(-6px) scale(.6); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -934,9 +982,9 @@ html, body { overscroll-behavior-y: contain; }
   border: 2.5px solid var(--color-border); font-family: var(--type-display-family); font-weight: 800;
   color: var(--color-text-on-surface);
 }
-.pt.green  { background: var(--color-accent-truth); }
-.pt.pink   { background: var(--color-accent-bluff); }
-.pt.gm { background: var(--color-accent-gm); color: #fff; }
+.pt.truth  { background: var(--color-accent-truth); }
+.pt.bluff  { background: var(--color-accent-bluff); }
+.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-bg); }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
@@ -1154,6 +1202,10 @@ const STR = {
     openConnecting: "Finner rommet…",
     openBotsOnly: "Du spiller mot roboter akkurat nå. Første som kommer inn, tar plassen til en av dem.",
     openHostLeft: "Verten dro. Vi starter en ny runde her.",
+    openReclaim: "Verten dro. Kobler til på nytt…",
+    againYours: "Du vant. Velg neste spill.",
+    againWaiting: (n) => `${n} vant, og velger neste spill…`,
+    againGo: "Start neste spill",
     lobbyTitle: "Vertens lobby", lobbyCode: "Romkode", lobbyCopy: "Kopier lenke", lobbyCopied: "Kopiert!",
     lobbyShareHint: "Send lenka eller les koden høyt. Alle som åpner den, havner rett i rommet.",
     lobbyPlayers: (n) => `${n} inne`,
@@ -1263,6 +1315,10 @@ const STR = {
     openConnecting: "Finding the room…",
     openBotsOnly: "You're playing against bots right now. The next person in takes one of their seats.",
     openHostLeft: "The host left. Starting a fresh round here.",
+    openReclaim: "The host left. Reconnecting…",
+    againYours: "You won. Pick the next game.",
+    againWaiting: (n) => `${n} won, and is picking the next game…`,
+    againGo: "Start the next game",
     lobbyTitle: "Host lobby", lobbyCode: "Room code", lobbyCopy: "Copy link", lobbyCopied: "Copied!",
     lobbyShareHint: "Send the link or read the code aloud. Anyone who opens it lands straight in the room.",
     lobbyPlayers: (n) => `${n} in`,
@@ -1400,6 +1456,7 @@ function freshUi() {
     // the host of the SAME room, and the screens must not start calling it a
     // private one.
     openRoom: false,
+    reclaiming: false,   // racing for the well-known id after the host left
     lostAt: 0,              // when the connection dropped, for the 30 s countdown
     backConfirm: false,     // the quit overlay is up (back pressed mid-game)
     netSeats: null,         // pids to seat as real peers, in order, at startGame
@@ -2696,7 +2753,9 @@ const THEMES = Object.freeze({
     id: "salongen",
     nameKey: "salongen",       // i18n key in state.js STR
     cssClass: "theme-salongen",
-    pawnIcon: "♟",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["☕", "🕰️", "🏆"],  // ⅓ · ⅔ · goal landmarks
     hopSound: "pawnHop",
   },
@@ -2704,7 +2763,9 @@ const THEMES = Object.freeze({
     id: "fjellet",
     nameKey: "fjellet",
     cssClass: "theme-fjellet",
-    pawnIcon: "🥾",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["🌲", "❄️", "🚩"],
     hopSound: "pawnHop",
   },
@@ -2712,7 +2773,9 @@ const THEMES = Object.freeze({
     id: "rom",
     nameKey: "rom",
     cssClass: "theme-rom",
-    pawnIcon: "🚀",
+    // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
+    // A themed emoji was three coloured blobs in a monochrome app, and it said
+    // nothing about WHO the pawn was — see pawnEl() in ui.js.
     marks: ["🛰️", "☄️", "🌕"],
     hopSound: "pawnHop",
   },
@@ -3626,6 +3689,16 @@ const ownScreen = () => U.mode === "party" || online();
 
    Falls back to a dot when a name is missing, rather than rendering an empty
    circle that looks like a bug. */
+/* Inline drawn marks. DESIGN.md §2 allows functional emoji, but 👑 and 👃 are
+   FULL COLOUR — in a monochrome app they were the loudest pixels on the board,
+   and they were reporting real values (who is GM, how many votes a lie caught).
+   These are the same two shapes as the CSS masks in base.css, inlined where a
+   mask cannot reach (inside a text run). */
+const markRat = (h = 11) =>
+  `<svg viewBox="0 0 64 40" height="${h}" width="${(h * 1.6).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/><path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/></svg>`;
+const markCrown = (h = 11) =>
+  `<svg viewBox="0 0 24 18" height="${h}" width="${(h * 1.33).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M2 15.5 0.6 4.2c-.1-.9 1-1.5 1.7-.9L7 7 10.9.9c.5-.8 1.7-.8 2.2 0L17 7l4.7-3.7c.7-.6 1.8 0 1.7.9L22 15.5a1 1 0 0 1-1 .9H3a1 1 0 0 1-1-.9Z"/></svg>`;
+
 const dot = (color, name = "") => {
   const ch = String(name).trim().charAt(0).toUpperCase();
   return `<span class="dot" style="background:${color}">${ch ? esc(ch) : ""}</span>`;
@@ -4037,7 +4110,7 @@ function benched(seat = mySeat()) {
 // margin-bottom:11px, and wrapping it let that through where the original inline
 // `margin:10px 0 0` had zeroed it, growing the word card by 11px.
 const watchingBanner = (style = "") =>
-  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>👀 ${t("watchingRound")}</div>`;
+  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>${t("watchingRound")}</div>`;
 
 function lateNoteHtml() {
   const lj = G?.lateJoin;
@@ -4142,8 +4215,8 @@ SCREENS.RULES = () => {
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
      <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
-     <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
-     <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
+     <div class="scorerow"><span class="pt truth">+2</span><span>${t("rulesScore1")}</span></div>
+     <div class="scorerow"><span class="pt bluff">+1</span><span>${t("rulesScore2")}</span></div>
      <div class="scorerow"><span class="pt gm">+2</span><span>${t("rulesScore3")}</span></div>
      <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
    </div>
@@ -4230,7 +4303,7 @@ SCREENS.PARTYSETUP = () => {
    <input type="text" id="uname" maxlength="14" value="${esc(U.uname)}" placeholder="${t("namePh")}">
    <h2>${t("bots")}</h2>
    <div class="seg">${[2, 3, 4, 5].map((n) => `
-     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
+     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n}</button>`).join("")}</div>
    <div style="flex:1"></div>
    <button class="btn" id="tonext">${t("next")}</button>`);
   document.getElementById("uname").oninput = (e) => { U.uname = e.target.value; };
@@ -4560,7 +4633,7 @@ function refreshGmAction() {
   const allIn = allBluffsSubmitted();
   const waiting = bluffOrder().filter((i) => G.bluffs[i] === undefined).map((i) => G.players[i].name);
   el.innerHTML = allIn
-    ? `<div class="banner green">${t("allIn")}</div>
+    ? `<div class="banner ok">${t("allIn")}</div>
        <button class="btn pulse" id="openvote">🎉 ${t("openVote")}</button>`
     : `<p class="small">${t("waitingFor")}: ${waiting.map(esc).join(", ")}</p>
        ${ownScreen() ? "" : `<button class="btn gm" id="passbtn">${t("passOn")} →</button>`}`;
@@ -4697,7 +4770,7 @@ SCREENS.WAIT = () => {
   shell(`
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
-     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner green" style="margin:10px 0 0">✓</div>`}</div>
+     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner ok" style="margin:10px 0 0">✓</div>`}</div>
    ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
@@ -4705,7 +4778,7 @@ SCREENS.WAIT = () => {
          const p = G.players[i]; const done = G.bluffs[i] !== undefined;
          return `<span class="pchip ${done ? "done" : ""}" id="chip${i}">${dot(p.color, p.name)}${esc(p.name)} ${done ? "✓" : `<span class="thinking">${t("thinkingDots")}</span>`}</span>`;
        }).join("")}
-       <span class="pchip">${dot(gm.color, gm.name)}👑 <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
+       <span class="pchip">${dot(gm.color, gm.name)}${markCrown(11)} <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
      </div>
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
@@ -4789,7 +4862,7 @@ SCREENS.VOTEWAIT = () => {
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${wordChip()}
-   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner green">${t("youVoted")}</div>`)}
+   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner ok">${t("youVoted")}</div>`)}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
      const c = netTally(G, o.id);
@@ -4827,7 +4900,7 @@ SCREENS.REVEAL = () => {
    ${wordChip()}
    ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
-   ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
+   ${G.doubles.map((i) => `<div class="banner ok">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
    ${shown.map((o, si) => {
      const voters = Object.entries(G.votes).filter(([, id]) => id === o.id).map(([v]) => G.players[+v]);
      const isT = o.kind === "truth";
@@ -4940,7 +5013,7 @@ SCREENS.BOARD = () => {
    <div style="margin-top:10px">
      ${G.players.map((p, i) => `<div class="scoreline">
         <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
-        ${esc(p.name)} ${i === G.gm ? "👑" : ""} <span class="small">👃${p.bluffVotes}</span>
+        ${esc(p.name)} ${i === G.gm ? markCrown(11) : ""} <span class="small">${markRat(10)} ${p.bluffVotes}</span>
         ${G.deltas?.[i] ? `<b>+${G.deltas[i]}</b>` : ""}</span>
         <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
    </div>
@@ -4962,7 +5035,14 @@ function pawnEl(i) {
     el = document.createElement("div");
     el.id = "pw" + i; el.className = "pawn";
     el.style.background = G.players[i].color;
-    el.textContent = THEMES[U.theme].pawnIcon;
+    // The INITIAL, not a themed emoji. Two reasons, and the second is the one
+    // that matters: emoji are full colour, so ♟/🥾/🚀 were three coloured blobs
+    // sitting in a monochrome app. And DESIGN-DIRECTION.md §3 is explicit that
+    // the rat is SECONDARY to name and marker for identity — with eight grey
+    // pawns on one board, a letter is the only thing that reads at 31 px.
+    // Same identity language as the chips (see dot()), so a player learns it once.
+    el.textContent = String(G.players[i].name ?? "").trim().charAt(0).toUpperCase();
+    el.setAttribute("aria-label", G.players[i].name ?? "");
     document.getElementById("pawns").appendChild(el);
   }
   return el;
@@ -5151,7 +5231,7 @@ SCREENS.OMKAMP = () => {
      <div class="banner gm">⚔️ ${t("omkamp")}</div>
      <h1>${esc(names)}</h1>
      <p class="sub">${t("omkampSub", esc(names))}</p>
-     <p class="small">👑 ${esc(G.players[G.gm].name)}</p>
+     <p class="small">${markCrown(11)} ${esc(G.players[G.gm].name)}</p>
    </div>
    <button class="btn gm" id="startomkamp">${t("next")}</button>`);
   document.getElementById("startomkamp").onclick = () => newRound();
@@ -5163,18 +5243,18 @@ SCREENS.WINNER = () => {
   const liar = [...G.players].sort((a, b) => b.bluffVotes - a.bluffVotes)[0];
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
-     <h1 style="font-size:42px">🏆</h1>
+     <div style="display:flex;justify-content:center;margin-bottom:4px">${markRat(38)}</div>
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
        ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
-       <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
+       <b>${t("goldNose", esc(liar.name))} (${markRat(12)} ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
-        <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+        <div class="scoreline"><span>${dot(p.color, p.name)} ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
      ${G.ratingMine === undefined ? "" : `<p class="small" style="margin-top:10px">${t("ratingDelta", G.ratingMine)} → ${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</p>`}
    </div>
-   <button class="btn" id="replay">${t("playAgain")}</button>`);
+   ${onlineAgainHtml()}`);
   settleRating();
   wakeOff();          // the game is over; stop holding the screen awake
   // Celebration fires once per game (guard survives mute/theme re-renders).
@@ -5188,13 +5268,56 @@ SCREENS.WINNER = () => {
       confetti();   // CSS fallback when lottie-web is unavailable
     }
   }
-  document.getElementById("replay").onclick = () => {
-    resetTimers();
-    const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
-    U = Object.assign(freshUi(), keep, { screen: "SETUP" });
-    render();
-  };
+  bindAgain();
 };
+
+/* THE LOOP. Offline this is unchanged — one button back to setup.
+
+   Online, the room keeps running and the WINNER chooses: length and board, then
+   go. Everyone else is told whose choice they are waiting on, because a screen
+   that simply sits there after a game ends is indistinguishable from one that
+   has crashed. The winner is usually not the host, so the choice travels as an
+   intent the host applies — see netStartNextGame. */
+function iWon() {
+  return (G?.winnersIdx ?? []).includes(mySeat());
+}
+
+function onlineAgainHtml() {
+  if (!online()) return `<button class="btn" id="replay">${t("playAgain")}</button>`;
+  if (!iWon()) {
+    const w = G.players[(G.winnersIdx ?? [])[0]];
+    return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againWaiting", esc(w?.name ?? "?"))}</p>`;
+  }
+  return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againYours")}</p>
+   <div class="seg">${[["kort", 8], ["std", 15], ["mara", 25]].map(([k, v]) => `
+     <button class="${U.target === v ? "on" : ""}" data-again-target="${v}">${t(k)}</button>`).join("")}</div>
+   <div class="seg">${Object.keys(THEMES).map((th) => `
+     <button class="${U.theme === th ? "on" : ""}" data-again-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
+   <button class="btn" id="replay">${t("againGo")}</button>`;
+}
+
+function bindAgain() {
+  app.querySelectorAll("[data-again-target]").forEach((b) => b.onclick = () => {
+    U.target = Number(b.dataset.againTarget); play("toggle"); render();
+  });
+  app.querySelectorAll("[data-again-theme]").forEach((b) => b.onclick = () => {
+    U.theme = b.dataset.againTheme; play("toggle"); render();
+  });
+  const go = document.getElementById("replay");
+  if (!go) return;
+  go.onclick = () => {
+    play("confirm");
+    if (!online()) {
+      resetTimers();
+      const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
+      U = Object.assign(freshUi(), keep, { screen: "SETUP" });
+      render();
+      return;
+    }
+    if (isHost()) { netStartNextGame(U.target, U.theme); return; }
+    NET.send({ t: "again", pid: U.myPid, target: U.target, theme: U.theme });
+  };
+}
 
 /* ---------- online rooms (PRD §2.1) ----------
    Two rules, and everything else follows from them:
@@ -5287,8 +5410,39 @@ function netOnClientMessage(msg, conn) {
       netPush(); maybeAllVotesIn();
       return;
     }
+    // Another game, in the same room. Only a WINNER may ask — the winner-picks
+    // rule is the reward, and without the check any client could restart a game
+    // the moment it ended. Still an INTENT: the host applies it, because only
+    // the host advances the game (rule 1). A second authority here would be the
+    // one place two devices could disagree about what round it is.
+    case "again": {
+      if (G.phase !== "winner") return;
+      if (!(G.winnersIdx ?? []).includes(seat)) return;
+      netStartNextGame(msg.target, msg.theme);
+      return;
+    }
     default: return;
   }
+}
+
+/* Start the NEXT game in the same room. Not a reset: the connections, the
+   ratings and the roster all survive — only the board state is new.
+
+   Bots refill whatever the humans do not cover, which is what keeps the open
+   room playable when people drift away between games. Reads NET.peers fresh
+   rather than reusing U.names, so anyone who arrived during the winner screen
+   is dealt in and anyone who left is not left holding a ghost seat. */
+function netStartNextGame(target, theme) {
+  if (!isHost()) return;
+  const humans = NET.peers.filter((p) => p.connected);
+  const want = Math.max(NET_CONFIG.MIN_PLAYERS, humans.length + 1);
+  const bots = BOT_NAMES[U.lang].slice(0, Math.max(0, want - humans.length));
+  U.names = [...humans.map((p) => p.name), ...bots].slice(0, NET_CONFIG.MAX_PLAYERS);
+  U.netSeats = humans.map((p) => p.pid);
+  if (Number.isFinite(target)) U.target = target;
+  if (theme) U.theme = theme;
+  resetTimers();
+  startGame();
 }
 
 // Client: adopt what the host says. This is the whole client-side game loop.
@@ -5347,6 +5501,24 @@ function netHandle(msg, conn) {
 }
 
 function netFail(reason) {
+  // The open room has no single host to lose. When the one holding the
+  // well-known id leaves, whoever is left races for it after a RANDOMISED
+  // wait — fixed backoffs would have every orphan collide on the claim and all
+  // but one destroy their peer for nothing.
+  //
+  // The round in flight cannot be rescued and we do not pretend otherwise: only
+  // the host ever held card.truth, clients hold the redacted netProject view,
+  // and that asymmetry is exactly what makes online play safe. So the honest
+  // recovery is a NEW game, announced as such.
+  if (U.openRoom && reason === "host-gone") {
+    NET.close?.();
+    U.joinError = null;
+    U.screen = "LOBBY_WAIT";
+    U.reclaiming = true;
+    render();
+    later(() => { U.reclaiming = false; netDoOpen(); }, netReclaimDelay());
+    return;
+  }
   NET.error = reason;
   U.screen = "CONNLOST";
   U.lostAt = Date.now();
