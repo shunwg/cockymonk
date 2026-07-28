@@ -1,5 +1,20 @@
 # MAC_RUNBOOK.md — everything that waits for a Mac
 
+> **The scaffolding was deleted on 2026-07-28.** `Sources/`, `Tests/`, `scripts/` and `project.yml`
+> held four `.gitkeep` files, one generated `Theme.swift`, six shell scripts and an XcodeGen spec —
+> nothing had ever been built against any of it, and no gate touched it. Keeping empty directories
+> to represent an intention is how a repo starts lying about what it is.
+>
+> **Nothing here is lost.** Restore the whole set with:
+>
+> ```bash
+> git checkout 0474804 -- shunwg/Sources shunwg/Tests shunwg/scripts shunwg/project.yml
+> ```
+>
+> `Tools/tokens-build.mjs` still contains `buildSwift()`, unreferenced — re-adding the
+> `Sources/DesignSystem/Theme.swift` target is one line in its `outputs` array plus one entry in
+> `tokens.json` → `meta.generatedOutputs`. The plan below is unchanged and still the plan.
+
 The Windows studio system (Lab, engine vectors, tokens, decks, Lottie assets, orchestrator) is done or in progress on Windows.
 This file stages **every macOS-only step** so Mac day is execution, not archaeology. Work top to bottom.
 

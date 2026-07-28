@@ -42,7 +42,6 @@ eierskaps-/grensekart (engelsk): `LANES.md`.
 | `dist/` | Ferdigbygd én-fils spill — **generert**, aldri rediger for hånd |
 | `Reference/` | Den **FROSNE** originalprototypen — fasit, aldri rør |
 | `AssetsIncoming/` | Rått CC0-steinbrudd (Kenney) — **ikke i git**, se `ASSETS.md` for å hente det ned |
-| `Sources/` + `Tests/` + `scripts/` | iOS-koden og macOS-skriptene — venter på Mac-dagen (`MAC_RUNBOOK.md`) |
 | `.claude/` | Claude Code-skills og kommandoer (`/qa`, `/director`, `/newcards`) — følger med repoet |
 
 Rotfilene: `PRD.md` (spesifikasjonen) · `DESIGN.md` (designspråket) · `CLAUDE.md` (grunnloven
@@ -94,7 +93,7 @@ Grener, pull requests og konflikthåndtering står i `README.md`.
 2. Installer [Node ≥ 18](https://nodejs.org) — **eneste** verktøykrav på Windows.
 3. Åpne Claude Code i repo-mappa — skills (`/director`, `/qa`, `/newcards`, kort-forfatteren, panelet) følger med repoet i `.claude/`.
 4. Kjør alle portene én gang så du vet hvordan grønt ser ut (`/qa`). Les så `Screens/SCREENS.md` (5 min) og ditt favorittsegments filer.
-5. iPhone-bygget venter på en Mac — hele oppskriften står klar i `MAC_RUNBOOK.md`; alt vi gjør nå på Windows er gjenbrukbart der.
+5. iPhone-bygget finnes ikke ennå. Oppskriften ligger i `MAC_RUNBOOK.md`; alt vi gjør nå på Windows er gjenbrukbart den dagen noen setter det opp.
 
 *Regelen over alle regler: du kan lese alt, du kan prøve alt — men porten til segmentet du endret
 skal være grønn, og kanon (`Reference/cocky-monk-demo.html` + PRD) endres aldri i forbifarten.*

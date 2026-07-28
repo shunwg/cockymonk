@@ -3,7 +3,7 @@
 //
 // Reads DesignSystem/tokens.json (single source of truth) and emits:
 //   1. Lab/css/tokens.css              — CSS custom properties for the Lab
-//   2. Sources/DesignSystem/Theme.swift — SwiftUI token enums
+//   2. (retired 2026-07-28) Sources/DesignSystem/Theme.swift — SwiftUI token enums
 //   3. DesignSystem/DESIGN-TOKENS.md    — human-readable reference w/ WCAG contrast
 //
 // Usage:
@@ -595,9 +595,13 @@ for (const [event, file] of Object.entries(tokens.sound.grammar)) {
   }
 }
 
+// Sources/DesignSystem/Theme.swift was a third target until 2026-07-28. The iOS
+// scaffolding it fed was deleted (nothing was ever built against it), and a
+// generator target with no consumer is a file that exists only to be checked.
+// buildSwift() is kept below, unreferenced, so restoring the iOS bridge is one
+// line here rather than a rewrite — see MAC_RUNBOOK.md.
 const outputs = [
   { rel: "Lab/css/tokens.css", content: buildCss() },
-  { rel: "Sources/DesignSystem/Theme.swift", content: buildSwift() },
   { rel: "DesignSystem/DESIGN-TOKENS.md", content: buildMarkdown() },
 ];
 

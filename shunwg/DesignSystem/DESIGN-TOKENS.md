@@ -3,7 +3,7 @@
 # Snifferoo design tokens
 
 Source of truth: `DesignSystem/tokens.json` (v1) — DESIGN.md v3 + frozen demo (Reference/cocky-monk-demo.html — demo wins on conflict).
-Generated outputs: `Lab/css/tokens.css` · `Sources/DesignSystem/Theme.swift` · `DesignSystem/DESIGN-TOKENS.md`.
+Generated outputs: `Lab/css/tokens.css` · `DesignSystem/DESIGN-TOKENS.md`.
 Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools/tokens-build.mjs --check.
 
 ## Core colors (DESIGN.md §2)

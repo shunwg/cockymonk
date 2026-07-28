@@ -53,7 +53,7 @@ and never hand-resolve one in a merge conflict; take either side and regenerate.
 
 | Generated | From |
 |---|---|
-| `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, `DesignSystem/DESIGN-TOKENS.md` | `DesignSystem/tokens.json` via `Tools/tokens-build.mjs` |
+| `Lab/css/tokens.css`, `DesignSystem/DESIGN-TOKENS.md` | `DesignSystem/tokens.json` via `Tools/tokens-build.mjs` |
 | `Specs/SCORING.md` | `Tools/engine-vectors.json` via `Tools/rules-sheet.mjs` |
 | `dist/Snifferoo.html` | the whole Lab via `Tools/build-standalone.mjs` |
 | `Screens/png/*` | fixtures via `Tools/snap-screens.mjs` |
@@ -75,7 +75,6 @@ iterates; deviations get a dated row in `Lab/DIVERGENCE.md`.
 | `dist/` | The built single-file game. Generated, but **tracked** so double-click-to-play works |
 | `Reference/` | The FROZEN prototype |
 | `AssetsIncoming/` | CC0 quarry (Kenney). **Not in git** — see `ASSETS.md` to restore |
-| `Sources/`, `Tests/`, `scripts/`, `project.yml` | iOS scaffolding, waiting on a Mac (`MAC_RUNBOOK.md`) |
 | `.claude/` | Skills and slash commands, versioned with the repo |
 
 Root docs: `PRD.md` (the spec) · `DESIGN.md` (the look) · `CLAUDE.md` (the constitution) ·

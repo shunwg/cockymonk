@@ -1,6 +1,6 @@
 # TOOLBELT.md — external tools invited into this project
 
-Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a lean belt beats a full one. (Skills are different: they load on demand and cost nothing until invoked — the skill list below can grow.) `scripts/setup.sh` installs the Core tier and prints the rest.
+Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a lean belt beats a full one. (Skills are different: they load on demand and cost nothing until invoked — the skill list below can grow.) Install the Core tier by hand; the list below is the record of what is invited.
 
 **Cross-platform tier (Windows + Mac):** Node ≥ 18 — runs the whole `Tools/` toolchain (`validate_deck.mjs`, `tokens-build.mjs`, `serve-lab.mjs`) and the Lab engine tests. This is the only tool the Windows phase needs.
 
