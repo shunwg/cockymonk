@@ -10,74 +10,74 @@ Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools
 
 | Token | Hex | Use |
 |---|---|---|
-| `backdrop` | `#0b0b10` |  |
-| `raised` | `#17171c` |  |
-| `line` | `#2a2a2f` |  |
-| `sheet` | `#f4f4f9` |  |
-| `sheetSunk` | `#e4e4e9` |  |
-| `ink` | `#0b0b10` |  |
-| `inkInverse` | `#f4f4f9` |  |
-| `confirmed` | `#FFFFFF` |  |
-| `alert` | `#8f8f94` |  |
-| `action` | `#f4f4f9` |  |
-| `private` | `#3d3d42` |  |
-| `quiet` | `#6f6f74` |  |
-| `quietText` | `#a4a4a9` |  |
+| `backdrop` | `#FFFFFF` |  |
+| `raised` | `#F1F1EF` |  |
+| `line` | `#D9D9D5` |  |
+| `sheet` | `#16161A` |  |
+| `sheetSunk` | `#33333A` |  |
+| `ink` | `#F6F6F4` |  |
+| `inkInverse` | `#16161A` |  |
+| `confirmed` | `#000000` |  |
+| `alert` | `#6E6E76` |  |
+| `action` | `#16161A` |  |
+| `private` | `#2A2A33` |  |
+| `quiet` | `#8C8C94` |  |
+| `quietText` | `#5A5A62` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
 | # | Hex |
 |---|---|
-| 1 | `#b3b3b8` |
-| 2 | `#FFFFFF` |
-| 3 | `#a0a0a5` |
-| 4 | `#ededf2` |
-| 5 | `#8d8d92` |
-| 6 | `#dadadf` |
-| 7 | `#7a7a7f` |
-| 8 | `#c7c7cc` |
+| 1 | `#4f4f55` |
+| 2 | `#77777d` |
+| 3 | `#414147` |
+| 4 | `#6e6e74` |
+| 5 | `#000006` |
+| 6 | `#5b5b61` |
+| 7 | `#2d2d33` |
+| 8 | `#65656b` |
 
 ### Confetti palette (demo `confetti()`, 5)
 
 | # | Hex |
 |---|---|
-| 1 | `#FFFFFF` |
-| 2 | `#c8c8cd` |
-| 3 | `#8f8f94` |
-| 4 | `#5b5b60` |
-| 5 | `#e4e4e9` |
+| 1 | `#000006` |
+| 2 | `#3f3f45` |
+| 3 | `#59595f` |
+| 4 | `#69696f` |
+| 5 | `#76767c` |
 
 ## Semantic roles
 
 | Role | References | Resolves to |
 |---|---|---|
-| `bg` | `{color.palette.backdrop}` | `#0b0b10` |
-| `bgRaised` | `{color.palette.raised}` | `#17171c` |
-| `surface` | `{color.palette.sheet}` | `#f4f4f9` |
-| `surfaceSunk` | `{color.palette.sheetSunk}` | `#e4e4e9` |
-| `surfaceSecret` | `{color.palette.private}` | `#3d3d42` |
-| `text.onSurface` | `{color.palette.ink}` | `#0b0b10` |
-| `text.onBg` | `{color.palette.inkInverse}` | `#f4f4f9` |
-| `text.secondary` | `{color.palette.quietText}` | `#a4a4a9` |
-| `border` | `{color.palette.ink}` | `#0b0b10` |
-| `hairline` | `{color.palette.line}` | `#2a2a2f` |
-| `accent.truth` | `{color.palette.confirmed}` | `#FFFFFF` |
-| `accent.bluff` | `{color.palette.alert}` | `#8f8f94` |
-| `accent.gm` | `{color.palette.private}` | `#3d3d42` |
-| `accent.turn` | `{color.palette.action}` | `#f4f4f9` |
-| `status.success` | `{color.palette.confirmed}` | `#FFFFFF` |
-| `status.warning` | `{color.palette.quietText}` | `#a4a4a9` |
-| `status.error` | `{color.palette.alert}` | `#8f8f94` |
-| `status.info` | `{color.palette.private}` | `#3d3d42` |
-| `status.pending` | `{color.palette.quiet}` | `#6f6f74` |
-| `board.path` | `{color.palette.line}` | `#2a2a2f` |
-| `board.goal` | `{color.palette.confirmed}` | `#FFFFFF` |
-| `timer.calm` | `{color.palette.quiet}` | `#6f6f74` |
-| `timer.warn` | `{color.palette.quietText}` | `#a4a4a9` |
-| `timer.urgent` | `{color.palette.confirmed}` | `#FFFFFF` |
-| `bgLayers.glowPrimary` | *(literal)* | `#FFFFFF08` |
-| `bgLayers.glowSecondary` | *(literal)* | `#FFFFFF05` |
-| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF06` |
+| `bg` | `{color.palette.backdrop}` | `#FFFFFF` |
+| `bgRaised` | `{color.palette.raised}` | `#F1F1EF` |
+| `surface` | `{color.palette.sheet}` | `#16161A` |
+| `surfaceSunk` | `{color.palette.sheetSunk}` | `#33333A` |
+| `surfaceSecret` | `{color.palette.private}` | `#2A2A33` |
+| `text.onSurface` | `{color.palette.ink}` | `#F6F6F4` |
+| `text.onBg` | `{color.palette.inkInverse}` | `#16161A` |
+| `text.secondary` | `{color.palette.quietText}` | `#5A5A62` |
+| `border` | `{color.palette.ink}` | `#F6F6F4` |
+| `hairline` | `{color.palette.line}` | `#D9D9D5` |
+| `accent.truth` | `{color.palette.confirmed}` | `#000000` |
+| `accent.bluff` | `{color.palette.alert}` | `#6E6E76` |
+| `accent.gm` | `{color.palette.private}` | `#2A2A33` |
+| `accent.turn` | `{color.palette.action}` | `#16161A` |
+| `status.success` | `{color.palette.confirmed}` | `#000000` |
+| `status.warning` | `{color.palette.quietText}` | `#5A5A62` |
+| `status.error` | `{color.palette.alert}` | `#6E6E76` |
+| `status.info` | `{color.palette.private}` | `#2A2A33` |
+| `status.pending` | `{color.palette.quiet}` | `#8C8C94` |
+| `board.path` | `{color.palette.line}` | `#D9D9D5` |
+| `board.goal` | `{color.palette.confirmed}` | `#000000` |
+| `timer.calm` | `{color.palette.quiet}` | `#8C8C94` |
+| `timer.warn` | `{color.palette.quietText}` | `#5A5A62` |
+| `timer.urgent` | `{color.palette.confirmed}` | `#000000` |
+| `bgLayers.glowPrimary` | *(literal)* | `#0000000A` |
+| `bgLayers.glowSecondary` | *(literal)* | `#00000006` |
+| `bgLayers.dotGrid` | *(literal)* | `#0000000D` |
 
 ## Contrast (WCAG 2.1, AA text threshold 4.5:1)
 
@@ -85,16 +85,16 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 
 | Foreground | Background | Ratio | AA |
 |---|---|---|---|
-| `text.onSurface (inkText)` `#0b0b10` | `surface (paper)` `#f4f4f9` | 17.91 | ✓ |
-| `text.onBg (paperText)` `#f4f4f9` | `bg (inkNight)` `#0b0b10` | 17.91 | ✓ |
-| `text.secondary (mutedViolet)` `#a4a4a9` | `bg (inkNight)` `#0b0b10` | 7.91 | ✓ |
-| `accent.truth (truthGreen)` `#FFFFFF` | `bg (inkNight)` `#0b0b10` | 19.63 | ✓ |
-| `accent.bluff (bluffPink)` `#8f8f94` | `bg (inkNight)` `#0b0b10` | 6.10 | ✓ |
-| `accent.gm (gmViolet)` `#3d3d42` | `bg (inkNight)` `#0b0b10` | 1.82 | ⚠ |
-| `accent.turn (turnYellow)` `#f4f4f9` | `bg (inkNight)` `#0b0b10` | 17.91 | ✓ |
-| `timer.calm (mutedViolet)` `#6f6f74` | `bg (inkNight)` `#0b0b10` | 3.93 | ⚠ |
-| `timer.warn (turnYellow)` `#a4a4a9` | `bg (inkNight)` `#0b0b10` | 7.91 | ✓ |
-| `timer.urgent (bluffPink)` `#FFFFFF` | `bg (inkNight)` `#0b0b10` | 19.63 | ✓ |
+| `text.onSurface (inkText)` `#F6F6F4` | `surface (paper)` `#16161A` | 16.68 | ✓ |
+| `text.onBg (paperText)` `#16161A` | `bg (inkNight)` `#FFFFFF` | 18.04 | ✓ |
+| `text.secondary (mutedViolet)` `#5A5A62` | `bg (inkNight)` `#FFFFFF` | 6.83 | ✓ |
+| `accent.truth (truthGreen)` `#000000` | `bg (inkNight)` `#FFFFFF` | 21.00 | ✓ |
+| `accent.bluff (bluffPink)` `#6E6E76` | `bg (inkNight)` `#FFFFFF` | 5.05 | ✓ |
+| `accent.gm (gmViolet)` `#2A2A33` | `bg (inkNight)` `#FFFFFF` | 14.21 | ✓ |
+| `accent.turn (turnYellow)` `#16161A` | `bg (inkNight)` `#FFFFFF` | 18.04 | ✓ |
+| `timer.calm (mutedViolet)` `#8C8C94` | `bg (inkNight)` `#FFFFFF` | 3.34 | ⚠ |
+| `timer.warn (turnYellow)` `#5A5A62` | `bg (inkNight)` `#FFFFFF` | 6.83 | ✓ |
+| `timer.urgent (bluffPink)` `#000000` | `bg (inkNight)` `#FFFFFF` | 21.00 | ✓ |
 
 DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapshot-test all three.
 
@@ -102,20 +102,20 @@ DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapsh
 
 | Theme | Layer | Value |
 |---|---|---|
-| salongen | `boardBase` | `#515156` |
-| salongen | `boardAlt` | `#5d5d62` |
-| salongen | `rail` | `#2c2c31` |
-| fjellet | `sky` | `#505055` |
-| fjellet | `skyLow` | `#68686d` |
-| fjellet | `forest` | `#78787d` |
-| fjellet | `forestLow` | `#87878c` |
-| fjellet | `snow` | `#ececf1` |
-| fjellet | `snowPeak` | `#FFFFFF` |
-| fjellet | `rail` | `#65656a` |
-| verdensrommet | `space` | `#0f0f14` |
-| verdensrommet | `starBright` | `#FFFFFF66` |
-| verdensrommet | `starDim` | `#FFFFFF33` |
-| verdensrommet | `rail` | `#222227` |
+| salongen | `boardBase` | `#f9f9ff` |
+| salongen | `boardAlt` | `#f8f8fe` |
+| salongen | `rail` | `#fcfcff` |
+| fjellet | `sky` | `#f9f9ff` |
+| fjellet | `skyLow` | `#f7f7fd` |
+| fjellet | `forest` | `#f5f5fb` |
+| fjellet | `forestLow` | `#f3f3f9` |
+| fjellet | `snow` | `#d7d7dd` |
+| fjellet | `snowPeak` | `#ceced4` |
+| fjellet | `rail` | `#f7f7fd` |
+| verdensrommet | `space` | `#fdfdff` |
+| verdensrommet | `starBright` | `#ceced466` |
+| verdensrommet | `starDim` | `#ceced433` |
+| verdensrommet | `rail` | `#fcfcff` |
 
 Identical space geometry and pawn physics across themes; only layers, sprites, particles, and sounds differ.
 

@@ -60,7 +60,7 @@
   border: 0; z-index: 5;
   transition: left var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease),
               top var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease);
-  box-shadow: 0 1px 3px rgba(0,0,0,.55);
+  box-shadow: 0 1px 3px rgba(0,0,0,.30);
 }
 /* THE LEADER WEARS THE RAT. This is the one place on the board the animal
    appears, which is exactly the dose DESIGN-DIRECTION.md §3 asks for: a rat
@@ -83,7 +83,7 @@
 /* ---------- scoreboard ---------- */
 .scoreline {
   display: flex; justify-content: space-between; font-weight: 600; padding: 7px 2px;
-  border-bottom: 1.5px dashed #ffffff26; align-items: center; font-variant-numeric: tabular-nums;
+  border-bottom: 1.5px dashed #00000018; align-items: center; font-variant-numeric: tabular-nums;
 }
 .scoreline b {                               /* the +delta — a turnYellow chip you win */
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
@@ -117,7 +117,7 @@
 .linkbtn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 2px; }
 
 /* ---------- Regler (how-to) ---------- */
-.step { display: flex; gap: 14px; align-items: flex-start; padding: 13px 2px; border-bottom: 1.5px dashed #ffffff26; }
+.step { display: flex; gap: 14px; align-items: flex-start; padding: 13px 2px; border-bottom: 1.5px dashed #00000018; }
 .step:last-of-type { border-bottom: none; }
 .step-n {
   flex: none; width: 36px; height: 36px; border-radius: 50%;
@@ -151,7 +151,7 @@
 @keyframes landmarkFlare {
   0%   { box-shadow: 0 0 0 0 var(--color-accent-turn), inset 0 0 0 rgba(0,0,0,0); }
   45%  { box-shadow: 0 0 16px 5px var(--color-accent-turn), inset 0 0 12px rgba(255,197,61,.55); }
-  100% { box-shadow: 0 0 0 0 rgba(255,197,61,0), inset 0 0 0 rgba(0,0,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0), inset 0 0 0 rgba(0,0,0,0); }
 }
 @keyframes landmarkMark {
   0%   { transform: scale(1) rotate(0deg); }

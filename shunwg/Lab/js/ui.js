@@ -154,8 +154,8 @@ const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.6).toFixed(1)}" he
 // one place: components.css scales all of it off --fs. `notch` is the vote count
 // the Nose is bragging about; the width formula is CSS's, not ours.
 const face = ({ color, size = 34, mood = "", notch = 0, tone = "", grow = false, bob = false, brand = false }) =>
-  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};background:${color}">
-     <i class="brows"></i><i class="smile"></i>
+  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};--pc:${color};background:${color}">
+     <i class="ears"></i><i class="brows"></i><i class="smile"></i>
      <i class="nose ${tone}${brand ? " brand" : ""}${grow ? " grow" : ""}"></i>
    </span>`;
 

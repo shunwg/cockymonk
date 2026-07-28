@@ -14,7 +14,20 @@
 
 ## 2. Tokens
 
-### Color — MONOCHROME (redesigned 2026-07-28)
+### Color — MONOCHROME, LIGHT (redesigned 2026-07-28)
+
+**Inverted 2026-07-28b.** The page is white and the cards are the dark plane —
+black and white interchanged, so the app reads predominantly white. This was NOT
+a mechanical luminance flip: that inverts values but not ROLES. "Hairline" and
+"recessed" are defined *relative to the page*, so a straight flip turned the
+hairline near-white (invisible on white) and pushed the secret card the wrong
+way. The roles are re-derived below; the value ORDER inside each family is
+preserved, so the hierarchy the dark version earned survives the flip.
+
+The player ramp flipped with it and is now bounded from the other side: the
+initial inside each token is white, and white-on-token needs 4.5:1, which caps
+how *light* a token may be.
+
 
 One greyscale ramp. No hue anywhere: not in the chrome, not in the player
 identities, not in the three board themes. Requested directly ("så svart, hvitt
