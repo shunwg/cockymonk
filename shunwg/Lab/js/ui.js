@@ -104,7 +104,7 @@ const ownScreen = () => U.mode === "party" || online();
    These are the same two shapes as the CSS masks in base.css, inlined where a
    mask cannot reach (inside a text run). */
 const markRat = (h = 11) =>
-  `<svg viewBox="0 0 64 40" height="${h}" width="${(h * 1.6).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/><path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/></svg>`;
+  `<svg viewBox="0 0 100 66" height="${h}" width="${(h * 1.5).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/></svg>`;
 const markCrown = (h = 11) =>
   `<svg viewBox="0 0 24 18" height="${h}" width="${(h * 1.33).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M2 15.5 0.6 4.2c-.1-.9 1-1.5 1.7-.9L7 7 10.9.9c.5-.8 1.7-.8 2.2 0L17 7l4.7-3.7c.7-.6 1.8 0 1.7.9L22 15.5a1 1 0 0 1-1 .9H3a1 1 0 0 1-1-.9Z"/></svg>`;
 
@@ -120,40 +120,40 @@ const app = document.getElementById("app");
 // face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
 // Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
 // than via a CSS filter so the mark carries it everywhere it appears.
-/* The mark: a rat in profile, extruded.
+/* The mark: a mouse in profile — one body, one ear, one tail.
 
-   DESIGN-DIRECTION.md §3 wants the rat as a TOKEN, not a character — small,
-   stylised, a silhouette. The snout IS the Nose, which is why it takes more
-   than half the width: earlier round-headed drafts every one of them read as a
-   bear, and length is what makes it both a rat and the brand at once.
+   IT WAS A DUCK, TWICE. First as a head with a long horizontal snout and two
+   circles merged into the outline: that is a bill and no ears. Then as a rat
+   assembled from three overlapping shapes, which looked right at 60 px and fell
+   apart at 84 px — the ear only overlapped the back by a unit, so it detached,
+   and the seams between shapes read as lumps. Small-size antialiasing had been
+   hiding the joins.
 
-   DIMENSION WITHOUT A SECOND COLOUR. A gradient or a bevel would need greys the
-   palette does not have, and a blur would go muddy at 22 px. An EXTRUSION needs
-   neither: the same silhouette stacked five times along one axis, each step a
-   little more transparent. It is the one depth technique that is honestly
-   two-colour, because every layer is the same ink at a different alpha.
+   So the body and head are now ONE smooth path. Nothing to come apart.
 
-   currentColor throughout, so the whole stack inherits — light-on-dark in the
-   topbar, dark-on-light in the hero, one drawing, no second asset. The eye is a
-   masked HOLE and only on the TOP face: you would not see through the side of
-   a solid extrusion, and a hole punched through every layer reads as a bug.
+   THE EAR OVERLAPS THE BACK BY HALF ITS RADIUS. Anything less separates at
+   large sizes, and a floating circle above a blob is a balloon.
 
-   Candidates were rendered at 22/46/64 px on both polarities before choosing:
-   deeper stacks blurred at small sizes, a single offset read as a sticker. */
+   THE TAIL IS A STROKE, AND IT ENDS FREE. A stroke tapers and curves where a
+   filled outline needs both edges drawn and looks clumsy this small. Ending
+   free matters more: three earlier tails curved back toward the body, and a
+   closed loop on the side of a rounded mass is a mug handle. Four tails were
+   rendered at 22/40/80 px before this one — the difference is only visible
+   side by side, which is why they were.
+
+   currentColor throughout, so one drawing serves light-on-dark and
+   dark-on-light. The eye is a masked hole, correct on any background.
+
+   No extrusion. It survived from the previous mark and wrecked this one: a
+   whole animal has gaps between tail, haunch and snout, and offset copies fill
+   them in. At badge size it was a blob with a circle on it. */
 const LOGO = (sz = 26) => {
-  const body = '<circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/>'
-    + '<path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/>';
-  let deck = "";
-  for (let i = 5; i >= 1; i--) {
-    const o = (0.16 + 0.84 * (1 - i / 5) * 0.55).toFixed(3);
-    const d = (1.15 * i).toFixed(2);
-    deck += '<g opacity="' + o + '" transform="translate(' + d + ',' + d + ')">' + body + '</g>';
-  }
-  return '<svg class="logo" width="' + (sz * 1.55).toFixed(1) + '" height="' + sz + '" viewBox="0 0 72 48"'
+  const art = '<path d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>';
+  return '<svg class="logo" width="' + (sz * 1.5).toFixed(1) + '" height="' + sz + '" viewBox="0 0 100 66"'
     + ' fill="currentColor" role="img" aria-hidden="true">'
-    + '<defs><mask id="snEye"><rect width="72" height="48" fill="#fff"/>'
-    + '<circle cx="16" cy="21" r="2.9" fill="#000"/></mask></defs>'
-    + deck + '<g mask="url(#snEye)">' + body + '</g></svg>';
+    + '<defs><mask id="snEye"><rect width="100" height="66" fill="#fff"/>'
+    + '<circle cx="77" cy="36" r="3.8" fill="#000"/></mask></defs>'
+    + '<g mask="url(#snEye)">' + art + '</g></svg>';
 };
 
 // Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six

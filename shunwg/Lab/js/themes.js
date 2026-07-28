@@ -12,7 +12,11 @@ export const THEMES = Object.freeze({
     // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
     // A themed emoji was three coloured blobs in a monochrome app, and it said
     // nothing about WHO the pawn was — see pawnEl() in ui.js.
-    marks: ["☕", "🕰️", "🏆"],  // ⅓ · ⅔ · goal landmarks
+    marks: ["⅓", "⅔", ""],  // milestone marks. The goal slot is EMPTY: the
+    // goal tile already carries the drawn cheese, and a mark on top of it would
+    // be the same fact said twice. Emoji retired 2026-07-28 — they were the last
+    // full-colour pixels on a monochrome board (DESIGN.md §2: functional emoji
+    // only, everything decorative drawn).
     hopSound: "pawnHop",
   },
   fjellet: {
@@ -22,7 +26,7 @@ export const THEMES = Object.freeze({
     // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
     // A themed emoji was three coloured blobs in a monochrome app, and it said
     // nothing about WHO the pawn was — see pawnEl() in ui.js.
-    marks: ["🌲", "❄️", "🚩"],
+    marks: ["⅓", "⅔", ""],
     hopSound: "pawnHop",
   },
   rom: {
@@ -32,7 +36,7 @@ export const THEMES = Object.freeze({
     // pawnIcon retired 2026-07-28: the pawn now shows the player's initial.
     // A themed emoji was three coloured blobs in a monochrome app, and it said
     // nothing about WHO the pawn was — see pawnEl() in ui.js.
-    marks: ["🛰️", "☄️", "🌕"],
+    marks: ["⅓", "⅔", ""],
     hopSound: "pawnHop",
   },
 });

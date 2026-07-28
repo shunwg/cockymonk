@@ -9,7 +9,7 @@
    exactly ONE copy of each, rather than an emoji at every call site.
    Data URIs, not files, so the single-file bundle stays single-file. */
 :root {
-  --mark-rat: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><g fill="black"><circle cx="11.5" cy="10" r="6.4"/><circle cx="25" cy="8.2" r="5.2"/><circle cx="18" cy="22" r="12.6"/><path d="M25 15.2c14 .9 28.5 3.9 35.6 6.6 1.5.6 1.5 2.8 0 3.4-7.1 2.7-21.6 5.4-35.6 6.2Z"/></g></svg>');
+  --mark-rat: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66"><path fill="black" d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle fill="black" cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="black" stroke-width="5.5" stroke-linecap="round"/></svg>');
   --mark-cheese: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 40"><path fill="black" d="M4 30V16.5c0-1 .7-1.9 1.7-2.1L41.4 6.1c1.6-.4 3.1.9 3.1 2.5V30a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9.5-9.2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm18 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8ZM24 13.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>');
 }
 

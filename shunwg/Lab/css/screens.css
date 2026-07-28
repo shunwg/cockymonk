@@ -49,7 +49,14 @@
   background: var(--color-bg); color: var(--color-text-on-bg);
   box-shadow: none;
 }
-.space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
+/* Milestone marks. Now typographic (⅓, ⅔) rather than emoji, so they inherit
+   the tile's ink instead of importing colour, and they say the same thing more
+   plainly: how far along the board you are. */
+.space .mark {
+  position: absolute; top: -7px; right: -4px; font-size: 12px; font-weight: 700;
+  color: var(--color-text-on-surface); background: var(--color-bg);
+  border-radius: 999px; padding: 0 3px; line-height: 1.25;
+}
 
 /* Mål — a gold medallion that pulses "claim me" (all themes inherit; DESIGN §5) */
 /* Mål. The destination is where DESIGN-DIRECTION.md §4 allows cheese — a
