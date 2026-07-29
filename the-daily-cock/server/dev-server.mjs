@@ -160,4 +160,4 @@ createServer(async (req, res) => {
   } catch (err) {
     sendJson(res, 500, { ok: false, error: String(err?.message ?? err) });
   }
-}).listen(PORT, () => console.log(`The Daily Cock → http://localhost:${PORT}/`));
+}).listen(PORT, "0.0.0.0", () => console.log(`The Daily Cock → http://localhost:${PORT}/`));
