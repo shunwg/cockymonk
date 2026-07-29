@@ -8,11 +8,17 @@ import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   loadDb, saveDb, ensureToday, currentNow, getTodayState, submitDefinition, submitGuess, skipGuess,
-  ensureProfileFor, ackRecap, listDays, listPlayers, advanceDay,
+  ensureProfileFor, ackRecap, listDays, listPlayers, advanceDay, getVoteDistribution, resetPlayer,
 } from "./db.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PORT = Number(process.argv[2]) || 8788;
+const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8788;
+// On by default for local dev (`npm run serve`); a real deploy sets
+// DEV_TOOLS=0 so the debug toolbar and its endpoints disappear entirely —
+// see the-daily-cock/CLAUDE.md's note that #devbar is "always on because
+// pre-launch." The client asks GET /api/config instead of just trying the
+// endpoints, so it never renders a toolbar it can't use.
+const DEV_TOOLS = process.env.DEV_TOOLS !== "0";
 const MIME = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -109,7 +115,32 @@ createServer(async (req, res) => {
       sendJson(res, 200, { ok: true });
       return;
     }
+    if (p === "/api/vote-distribution" && req.method === "GET") {
+      const userId = url.searchParams.get("userId");
+      const wordId = url.searchParams.get("wordId");
+      const result = await withDb((db) => getVoteDistribution(db, userId, wordId));
+      sendJson(res, result.ok ? 200 : 400, result);
+      return;
+    }
+    if (p === "/api/reset-player" && req.method === "POST") {
+      const { userId } = await readBody(req);
+      if (!userId) { sendJson(res, 400, { ok: false, error: "missing_userId" }); return; }
+      const result = await withDb((db) => resetPlayer(db, userId));
+      sendJson(res, 200, result);
+      return;
+    }
+    if (p === "/api/config" && req.method === "GET") {
+      sendJson(res, 200, { ok: true, devTools: DEV_TOOLS });
+      return;
+    }
     // -- dev-only test tools (see the-daily-cock/CLAUDE.md) ------------------
+    // 404 (not just client-side hiding) when DEV_TOOLS=0, so a deployed
+    // instance can't be poked into the toolbar's day-advance/player-switch
+    // behavior by anyone hitting the endpoints directly.
+    if (p.startsWith("/api/dev/") && !DEV_TOOLS) {
+      sendJson(res, 404, { ok: false, error: "not_found" });
+      return;
+    }
     if (p === "/api/dev/days" && req.method === "GET") {
       const state = await withDb((db) => listDays(db));
       sendJson(res, 200, { ok: true, ...state });

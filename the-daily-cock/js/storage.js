@@ -14,12 +14,16 @@ export function storageLocal(base = "") {
     return res.json();
   }
   return {
+    getConfig: () => get("/api/config"),
     ensureProfile: (userId, displayName) => post("/api/profile", { userId, displayName }),
     getToday: (userId) => get(`/api/today?userId=${encodeURIComponent(userId)}`),
     submitDefinition: (userId, wordId, text) => post("/api/submit-definition", { userId, wordId, text }),
     submitGuess: (userId, wordId, choiceId) => post("/api/submit-guess", { userId, wordId, choiceId }),
     skipGuess: (userId, wordId) => post("/api/skip-guess", { userId, wordId }),
     ackRecap: (userId) => post("/api/ack-recap", { userId }),
+    getVoteDistribution: (userId, wordId) =>
+      get(`/api/vote-distribution?userId=${encodeURIComponent(userId)}&wordId=${encodeURIComponent(wordId)}`),
+    resetPlayer: (userId) => post("/api/reset-player", { userId }),
     // dev-only test tools (see CLAUDE.md) — a real backend need not implement these.
     listDays: () => get("/api/dev/days"),
     listPlayers: () => get("/api/dev/players"),
@@ -42,4 +46,17 @@ export function loadOrCreateIdentity(suggestedName) {
 
 export function saveIdentity(identity) {
   try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* ignore */ }
+}
+
+const THEME_KEY = "thedailycock.theme.v1";
+
+/** "dark" (default, the original game palette) or "light" (Wordle-style
+ * black-on-white). Device-local display preference, unrelated to identity —
+ * same one-key localStorage micro-pattern as above. */
+export function loadTheme() {
+  try { return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"; } catch { return "dark"; }
+}
+
+export function saveTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
 }

@@ -1,0 +1,24 @@
+# Fly.io app config for The Daily Cock's Node server + static frontend.
+# App name must be globally unique on Fly — change it here (and when you
+# run `fly apps create`) if "the-daily-cock" is already taken.
+app = "the-daily-cock"
+primary_region = "arn"  # Stockholm — pick whatever's closest to your friends
+
+[build]
+
+[env]
+  DEV_TOOLS = "0"
+  PORT = "8788"
+
+[http_service]
+  internal_port = 8788
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+# db.json lives here (server/db.mjs's DATA_DIR) — without this mount, every
+# redeploy or machine restart wipes all player data.
+[mounts]
+  source = "daily_cock_data"
+  destination = "/app/server/data"

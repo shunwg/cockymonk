@@ -35,13 +35,14 @@ import path from "node:path";
 import {
   dayKeyFromDate, addDays, pickDailyWords, sealWord, scoreFooledVotes,
   scoreCloseMatches, scoreGuesses, visibleOptionsFor, isCorrectChoice, isValidSubmission,
+  voteShareByOption, displayVoteDistribution,
 } from "../js/engine.js";
 import {
   freshProfile, creditPoints, markParticipated, streakEndingAt, streakBonusPct,
   applyStreakBonus, currentRating, currentStreak, hasUnseenResult, markResultSeen,
 } from "../js/rating.js";
 import { loadWords, loadFakeDefs, wordById } from "../js/words.js";
-import { OPTIONS, SCORING, BATCH, LEADERBOARD } from "../js/config.js";
+import { OPTIONS, SCORING, BATCH, LEADERBOARD, HINT } from "../js/config.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(here, "data");
@@ -155,7 +156,9 @@ function settleBatch(db, allWords, settledAsOfDayKey, writeDayKey) {
   for (const wordId of batch.wordIds) {
     const options = batch.options[wordId];
     const guessesForWord = guessesForBatch.filter((g) => g.wordId === wordId);
-    const { deltas, fooledCounts } = scoreFooledVotes({ options, guesses: guessesForWord, voteReceivedPoints: SCORING.voteReceivedPoints });
+    const { deltas, fooledCounts } = scoreFooledVotes({
+      options, guesses: guessesForWord, bluffBaseK: SCORING.bluffBaseK, bluffExponent: SCORING.bluffExponent,
+    });
     for (const [userId, pts] of deltas) writerDeltas.set(userId, (writerDeltas.get(userId) ?? 0) + pts);
     for (const [userId, count] of fooledCounts) {
       if (!fooledByWordByUser.has(userId)) fooledByWordByUser.set(userId, []);
@@ -292,19 +295,26 @@ export function submitDefinition(db, { userId, wordId, text }) {
 }
 
 // Full per-word breakdown for the score step's expandable review — every
-// option, which one was truth, which one (if any) this user picked. Shown
-// only after the round is fully resolved, so there's no fairness reason left
-// to hide anything (unlike visibleOptionsFor at guess time).
-function buildGuessReview(allWords, yesterday, byWord) {
+// option, which one was truth, which one (if any) this user picked, and the
+// SAME capped/rounded vote distribution the live "hint" shows (reused for
+// consistency, not the true share — see displayVoteDistribution). Shown only
+// after the round is fully resolved, so there's no fairness reason left to
+// hide WHICH option is which (unlike visibleOptionsFor at guess time) — but
+// the percentages themselves still go through the same display cap.
+function buildGuessReview(allWords, yesterday, byWord, allGuesses, todayKey) {
   return yesterday.wordIds.map((id) => {
     const g = byWord.get(id);
     const word = wordById(allWords, id);
+    const guessesForWord = allGuesses.filter((x) => x.dayKey === todayKey && x.wordId === id);
+    const shares = voteShareByOption(yesterday.options[id], guessesForWord);
+    const pctById = new Map(displayVoteDistribution(shares, HINT).map((d) => [d.id, d.pct]));
     return {
       wordId: id,
       word: word.word,
       correct: g.correct,
       options: yesterday.options[id].map((o) => ({
         id: o.id, text: o.text, isTruth: o.kind === "truth", isMine: o.id === g.choiceId,
+        pct: pctById.get(o.id) ?? 0,
       })),
     };
   });
@@ -334,7 +344,7 @@ function maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday) {
   return {
     correctCount, guessTotal: results.length, points, pct: effectivePct,
     profile: profileSnapshot(db, db.profiles[userId]),
-    words: buildGuessReview(allWords, yesterday, byWord),
+    words: buildGuessReview(allWords, yesterday, byWord, db.guesses, todayKey),
   };
 }
 
@@ -381,6 +391,46 @@ export function skipGuess(db, { userId, wordId }) {
   db.guesses.push({ dayKey: todayKey, wordId, userId, choiceId: null, correct: false, skipped: true });
   const guessResult = maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday);
   return { ok: true, guessResult, profile: profileSnapshot(db, db.profiles[userId]) };
+}
+
+/**
+ * The "hint" button's data: the SAME capped/rounded distribution as the
+ * post-guess review (see buildGuessReview), but fetched on demand mid-guess,
+ * before this user has chosen. Computed over ALL of today's guesses for this
+ * word so far (across every guesser, not just this one) — options this user
+ * authored themselves are dropped from the response, same fairness rule as
+ * visibleOptionsFor at guess time, even though only a percentage (not text)
+ * would leak here.
+ */
+export function getVoteDistribution(db, userId, wordId) {
+  const todayKey = latestBatchDayKey(db);
+  const yesterdayKey = addDays(todayKey, -1);
+  const yesterday = findBatch(db, yesterdayKey);
+  if (!yesterday?.sealedAt || !yesterday.wordIds.includes(wordId)) return { ok: false, error: "not_guessable" };
+  const options = yesterday.options[wordId];
+  const guessesForWord = db.guesses.filter((g) => g.dayKey === todayKey && g.wordId === wordId);
+  if (!guessesForWord.length) return { ok: true, distribution: [], noData: true };
+  const shares = voteShareByOption(options, guessesForWord);
+  const visibleIds = new Set(visibleOptionsFor(options, userId).map((o) => o.id));
+  const distribution = displayVoteDistribution(shares, HINT).filter((d) => visibleIds.has(d.id));
+  return { ok: true, distribution };
+}
+
+/**
+ * Wipes ONLY this userId's own data (profile, day-result, submissions,
+ * guesses) — safe to expose on a shared instance, since it never touches
+ * anyone else's profile or progress. A bluff this user already wrote into an
+ * already-SEALED batch keeps its authorship there untouched (rewriting
+ * frozen option pools would be its own can of worms) — worst case a stray
+ * fooled-vote credit later recreates a fresh, empty profile under the old
+ * userId, which is harmless since no browser holds that identity anymore.
+ */
+export function resetPlayer(db, userId) {
+  delete db.profiles[userId];
+  delete db.dayResults[userId];
+  db.submissions = db.submissions.filter((s) => s.userId !== userId);
+  db.guesses = db.guesses.filter((g) => g.userId !== userId);
+  return { ok: true };
 }
 
 export function ensureProfileFor(db, userId, displayName) {

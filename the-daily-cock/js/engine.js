@@ -140,11 +140,18 @@ export function isCorrectChoice(options, choiceId) {
 
 /**
  * Points earned by authors whose submissions fooled a guesser, for one
- * word's sealed options. Identical submissions split like Cocky Monk's
- * dobbeltreff-adjacent merge: ceil(votes / authors.length) each, but every
- * author is credited the full vote count for display purposes.
+ * word's sealed options: bluffBaseK * fooledCount^bluffExponent, rounded — a
+ * concave curve of the ABSOLUTE number of people fooled (not a share of some
+ * total), so it means the same thing in a tiny game and a huge one. Fooling
+ * 1 person always earns exactly bluffBaseK; each additional person fooled is
+ * worth a little less than the last, but there's no ceiling — a bluff that
+ * fools hundreds keeps earning more. See config.js SCORING and
+ * BLUFF-SCENARIOS.md for the reasoning and worked examples. Identical
+ * submissions still split their option's points like Cocky Monk's
+ * dobbeltreff-adjacent merge: ceil(points / authors.length) each, but every
+ * author is credited the full vote count in fooledCounts for display.
  */
-export function scoreFooledVotes({ options, guesses, voteReceivedPoints }) {
+export function scoreFooledVotes({ options, guesses, bluffBaseK, bluffExponent }) {
   const deltas = new Map(); // userId -> points
   const fooledCounts = new Map(); // userId -> times someone picked their bluff
   const votesByOption = new Map();
@@ -156,13 +163,61 @@ export function scoreFooledVotes({ options, guesses, voteReceivedPoints }) {
     if (opt.kind !== "human") continue;
     const voters = votesByOption.get(opt.id) ?? [];
     if (!voters.length) continue;
-    const share = Math.ceil((voters.length * voteReceivedPoints) / opt.authors.length);
+    const optionPoints = Math.round(bluffBaseK * Math.pow(voters.length, bluffExponent));
+    const share = Math.ceil(optionPoints / opt.authors.length);
     for (const author of opt.authors) {
       deltas.set(author, (deltas.get(author) ?? 0) + share);
       fooledCounts.set(author, (fooledCounts.get(author) ?? 0) + voters.length);
     }
   }
   return { deltas, fooledCounts };
+}
+
+/**
+ * Raw vote share per option out of everyone who has guessed this word so far
+ * — the shared input to both the live "hint" and the post-guess review's
+ * distribution. Real (uncapped) shares; see displayVoteDistribution for the
+ * display-safe version actually shown on screen.
+ */
+export function voteShareByOption(options, guesses) {
+  const counts = new Map(options.map((o) => [o.id, 0]));
+  for (const g of guesses) {
+    if (counts.has(g.choiceId)) counts.set(g.choiceId, counts.get(g.choiceId) + 1);
+  }
+  const total = guesses.length;
+  return options.map((o) => ({
+    id: o.id,
+    pct: total ? (100 * counts.get(o.id)) / total : 0,
+  }));
+}
+
+/**
+ * Display-safe percentages for the hint / review distribution: caps any
+ * single option's share at `capPct`, redistributing the overflow
+ * proportionally across the options still under the cap (re-capping as
+ * needed, since redistribution can itself push another option over), then
+ * rounds to the nearest `roundToPct`. See config.js HINT for why a cap
+ * exists at all — this is cosmetic only, never fed back into scoring.
+ */
+export function displayVoteDistribution(shares, { capPct, roundToPct }) {
+  const working = shares.map((s) => ({ ...s }));
+  let excess = 0;
+  for (const s of working) {
+    if (s.pct > capPct) { excess += s.pct - capPct; s.pct = capPct; }
+  }
+  let free = working.filter((s) => s.pct < capPct);
+  let guard = 10; // options list is tiny (targetPoolSize); this converges in 1-2 passes
+  while (excess > 0.01 && free.length && guard-- > 0) {
+    const freeTotal = free.reduce((sum, s) => sum + s.pct, 0);
+    let newExcess = 0;
+    for (const s of free) {
+      s.pct += freeTotal > 0 ? (excess * s.pct) / freeTotal : excess / free.length;
+      if (s.pct > capPct) { newExcess += s.pct - capPct; s.pct = capPct; }
+    }
+    excess = newExcess;
+    free = working.filter((s) => s.pct < capPct);
+  }
+  return working.map((s) => ({ id: s.id, pct: Math.round(s.pct / roundToPct) * roundToPct }));
 }
 
 /** Bonus points for each user whose written submission matched the truth. */

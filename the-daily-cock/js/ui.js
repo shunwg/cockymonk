@@ -3,13 +3,14 @@
 // at a time, timed) -> Score -> Write (one word at a time, timed) -> Done.
 // No navigation to Cocky Monk or Ordkrig. The #devbar (date/player
 // switchers) is a TESTING TOOL, not part of the shipped UX — see CLAUDE.md.
-import { storageLocal, loadOrCreateIdentity, saveIdentity } from "./storage.js";
+import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme } from "./storage.js";
 import { TIMERS } from "./config.js";
 
 const store = storageLocal();
 const app = document.getElementById("screen-root");
 const header = document.getElementById("header");
 const devbar = document.getElementById("devbar");
+const settingsRoot = document.getElementById("settings-root");
 const IDENTITY_KEY = "thedailycock.identity.v1";
 
 let identity = null;
@@ -52,6 +53,14 @@ function animateCount(elNode, to, ms = 900, from = 0, onComplete) {
     else if (onComplete) onComplete();
   }
   requestAnimationFrame(tick);
+}
+
+// -- theme: "dark" (original) or "light" (Wordle-style), toggled from the
+// settings panel. index.html has a tiny inline script that stamps this same
+// attribute before first paint, to avoid a flash of the wrong theme.
+function applyTheme(theme) {
+  if (theme === "light") document.documentElement.dataset.theme = "light";
+  else delete document.documentElement.dataset.theme;
 }
 
 function el(html) {
@@ -119,8 +128,15 @@ function revealThenSyncHeader(elNode, to, profile) {
 }
 
 // -- dev toolbar (testing only — see CLAUDE.md) ------------------------------
+// devToolsEnabled reflects the server's DEV_TOOLS flag (fetched once in
+// main(), before the first renderDevToolbar() call) — a deployed instance
+// answers { devTools: false } and every call below becomes a no-op, so the
+// toolbar never appears and never tries to hit the /api/dev/* endpoints the
+// server has also 404'd.
+let devToolsEnabled = true;
 
 async function renderDevToolbar() {
+  if (!devToolsEnabled) { devbar.replaceChildren(); return; }
   const [{ days, current }, { players }] = await Promise.all([store.listDays(), store.listPlayers()]);
 
   const dateOptions = days.map((d) => `<option value="${d}" ${d === current ? "selected" : ""} ${d === current ? "" : "disabled"}>${d}${d === current ? " (i dag)" : ""}</option>`).join("");
@@ -151,6 +167,71 @@ async function renderDevToolbar() {
     identity = { userId: player.userId, displayName: player.displayName };
     saveIdentity(identity);
     await enterApp();
+  });
+}
+
+// -- settings: persistent footer bar + reset-my-own-player flow -------------
+// Rendered once at boot, not re-rendered per navigation (unlike #devbar) —
+// its click handler reads `identity` fresh at click time, so it always acts
+// on whoever is currently active, including after a dev-toolbar switch.
+// A full-width fixed footer (see .app-footer in app.css), always visible on
+// every screen — not a floating corner button, which was reported invisible
+// on a real phone (mobile browser chrome / home-indicator safe area).
+
+function renderSettingsButton() {
+  settingsRoot.replaceChildren(el(`
+    <div class="app-footer" id="app-footer">
+      <button class="footer-settings-btn" id="settings-fab" aria-label="Innstillinger">
+        <span class="footer-settings-icon">⚙</span>
+        <span>Innstillinger</span>
+      </button>
+    </div>
+  `));
+  document.getElementById("settings-fab").addEventListener("click", openSettingsPanel);
+}
+
+function themeToggleLabel() {
+  return loadTheme() === "light" ? "Bytt til mørkt tema" : "Bytt til lyst tema";
+}
+
+function openSettingsPanel() {
+  const overlay = el(`
+    <div class="modal-overlay" id="settings-overlay">
+      <div class="modal-card">
+        <h2>Innstillinger</h2>
+        <button class="btn secondary full" id="theme-toggle-btn">${themeToggleLabel()}</button>
+        <p class="empty-note">Dette nullstiller kun din egen spiller på denne enheten — andre som spiller påvirkes ikke.</p>
+        <button class="btn danger full" id="reset-btn">Nullstill spillet mitt</button>
+        <button class="btn secondary full" id="close-settings-btn">Lukk</button>
+      </div>
+    </div>
+  `);
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("close-settings-btn").addEventListener("click", () => overlay.remove());
+  document.getElementById("reset-btn").addEventListener("click", () => openResetConfirm(overlay));
+  document.getElementById("theme-toggle-btn").addEventListener("click", (e) => {
+    const next = loadTheme() === "light" ? "dark" : "light";
+    saveTheme(next);
+    applyTheme(next);
+    e.target.textContent = themeToggleLabel();
+  });
+}
+
+function openResetConfirm(overlay) {
+  overlay.querySelector(".modal-card").replaceChildren(el(`
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <h2>Er du sikker?</h2>
+      <p class="empty-note">Alle dine poeng, streaken din og bløffene dine forsvinner for godt. Dette kan ikke angres.</p>
+      <button class="btn danger full" id="confirm-reset-btn">Ja, nullstill</button>
+      <button class="btn secondary full" id="cancel-reset-btn">Avbryt</button>
+    </div>
+  `));
+  document.getElementById("cancel-reset-btn").addEventListener("click", () => overlay.remove());
+  document.getElementById("confirm-reset-btn").addEventListener("click", async () => {
+    await store.resetPlayer(identity.userId);
+    localStorage.removeItem(IDENTITY_KEY);
+    location.reload();
   });
 }
 
@@ -347,6 +428,17 @@ async function renderGuessWordStep(state) {
       await afterGuessAction(res);
     });
   }
+  document.getElementById(`hint-${word.wordId}`)?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const res = await store.getVoteDistribution(identity.userId, word.wordId);
+    if (!res.ok) { btn.disabled = false; return; }
+    if (res.noData) { btn.textContent = "Ingen har gjettet ordet ennå"; return; }
+    btn.textContent = "Hint vist";
+    for (const { id, pct } of res.distribution) {
+      document.getElementById(`opt-${word.wordId}-${id}`)?.insertAdjacentHTML("beforeend", `<span class="hint-pct">${pct}%</span>`);
+    }
+  });
   activeTimer = setTimeout(async () => {
     clearActiveTimer();
     renderTimeoutStep("guess", async () => {
@@ -367,10 +459,11 @@ async function afterGuessAction(res) {
 }
 
 function renderGuessWordMarkup(w) {
-  const options = w.options.map((opt) => `<button class="option-btn" id="opt-${w.wordId}-${opt.id}">${opt.text}</button>`).join("");
+  const options = w.options.map((opt) => `<button class="option-btn" id="opt-${w.wordId}-${opt.id}"><span>${opt.text}</span></button>`).join("");
   return `
     <div class="word-block">
       <div class="word-title">${w.word}</div>
+      <button class="hint-btn" id="hint-${w.wordId}">Hint 💡</button>
       <div class="option-list">${options}</div>
     </div>`;
 }
@@ -398,7 +491,10 @@ function renderScoreStep(result, onContinue) {
 function renderReviewRow(w, i) {
   const options = w.options.map((o) => `
     <div class="review-option ${o.isTruth ? "truth" : ""} ${o.isMine ? "mine" : ""}">
-      ${o.isTruth ? '<span class="review-option-label">Riktig svar</span>' : (o.isMine ? '<span class="review-option-label">Ditt svar</span>' : "")}
+      <div class="review-option-top">
+        ${o.isTruth ? '<span class="review-option-label">Riktig svar</span>' : (o.isMine ? '<span class="review-option-label">Ditt svar</span>' : "<span></span>")}
+        <span class="review-option-pct">${o.pct}%</span>
+      </div>
       ${o.text}
     </div>`).join("");
   return `
@@ -488,8 +584,16 @@ function resumeFlowFromState(state) {
 // -- boot / player flows ------------------------------------------------
 
 async function main() {
+  applyTheme(loadTheme()); // index.html's inline script already did this pre-paint; keep state in sync
+
+  try {
+    const config = await store.getConfig();
+    devToolsEnabled = !!config.devTools;
+  } catch { devToolsEnabled = false; }
+
   const isFirstTime = !localStorage.getItem(IDENTITY_KEY);
   identity = loadOrCreateIdentity(suggestName());
+  renderSettingsButton();
   await renderDevToolbar();
 
   if (isFirstTime) {

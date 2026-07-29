@@ -1,5 +1,5 @@
 {
-  "_comment": "Test vectors coupled to js/config.js's CURRENT values (guessScoreByCorrectCount=[-50,0,120,300], voteReceivedPoints=40, closeMatchBonus=150, streakBonus.stepPct=10/maxPct=70, rating.base=800). If a vector fails, the engine is wrong — not the vector (change vectors only alongside a deliberate config/rule change).",
+  "_comment": "Test vectors coupled to js/config.js's CURRENT values (guessScoreByCorrectCount=[-50,0,120,300], bluffBaseK=40, bluffExponent=0.5, closeMatchBonus=150, streakBonus.stepPct=10/maxPct=70, rating.base=800). If a vector fails, the engine is wrong — not the vector (change vectors only alongside a deliberate config/rule change). Large-fooled-count scoreFooledVotes cases live as generated inline tests in engine.test.mjs instead of here, to avoid hand-authoring hundred-entry guess arrays as JSON.",
 
   "scoreGuesses": [
     { "id": "SG1-three-correct", "results": [true, true, true], "expected": { "points": 300, "correctCount": 3 } },
@@ -46,9 +46,18 @@
         { "userId": "g3", "choiceId": "c" }
       ],
       "expected": {
-        "deltas": { "p1": 40, "p2": 40 },
+        "deltas": { "p1": 29, "p2": 29 },
         "fooledCounts": { "p1": 2, "p2": 2 }
       }
+    },
+    {
+      "id": "FV2-fooling-just-one-person-is-real-but-modest",
+      "options": [
+        { "id": "a", "kind": "human", "authors": ["p1"], "text": "bløff" },
+        { "id": "b", "kind": "truth", "authors": [], "text": "sannhet" }
+      ],
+      "guesses": [{ "userId": "g1", "choiceId": "a" }],
+      "expected": { "deltas": { "p1": 40 }, "fooledCounts": { "p1": 1 } }
     }
   ],
 

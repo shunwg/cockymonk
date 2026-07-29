@@ -7,13 +7,13 @@ import { readFile } from "node:fs/promises";
 import {
   dayKeyFromDate, addDays, isNextDay, normalize, isValidSubmission,
   pickDailyWords, mergeSubmissions, sealWord, visibleOptionsFor, isCorrectChoice,
-  scoreFooledVotes, scoreCloseMatches, scoreGuesses,
+  scoreFooledVotes, scoreCloseMatches, scoreGuesses, voteShareByOption, displayVoteDistribution,
 } from "./engine.js";
 import {
   freshProfile, creditPoints, currentStreak, streakEndingAt, streakBonusPct,
   applyStreakBonus, markParticipated, currentRating, hasUnseenResult, markResultSeen,
 } from "./rating.js";
-import { SCORING } from "./config.js";
+import { SCORING, HINT } from "./config.js";
 
 const vectors = JSON.parse(await readFile(new URL("./vectors.json", import.meta.url), "utf8"));
 
@@ -116,12 +116,67 @@ test("isCorrectChoice", () => {
 for (const v of vectors.scoreFooledVotes) {
   test(`scoreFooledVotes ${v.id}`, () => {
     const { deltas, fooledCounts } = scoreFooledVotes({
-      options: v.options, guesses: v.guesses, voteReceivedPoints: SCORING.voteReceivedPoints,
+      options: v.options, guesses: v.guesses, bluffBaseK: SCORING.bluffBaseK, bluffExponent: SCORING.bluffExponent,
     });
     assert.deepEqual(Object.fromEntries(deltas), v.expected.deltas);
     assert.deepEqual(Object.fromEntries(fooledCounts), v.expected.fooledCounts);
   });
 }
+
+test("scoreFooledVotes scales sub-linearly with absolute fooled-count, no fixed pool ceiling", () => {
+  const mkGuesses = (n) => Array.from({ length: n }, (_, i) => ({ userId: `g${i}`, choiceId: "a" }));
+  const options = [
+    { id: "a", kind: "human", authors: ["p1"], text: "bløff" },
+    { id: "b", kind: "truth", authors: [], text: "sannhet" },
+  ];
+  const score = (n) => scoreFooledVotes({
+    options, guesses: mkGuesses(n), bluffBaseK: SCORING.bluffBaseK, bluffExponent: SCORING.bluffExponent,
+  }).deltas.get("p1");
+
+  assert.equal(score(1), 40); // small game: fooling just one person is real, not trivial
+  assert.equal(score(25), 200); // mid-size crowd: a solid, clearly bigger reward
+  assert.equal(score(400), 800); // large/viral crowd: a huge reward, no ceiling in sight
+
+  // sub-linear: 400x the audience of the 1-person case earns only 20x the
+  // points, not 400x — a lucky single vote can never rival a genuine crowd.
+  assert.ok(score(400) < score(1) * 400);
+});
+
+// -- vote distribution: real share -> display-safe cap/round ----------------
+
+test("voteShareByOption computes raw percentage per option", () => {
+  const options = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  const guesses = [{ choiceId: "a" }, { choiceId: "a" }, { choiceId: "b" }, { choiceId: "a" }];
+  const shares = voteShareByOption(options, guesses);
+  assert.deepEqual(shares, [
+    { id: "a", pct: 75 },
+    { id: "b", pct: 25 },
+    { id: "c", pct: 0 },
+  ]);
+});
+
+test("voteShareByOption is all-zero with no guesses yet", () => {
+  const options = [{ id: "a" }, { id: "b" }];
+  assert.deepEqual(voteShareByOption(options, []), [{ id: "a", pct: 0 }, { id: "b", pct: 0 }]);
+});
+
+test("displayVoteDistribution caps a runaway leader and redistributes the overflow", () => {
+  // 90/10/0 would trivially out the correct answer once enough people guess
+  // right — capped at 45%, the other options absorb the excess.
+  const shares = [{ id: "a", pct: 90 }, { id: "b", pct: 10 }, { id: "c", pct: 0 }];
+  const result = displayVoteDistribution(shares, { capPct: 45, roundToPct: 5 });
+  assert.equal(result.find((r) => r.id === "a").pct, 45);
+  assert.ok(result.find((r) => r.id === "a").pct <= 45);
+  // total isn't required to sum exactly to 100 after rounding, but no option
+  // should ever be left displaying above the cap.
+  assert.ok(result.every((r) => r.pct <= 45));
+});
+
+test("displayVoteDistribution passes an already-even split through unchanged (aside from rounding)", () => {
+  const shares = [{ id: "a", pct: 33.3 }, { id: "b", pct: 33.3 }, { id: "c", pct: 33.4 }];
+  const result = displayVoteDistribution(shares, HINT);
+  assert.deepEqual(result.map((r) => r.pct), [35, 35, 35]);
+});
 
 for (const v of vectors.scoreCloseMatches) {
   test(`scoreCloseMatches ${v.id}`, () => {

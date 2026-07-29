@@ -24,12 +24,33 @@ export const SCORING = {
   // "Scoring" for the reasoning: negative at 0/3, breakeven at 1/3 (a lucky
   // single guess shouldn't move your rating), real reward starts at 2/3.
   guessScoreByCorrectCount: [-50, 0, 120, 300], // index = correctCount (0..3)
-  voteReceivedPoints: 40, // per person fooled by your submission (per vote)
+  // Points for fooling people with a bluff: bluffBaseK * fooledCount^bluffExponent,
+  // rounded. A concave (sub-linear) curve, not a flat rate or a fixed pool —
+  // fooling 1 person earns exactly bluffBaseK (real, but modest); each
+  // ADDITIONAL person fooled is worth a little less than the last, so it
+  // keeps growing with zero ceiling (fooling a crowd of hundreds is a
+  // legitimately huge score) without a lucky single vote in a tiny game
+  // outscoring a bluff that genuinely fooled a crowd. See BLUFF-SCENARIOS.md
+  // for worked examples across small and large games.
+  bluffBaseK: 40,
+  bluffExponent: 0.5, // 0.5 = square root
   // A written submission that (near-)matches the truth — Cocky Monk's
   // dobbeltreff. Worth more than a plain correct guess since it happened at
   // write time, independent of anyone voting for it (it's never even shown
   // as its own option — see engine.js mergeSubmissions).
   closeMatchBonus: 150,
+};
+
+// Display-only caps for the "hint" vote-distribution shown during guessing
+// (and the identical breakdown reused in the post-guess review) — NOT used
+// for real scoring, which always uses the true share (see SCORING above and
+// scoreFooledVotes). Without a cap, the true answer's share snowballs as more
+// people guess correctly, since every guesser sees the same live tally — that
+// turns the hint into "click the biggest number" for everyone who guesses
+// later in the day. Capping keeps it a hint, never a giveaway.
+export const HINT = {
+  capPct: 45,
+  roundToPct: 5,
 };
 
 export const STREAK_BONUS = {

@@ -1,6 +1,23 @@
 /* app.css — The Daily Cock's own screens, built entirely on tokens.css.
  * No ad-hoc colors/fonts (same rule as shunwg's Definition of Done). */
 
+/* -- light theme: Wordle-style black-on-white, toggled from the settings
+ * panel (js/storage.js loadTheme/saveTheme, stamped as documentElement's
+ * data-theme by ui.js). Overrides ONLY the semantic bg/surface/text/border
+ * tokens tokens.css defines — never edit tokens.css itself, it's generated
+ * (see CLAUDE.md). Accent colors (truth/bluff/turn/gm) and --color-ink-night
+ * (text-on-accent-fill) are deliberately left alone in both themes — those
+ * are the "colourful fills, black text on highlights" the light theme keeps
+ * identical to dark, only the neutral bg/surface/text flips. */
+:root[data-theme="light"] {
+  --color-bg: #FFFFFF;
+  --color-text-on-bg: #1A1A1A;
+  --color-surface: #F4F4F4;
+  --color-text-on-surface: #1A1A1A;
+  --color-text-secondary: #6B6B6B;
+  --color-border: #1A1A1A;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -15,11 +32,16 @@ html, body {
   font-size: var(--type-body-size);
 }
 
+/* Total height the fixed footer occupies, incl. the iPhone home-indicator
+ * safe area — the ONE number to change if the footer's own size changes,
+ * so #app and .screen-success (below) never need touching separately. */
+:root { --footer-clearance: calc(56px + env(safe-area-inset-bottom)); }
+
 #app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 24px 20px 48px;
+  padding: 24px 20px calc(48px + var(--footer-clearance));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -58,8 +80,8 @@ html, body {
 /* The final step of the day: full-bleed green, no card — "you're done,
  * everything is fine" should read at a glance, not from reading a box. */
 .screen-success {
-  margin: -24px -20px -48px;
-  padding: 24px 20px 48px;
+  margin: -24px -20px calc(-48px - var(--footer-clearance));
+  padding: 24px 20px calc(48px + var(--footer-clearance));
   min-height: 100vh;
   background: var(--color-accent-truth);
   color: var(--color-ink-night, #1B1B2E);
@@ -157,6 +179,7 @@ p { margin: 0; line-height: 1.4; }
 .btn:active { transform: translateY(var(--shadow-press-translate)); box-shadow: var(--shadow-hard-pressed); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn.secondary { background: var(--color-surface); color: var(--color-text-on-surface); }
+.btn.danger { background: var(--color-accent-bluff); }
 .btn.full { width: 100%; }
 
 textarea, input[type="text"] {
@@ -202,10 +225,35 @@ textarea, input[type="text"] {
   color: var(--color-text-on-surface);
   padding: 12px 14px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 .option-btn:disabled { cursor: default; }
 .option-btn.correct { background: var(--color-accent-truth); border-color: var(--color-accent-truth); }
 .option-btn.wrong { background: var(--color-accent-bluff); border-color: var(--color-accent-bluff); }
+
+/* -- hint: percentage badge appended into an option button once fetched -- */
+.hint-btn {
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: var(--type-sub-size);
+  font-weight: 600;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-chip);
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.hint-btn:disabled { opacity: 0.5; cursor: default; }
+.hint-pct {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: var(--type-sub-size);
+  color: var(--color-text-secondary);
+}
 
 .progress-chip {
   display: flex;
@@ -333,4 +381,70 @@ textarea, input[type="text"] {
 }
 .review-option.truth { border-color: var(--color-accent-truth); }
 .review-option.mine:not(.truth) { border-color: var(--color-accent-bluff); }
+.review-option-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .review-option-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; display: block; margin-bottom: 2px; }
+.review-option-pct { font-size: 11px; font-weight: 700; opacity: 0.7; flex-shrink: 0; }
+
+/* -- persistent footer: settings entry point + simple modal, see ui.js ------
+ * A full-width fixed bar (same "always-there" pattern as #header/#devbar,
+ * not a floating corner button) so it can't end up hidden behind a mobile
+ * browser's own bottom chrome or the iPhone home-indicator safe area — a
+ * floating bottom-right circle was the earlier design and was reported
+ * invisible on a real phone. One flex row: more footer items can be added
+ * later beside the settings button without restructuring. Rendered once at
+ * boot (js/ui.js renderSettingsButton) and never hidden by any screen —
+ * if a future screen genuinely needs it gone, hide #app-footer explicitly
+ * there, don't stop rendering it here. */
+.app-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 8px 20px calc(8px + env(safe-area-inset-bottom));
+  background: var(--color-surface);
+  border-top: 2px solid var(--color-border);
+  box-shadow: 0 -3px 0 rgba(10,10,24,0.12);
+}
+.footer-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: var(--type-sub-size);
+  border: none;
+  background: none;
+  color: var(--color-text-on-surface);
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.footer-settings-icon { font-size: 20px; line-height: 1; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 30;
+}
+.modal-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--color-surface);
+  color: var(--color-text-on-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

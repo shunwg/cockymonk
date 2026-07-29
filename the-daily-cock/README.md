@@ -51,8 +51,12 @@ New players should find it easy to hover in mildly-positive territory (a typical
 
 ### Writing — fooling other players
 
-- **+40 points** for every person who is fooled by (votes for) a definition you wrote, per vote.
+- Points for a bluff are **40 × √(number of people fooled)**, rounded. Fooling exactly 1 person earns 40 — real, but modest. Each additional person fooled is worth a little less than the last (fooling person #2 adds less than person #1 did), so there's no ceiling — a bluff that fools a genuine crowd of hundreds is a legitimately huge score — but a single lucky vote in a two-person game can never rival that. See `BLUFF-SCENARIOS.md` for worked examples of how this plays out for different skill levels as a game grows from a handful of friends to a large crowd.
 - **+150 points** if what you wrote happens to (nearly) match the real definition — a "dobbeltreff," rewarded independent of whether anyone votes for it, since it never even appears as its own option (it's folded into the truth so it can't leak the answer by duplication).
+
+### Hint
+
+While guessing, a "Hint" button reveals how the votes cast so far for that word are split across the options — the same breakdown is shown again afterward in the score step's per-word review. The percentages shown are **capped and rounded, not raw**: since every guesser sees the same live tally, an uncapped percentage would let the correct answer's share snowball into an obvious tell as more people guess right over the course of the day. Any option's displayed share is capped (currently 45%), with the overflow spread proportionally across the rest and the result rounded to the nearest 5% — informative enough to be a real hint, never decisive enough to be a giveaway. Real scoring above always uses the true, uncapped share; the cap is cosmetic, display-only.
 
 Your write-day points aren't known until the next day's guessers have all had a turn (see "Sist du skrev" recap) — unlike guessing, which you find out immediately.
 
