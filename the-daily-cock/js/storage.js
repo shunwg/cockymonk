@@ -2,6 +2,28 @@
 // mock API today. A future storageRemote() (real hosted backend) must expose
 // this exact same interface so ui.js never changes — same shape as
 // shunwg/Lab/js/net.js's transport seam.
+
+// A coarse, no-library browser/OS label for the admin dashboard's device
+// column — not fingerprinting, just enough to answer "web vs. what browser."
+function detectDevice() {
+  try {
+    const ua = navigator.userAgent;
+    let browser = "Unknown browser";
+    if (/Edg\//.test(ua)) browser = "Edge";
+    else if (/OPR\//.test(ua)) browser = "Opera";
+    else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = "Chrome";
+    else if (/Firefox\//.test(ua)) browser = "Firefox";
+    else if (/Safari\//.test(ua)) browser = "Safari";
+    let os = "unknown OS";
+    if (/iPhone|iPad|iPod/.test(ua)) os = "iOS";
+    else if (/Android/.test(ua)) os = "Android";
+    else if (/Mac OS X/.test(ua)) os = "macOS";
+    else if (/Windows/.test(ua)) os = "Windows";
+    else if (/Linux/.test(ua)) os = "Linux";
+    return `${browser} on ${os}`;
+  } catch { return "unknown"; }
+}
+
 export function storageLocal(base = "") {
   async function post(path, body) {
     const res = await fetch(base + path, {
@@ -15,7 +37,7 @@ export function storageLocal(base = "") {
   }
   return {
     getConfig: () => get("/api/config"),
-    ensureProfile: (userId, displayName) => post("/api/profile", { userId, displayName }),
+    ensureProfile: (userId, displayName) => post("/api/profile", { userId, displayName, device: detectDevice() }),
     getToday: (userId) => get(`/api/today?userId=${encodeURIComponent(userId)}`),
     submitDefinition: (userId, wordId, text) => post("/api/submit-definition", { userId, wordId, text }),
     submitGuess: (userId, wordId, choiceId) => post("/api/submit-guess", { userId, wordId, choiceId }),

@@ -136,8 +136,14 @@ function computeRank(db, myRating) {
   return 1 + allRatings.filter((r) => r > myRating).length;
 }
 
-function ensureProfile(db, userId, displayName) {
+function ensureProfile(db, userId, displayName, device) {
   if (!db.profiles[userId]) db.profiles[userId] = freshProfile(displayName);
+  // `device` is a bonus field bolted onto the stored profile, deliberately
+  // NOT part of freshProfile()'s shape in js/rating.js — that shape is
+  // vector-tested (js/engine.test.mjs / js/vectors.json) and has nothing to
+  // do with device tracking. Updated on every call, so it reflects the most
+  // recently seen device, not the first.
+  if (device) db.profiles[userId] = { ...db.profiles[userId], device };
   return db.profiles[userId];
 }
 
@@ -433,8 +439,8 @@ export function resetPlayer(db, userId) {
   return { ok: true };
 }
 
-export function ensureProfileFor(db, userId, displayName) {
-  ensureProfile(db, userId, displayName);
+export function ensureProfileFor(db, userId, displayName, device) {
+  ensureProfile(db, userId, displayName, device);
   return db.profiles[userId];
 }
 
@@ -443,6 +449,80 @@ export function ackRecap(db, userId) {
   const result = db.dayResults[userId];
   if (!profile || !result) return;
   db.profiles[userId] = markResultSeen(profile, result.asOfDayKey);
+}
+
+const round1 = (n) => Math.round(n * 10) / 10;
+
+/**
+ * Read-only admin dashboard data — see server/dev-server.mjs's token-gated
+ * /api/admin/stats. Two deliberately different shapes of "per day":
+ *  - `days`: fully RETROACTIVE, computed fresh from db.submissions/db.guesses
+ *    (which already carry dayKey) — accurate for every day that ever
+ *    happened, no new tracking needed. "Real users (cumulative)" uses each
+ *    profile's EARLIEST participatedDays entry as its signup day, also
+ *    retroactive; bots are a fixed count (LEADERBOARD.botCount), not per-day.
+ *  - `players`: current, live snapshot only (rating/streak/device) — there
+ *    is no historical per-day rating ever stored (ratingSum is a running
+ *    total, see js/rating.js), so a true day-by-day points/streak LOG isn't
+ *    reconstructable without adding new forward-only tracking. Deliberately
+ *    not added here to keep this additive/low-risk — revisit explicitly if
+ *    real historical trends (not just "as of now") are needed later.
+ */
+export function computeAdminStats(db) {
+  const dayKeys = [...new Set([...db.submissions.map((s) => s.dayKey), ...db.guesses.map((g) => g.dayKey)])].sort();
+  const botCount = (db.botLeaderboard ?? []).length;
+
+  const days = dayKeys.map((dayKey) => {
+    const subsToday = db.submissions.filter((s) => s.dayKey === dayKey);
+    const guessesToday = db.guesses.filter((g) => g.dayKey === dayKey);
+    const writers = new Set(subsToday.map((s) => s.userId));
+    const guessers = new Set(guessesToday.map((g) => g.userId));
+    const dau = new Set([...writers, ...guessers]).size;
+
+    const totalGuesses = guessesToday.length;
+    const correctGuesses = guessesToday.filter((g) => g.correct).length;
+
+    const definitions = subsToday.length;
+    // "Completion rate": of the people who wrote at all that day, what
+    // fraction of their 3 possible word-slots did they actually fill —
+    // NOT "% of all users," which would conflate with DAU.
+    const possibleDefinitionSlots = writers.size * BATCH.wordsPerDay;
+
+    const realUsers = Object.values(db.profiles).filter(
+      (p) => p.participatedDays.length && p.participatedDays[0] <= dayKey
+    ).length;
+
+    return {
+      dayKey,
+      dau,
+      totalGuesses,
+      correctGuesses,
+      correctGuessPct: totalGuesses ? round1((correctGuesses / totalGuesses) * 100) : null,
+      definitions,
+      possibleDefinitionSlots,
+      definitionCompletionPct: possibleDefinitionSlots ? round1((definitions / possibleDefinitionSlots) * 100) : null,
+      realUsers,
+      bots: botCount,
+      botPct: round1((botCount / (botCount + realUsers)) * 100),
+    };
+  });
+
+  const players = Object.entries(db.profiles)
+    .map(([userId, p]) => {
+      const rating = currentRating(p);
+      return {
+        userId,
+        displayName: p.displayName,
+        rating,
+        rank: computeRank(db, rating),
+        streakDays: currentStreak(p.participatedDays),
+        device: p.device ?? "unknown",
+        lastActiveDayKey: p.participatedDays[p.participatedDays.length - 1] ?? null,
+      };
+    })
+    .sort((a, b) => b.rating - a.rating);
+
+  return { generatedAt: new Date().toISOString(), botCount, days, players };
 }
 
 // -- dev-only test tools (see the-daily-cock/CLAUDE.md) ----------------------

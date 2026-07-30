@@ -45,6 +45,17 @@ An Expo/React Native port of the same game, targeting iOS (TestFlight), Android,
 
 `fly.staging.toml` deploys the **same server code** a second time as a fully separate app (`daily-c-staging`, own volume `daily_c_staging_data`, `DEV_TOOLS=1`) for the `app/` Expo port's testers — `fly deploy -c fly.staging.toml`, never plain `fly deploy` (that targets production via `fly.toml`). Deliberately two TOML files rather than flags/env branching on one, so there's no ambiguous default a `flyctl` command could accidentally hit.
 
+## Admin dashboard
+`GET /admin/dashboard.html?token=...` (a plain static page, served like any other file — no server-side auth on the HTML shell itself, since it holds no data) fetches `GET /api/admin/stats`, which IS token-gated (`ADMIN_TOKEN` env var, compared against a `?token=` query param or `Authorization: Bearer` header; unset means the endpoint 404s entirely). Deliberately simple/not-really-secure — a plain string-equality check, no rate limiting, no rotation — an accepted tradeoff for a ~10-user app, not a production security posture.
+
+`server/db.mjs`'s `computeAdminStats` has two different "per day" shapes, on purpose:
+- `days` (activity: DAU, correct-guess count/%, definition count/completion-%, bots-vs-real-users count/%) is fully **retroactive** — computed fresh from `db.submissions`/`db.guesses` (which already carry `dayKey`) and each profile's earliest `participatedDays` entry (as a proxy "signup day"). No new tracking needed; accurate for every day that ever happened, including before this feature shipped.
+- `players` (rating/streak/device) is a **live snapshot only, not a historical log** — `ratingSum` is a running total (see `js/rating.js`), so there's no way to reconstruct "what was my rating on day X" without adding new forward-only tracking, which was deliberately NOT added (keeps this feature additive/low-risk, no touch to the rollover/settlement code). Revisit explicitly if real day-by-day rating/streak history is needed later.
+
+`device` is a bonus field bolted onto the stored profile object by `server/db.mjs`'s `ensureProfile`/`ensureProfileFor` — deliberately NOT part of `js/rating.js`'s `freshProfile()` shape, which is vector-tested (`js/engine.test.mjs`/`js/vectors.json`) and has nothing to do with device tracking. Sent by both clients on every `ensureProfile` call (`js/storage.js`'s `detectDevice()` for the web app; `app/src/lib/detectDevice.ts` for the Expo app) — a coarse browser/OS or `Platform.OS`+version label, not fingerprinting, and it reflects the MOST RECENT device seen, not the first.
+
+Set the token on each deploy: `fly secrets set ADMIN_TOKEN=... -a the-daily-cock` and `-a daily-c-staging` (can be the same or different values; rotate anytime by re-running the command, no redeploy needed since Fly secrets update the running machine's env directly).
+
 ## Guardrails
 - Never add a nav path to Cocky Monk or Ordkrig from inside this app.
 - Never add a quit/absence penalty to scoring (see Provenance above).

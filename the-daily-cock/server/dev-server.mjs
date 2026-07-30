@@ -9,10 +9,24 @@ import { fileURLToPath } from "node:url";
 import {
   loadDb, saveDb, ensureToday, currentNow, getTodayState, submitDefinition, submitGuess, skipGuess,
   ensureProfileFor, ackRecap, listDays, listPlayers, advanceDay, getVoteDistribution, resetPlayer,
+  computeAdminStats,
 } from "./db.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8788;
+// Unset by default -> admin endpoints 404 entirely (safe default; a real
+// deploy sets this via `fly secrets set`). Simple, not "secure" in any real
+// sense — a bearer token compared with a plain string equality check, no
+// rate limiting, no rotation. That's an explicit, accepted tradeoff (see
+// the-daily-cock/CLAUDE.md's Admin dashboard section) for a ~10-user app.
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
+
+function isAdminAuthed(req, url) {
+  if (!ADMIN_TOKEN) return false;
+  const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+  const queryToken = url.searchParams.get("token") ?? "";
+  return bearer === ADMIN_TOKEN || queryToken === ADMIN_TOKEN;
+}
 // On by default for local dev (`npm run serve`); a real deploy sets
 // DEV_TOOLS=0 so the debug toolbar and its endpoints disappear entirely —
 // see the-daily-cock/CLAUDE.md's note that #devbar is "always on because
@@ -88,9 +102,15 @@ createServer(async (req, res) => {
 
   try {
     if (p === "/api/profile" && req.method === "POST") {
-      const { userId, displayName } = await readBody(req);
-      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName));
+      const { userId, displayName, device } = await readBody(req);
+      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName, device));
       sendJson(res, 200, { ok: true, profile });
+      return;
+    }
+    if (p === "/api/admin/stats" && req.method === "GET") {
+      if (!isAdminAuthed(req, url)) { sendJson(res, 401, { ok: false, error: "unauthorized" }); return; }
+      const stats = await withDb((db) => computeAdminStats(db));
+      sendJson(res, 200, { ok: true, ...stats });
       return;
     }
     if (p === "/api/today" && req.method === "GET") {

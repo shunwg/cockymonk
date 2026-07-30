@@ -3,6 +3,7 @@
 // reads the same way ui.js's `store` does. `fetch` behaves the same in RN as
 // the browser, so this is a near-verbatim transliteration.
 import { API_BASE_URL } from "./apiConfig";
+import { detectDevice } from "./detectDevice";
 import type {
   ActionResult,
   Profile,
@@ -27,7 +28,7 @@ export function storageRemote(base: string = API_BASE_URL) {
   return {
     getConfig: () => get<{ ok: boolean; devTools: boolean }>("/api/config"),
     ensureProfile: (userId: string, displayName: string) =>
-      post<{ ok: boolean; profile: Profile }>("/api/profile", { userId, displayName }),
+      post<{ ok: boolean; profile: Profile }>("/api/profile", { userId, displayName, device: detectDevice() }),
     getToday: (userId: string) => get<TodayState>(`/api/today?userId=${encodeURIComponent(userId)}`),
     submitDefinition: (userId: string, wordId: string, text: string) =>
       post<ActionResult>("/api/submit-definition", { userId, wordId, text }),
