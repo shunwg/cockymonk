@@ -34,32 +34,41 @@ npm run android  # Android emulator, needs Android Studio
 ```
 
 **Ship to TestFlight** (all manual — an agent must never run any of this, see
-Guardrails below):
-1. `npx expo login` (or `eas login`).
-2. Bundle identifier is already set (`com.mats.cockerel`, both
-   `ios.bundleIdentifier` and `android.package`) — change it in `app.json`
-   first if you'd rather use something else; it's cheap to change now,
-   annoying once it's registered with Apple.
-3. `eas init` — links the project to your Expo account, fills in `app.json`'s
-   `extra.eas.projectId` placeholder.
-4. `eas build --platform ios --profile testflight` — builds in Expo's cloud;
-   walks you through Apple sign-in and can auto-create the App ID /
-   provisioning profile on first run.
-5. `eas submit --platform ios --profile testflight` — uploads the build to
-   App Store Connect. You can skip pre-filling `eas.json`'s submit section
-   (`ascApiKeyPath` etc. are placeholders) and just answer its interactive
-   Apple ID prompts instead — the API-key route is only worth it if you want
-   to automate submits later.
-6. App Store Connect → your app → **TestFlight** tab → **External Testing** →
-   new group → add testers by email. The *first* build to a group needs a
-   quick Apple Beta App Review (usually well under 24h); later builds to the
-   same group don't.
+Guardrails below). Current setup: the App Store Connect listing and Apple
+Developer Team are owned by a collaborator (not the repo's primary
+maintainer) — `bundleIdentifier`/`slug`/`projectId` in `app.json` are already
+correct for that listing; don't change them without coordinating first.
+1. Whoever's building must be invited as a team member on the Apple
+   Developer Team that owns the App Store Connect listing (Users and
+   Access → invite by Apple ID email, role scoped to just this app is
+   enough) and accept that invite with their own Apple ID first.
+2. `npm install && npm run sync-engine` (pulls the latest engine files).
+3. `npx eas-cli login` — your own Expo account (builds run on your quota).
+   Do NOT run `eas init` again — the project is already linked.
+4. `npx eas-cli build --platform ios --profile testflight`. When it asks for
+   Apple sign-in, use the Apple ID that accepted the team invite; pick the
+   team that owns the App Store Connect listing; answer yes to letting EAS
+   create the certificate/provisioning profile.
+5. `npx eas-cli submit --platform ios --profile testflight` (once the build
+   finishes, ~15-20 min). `eas.json`'s submit section is deliberately empty
+   — answer the interactive prompts (Apple ID, pick the existing app) rather
+   than pre-filling an API key.
+6. After ~15 min of processing: appstoreconnect.apple.com → the app →
+   **TestFlight** tab → create an **Internal Testing** group, add team
+   members as testers (no Apple review needed). Friends outside the team go
+   in an **External** group — the *first* build to that group needs a quick
+   Beta App Review (usually under 24h).
+7. Content-only changes after that (no new native packages) don't need a
+   new build — `npx eas-cli update --branch preview` pushes a JS/asset OTA
+   update; testers get it next time they open the app.
 
-**Which Apple ID to use**: if your only Apple Developer Program access is as
-an admin/member of someone else's organization account (e.g. an employer's),
-don't build/submit under that team — the app would land in their App Store
-Connect, visible to their other admins. Use a separate, personal Apple ID
-enrolled in its own Individual Program membership instead.
+**Which Apple ID to use** (if you're the one setting up a NEW listing from
+scratch, rather than joining an existing one as above): if your only Apple
+Developer Program access is as an admin/member of someone else's
+organization account (e.g. an employer's), don't build/submit under that
+team — the app would land in their App Store Connect, visible to their other
+admins. Use a separate, personal Apple ID enrolled in its own Individual
+Program membership instead.
 
 ## Architecture
 
@@ -88,5 +97,9 @@ enrolled in its own Individual Program membership instead.
   from a human's own machine, using their own Apple Developer + Expo
   accounts. Agents may scaffold/edit `app.json`/`eas.json`, nothing more.
 - **Never commit secrets**: no `.env`, no `.p8`/`.p12`/`.jks`/`.mobileprovision`
-  files, no tokens. `eas.json`'s `ascApiKeyPath` points *outside* this repo
-  (`../../secrets/`) on purpose.
+  files, no tokens. `eas.json`'s submit section is deliberately empty (see
+  above) rather than holding an App Store Connect API key — if one is ever
+  added, its key file must live *outside* this repo (e.g. `../../secrets/`).
+- **Never point `EXPO_PUBLIC_API_URL`/`apiConfig.ts`'s fallback at the
+  production web app** (`the-daily-cock.fly.dev`) — staging (`daily-c-staging`)
+  is the default on purpose, so testers here never touch production data.

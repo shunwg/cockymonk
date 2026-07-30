@@ -24,12 +24,7 @@
   },
   "submit": {
     "testflight": {
-      "ios": {
-        "ascAppId": "PLACEHOLDER-fill-in-after-creating-the-App-Store-Connect-record",
-        "ascApiKeyPath": "../../secrets/AuthKey_PLACEHOLDER.p8",
-        "ascApiKeyId": "PLACEHOLDER",
-        "ascApiKeyIssuerId": "PLACEHOLDER"
-      }
+      "ios": {}
     }
   }
 }
