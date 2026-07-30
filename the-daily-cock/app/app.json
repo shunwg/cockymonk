@@ -9,13 +9,13 @@
     "backgroundColor": "#8F2230",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.mats.cockerel",
+      "bundleIdentifier": "com.edword92.dailycock",
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.mats.cockerel",
+      "package": "com.edword92.dailycock",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-adaptive-foreground.png",
         "backgroundColor": "#8F2230"
