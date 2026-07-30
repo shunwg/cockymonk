@@ -13,7 +13,7 @@ export function NameScreen({ startingName, onDone }: { startingName: string; onD
     <View style={styles.screen}>
       <Mascot />
       <Text style={[styles.eyebrow, { color: tokens.colorTextSecondary }]}>Frykt Nesen</Text>
-      <Text style={[styles.h1, { color: tokens.colorTextOnBg, fontFamily: tokens.fontDisplay }]}>The Daily Cock</Text>
+      <Text style={[styles.h1, { color: tokens.colorTextOnBg, fontFamily: tokens.fontDisplay }]}>Cockerel</Text>
       <Card>
         <Text style={[styles.h2, { color: tokens.colorTextOnSurface, fontFamily: tokens.fontDisplay }]}>
           Velg brukernavnet ditt
