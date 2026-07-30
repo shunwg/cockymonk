@@ -76,6 +76,14 @@ createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = decodeURIComponent(url.pathname);
 
+  // Additive CORS — zero effect on game logic, just lets a browser-based
+  // client hosted elsewhere (e.g. an Expo web build) call this API at all.
+  // Native clients (iOS/Android) aren't subject to CORS and are unaffected.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "content-type");
+  if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
+
   if (!p.startsWith("/api/")) return serveStatic(req, res, p);
 
   try {

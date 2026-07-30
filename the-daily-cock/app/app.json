@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "The Daily Cock",
+    "slug": "the-daily-cock",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.PLACEHOLDER.dailycock",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.PLACEHOLDER.dailycock"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "PLACEHOLDER-run-eas-init-to-fill-this-in"
+      }
+    },
+    "updates": {
+      "url": "PLACEHOLDER-filled-by-eas-init",
+      "checkAutomatically": "ON_LOAD"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    }
+  }
+}

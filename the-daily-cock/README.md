@@ -17,6 +17,8 @@ npm test               # engine/scoring/rollover vectors
 npm run serve          # → http://localhost:8788
 ```
 
+There's also a native app (`app/`, Expo/React Native — iOS, Android, and web from one codebase) alongside this one, playing the same game against a separate staging backend. See `app/AGENTS.md` for setup and TestFlight steps.
+
 ## Where things come from
 
 See the **Provenance** section in `CLAUDE.md` — the word list, bot decoys, and rating formula are ported from Ordkrig; the look (tokens, Fredoka font, the Nesen mark) is ported from Cocky Monk.
