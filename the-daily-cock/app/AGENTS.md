@@ -1,9 +1,13 @@
 # AGENTS.md — the-daily-cock/app
 
-Expo/React Native port of The Daily Cock (see `../CLAUDE.md`) — same game,
-targeting iOS (TestFlight), Android, and web from one codebase, alongside
-(not replacing) the vanilla-JS web app in `../js`/`../index.html`. Modeled
-directly on `ordkrig/`'s proven Expo setup.
+**Cockerel** — the Expo/React Native port of The Daily Cock (see
+`../CLAUDE.md`), same game, targeting iOS (TestFlight first), Android, and
+web from one codebase, alongside (not replacing) the vanilla-JS web app in
+`../js`/`../index.html`. Modeled directly on `ordkrig/`'s proven Expo setup.
+The app's product name is "Cockerel" (`app.json`'s `name`/`slug`); the
+underlying game/repo keeps the name "The Daily Cock" — only this one native
+client is rebranded. Fly.io URLs (`the-daily-cock.fly.dev`,
+`daily-c-staging.fly.dev`) are deliberately NOT renamed.
 
 ## For a human picking this up (e.g. shipping to TestFlight)
 
@@ -32,9 +36,10 @@ npm run android  # Android emulator, needs Android Studio
 **Ship to TestFlight** (all manual — an agent must never run any of this, see
 Guardrails below):
 1. `npx expo login` (or `eas login`).
-2. Pick a real bundle identifier and put it in `app.json`'s
-   `ios.bundleIdentifier` / `android.package` — currently the placeholder
-   `com.PLACEHOLDER.dailycock`.
+2. Bundle identifier is already set (`com.mats.cockerel`, both
+   `ios.bundleIdentifier` and `android.package`) — change it in `app.json`
+   first if you'd rather use something else; it's cheap to change now,
+   annoying once it's registered with Apple.
 3. `eas init` — links the project to your Expo account, fills in `app.json`'s
    `extra.eas.projectId` placeholder.
 4. `eas build --platform ios --profile testflight` — builds in Expo's cloud;
