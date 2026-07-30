@@ -27,11 +27,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "PLACEHOLDER-run-eas-init-to-fill-this-in"
+        "projectId": "adb76640-bf4e-4d29-acd6-4feaf8bba9c7"
       }
     },
     "updates": {
-      "url": "PLACEHOLDER-filled-by-eas-init",
+      "url": "https://u.expo.dev/adb76640-bf4e-4d29-acd6-4feaf8bba9c7",
       "checkAutomatically": "ON_LOAD"
     },
     "plugins": [
