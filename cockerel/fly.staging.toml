@@ -10,10 +10,12 @@ primary_region = "arn"
 [build]
 
 [env]
-  DEV_TOOLS = "1"
+  # DEV_TOOLS=0 here on purpose: this is a live, publicly reachable Fly URL,
+  # not a "local test deployment" — the #devbar (date/player switcher) must
+  # never be reachable from it. It's only ever DEV_TOOLS=1 when a human runs
+  # server/dev-server.mjs on their own machine (npm run serve's default).
+  DEV_TOOLS = "0"
   PORT = "8788"
-  # DEV_TOOLS=1 keeps the #devbar test-player switcher fully independent of
-  # this — it sets `identity` directly and never passes through the gate.
   # Requires GOOGLE_CLIENT_ID to also be set (fly secrets set).
   REQUIRE_GOOGLE_AUTH = "1"
 
