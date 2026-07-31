@@ -231,14 +231,23 @@ function googleSectionHtml() {
 
 /** Renders the actual Google button into the given container id — must run
  * AFTER that container is in the DOM, since renderButton needs the node to
- * already exist. Silently no-ops if the async accounts.google.com script
- * hasn't loaded yet (e.g. blocked by an ad blocker); callers still work fine
- * without it, they just won't offer sign-in that session. Shared by the
- * settings panel's optional link and the required sign-in gate below. */
-function renderGoogleButton(containerId) {
-  if (typeof google === "undefined" || !google.accounts?.id) return;
+ * already exist. Shared by the settings panel's optional link and the
+ * required sign-in gate below — the gate calls this synchronously during
+ * main(), i.e. on the very first paint, which regularly RACES the GSI
+ * script's `async` tag in index.html: `google` often isn't defined yet at
+ * that instant. Retries every 100ms (up to ~5s) instead of the one-shot
+ * no-op this used to be — that one-shot version meant the required sign-in
+ * gate could render with no button at all on a fresh page load, which
+ * defeats the entire point of requiring sign-in. Stops retrying once the
+ * container itself is gone (e.g. the settings panel got closed first). */
+function renderGoogleButton(containerId, attemptsLeft = 50) {
   const container = document.getElementById(containerId);
   if (!container) return;
+  if (typeof google === "undefined" || !google.accounts?.id) {
+    if (attemptsLeft <= 0) return; // script likely blocked (ad blocker, offline) — give up quietly
+    setTimeout(() => renderGoogleButton(containerId, attemptsLeft - 1), 100);
+    return;
+  }
   google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCredential });
   google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: 260 });
 }
