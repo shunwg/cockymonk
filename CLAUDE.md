@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo shape
 
-This repository holds **three projects that share one git history**. Two (`ordkrig/`, `shunwg/`) are otherwise unrelated and share no code. The third (`the-daily-cock/`) is a deliberate spinoff that reuses pieces of both — see its row below. None share a build. Figure out which one you're in before doing anything, then **read that subproject's own `CLAUDE.md` first** — it is the authority for that tree, not this file.
+This repository holds **three projects that share one git history**. Two (`ordkrig/`, `shunwg/`) are otherwise unrelated and share no code. The third (`cockerel/`) is a deliberate spinoff that reuses pieces of both — see its row below. None share a build. Figure out which one you're in before doing anything, then **read that subproject's own `CLAUDE.md` first** — it is the authority for that tree, not this file.
 
 | Dir | Project | Stack | Status |
 |---|---|---|---|
 | `ordkrig/` | **Ordkrig** — Norwegian word-bluffing game (Balderdash/Fibbage-style) | Expo/React Native (SDK 56), TypeScript, Supabase | Live app on TestFlight with real players |
 | `shunwg/` | **Cocky Monk** — Norwegian game-master bluffing party game for iOS | SwiftUI/Swift 6 (planned) + a browser "Lab" port (vanilla JS/CSS, Node tooling) that is the actual daily-driver today | Pre-Mac-day: `Sources/` is scaffolding only (`.gitkeep`); real work happens in `shunwg/Lab/` |
-| `the-daily-cock/` | **The Daily Cock** — async, Wordle-style daily spinoff of Cocky Monk: write bluffs for today's words, guess yesterday's | Vanilla JS/CSS + zero-dep Node server (file-backed mock backend); `app/` is an Expo/React Native port of the same game, branded "Cockerel," targeting iOS first, against a separate staging backend | Standalone app, no nav to the other two; see its own section below |
+| `cockerel/` | **Cockerel** — async, Wordle-style daily spinoff of Cocky Monk: write bluffs for today's words, guess yesterday's | Vanilla JS/CSS + zero-dep Node server (file-backed mock backend); `app/` is an Expo/React Native port of the same game, targeting iOS first, against a separate staging backend | Standalone app, no nav to the other two; see its own section below |
 
 There is no root-level build, package manager, or test runner — `cd` into the relevant subproject first.
 
@@ -104,15 +104,15 @@ Edit `project.yml` and run `xcodegen generate` — never hand-edit the `.xcodepr
 
 ---
 
-## `the-daily-cock/` — The Daily Cock
+## `cockerel/` — Cockerel
 
-Read `the-daily-cock/CLAUDE.md` in full before working here — the "Provenance" section is the important part: it explains exactly which pieces are ported from `ordkrig/` vs. `shunwg/` and why, and the guardrails (no quit penalty, no nav to the other two apps, no pointing at Ordkrig's live Supabase).
+Read `cockerel/CLAUDE.md` in full before working here — the "Provenance" section is the important part: it explains exactly which pieces are ported from `ordkrig/` vs. `shunwg/` and why, and the guardrails (no quit penalty, no nav to the other two apps, no pointing at Ordkrig's live Supabase).
 
 One-line pitch: a Wordle-style daily ritual for when you can't play the physical/party game with friends. Each day (UTC midnight cutoff) you write bluff definitions for 3 new "words of the day" and guess the real definition among options for the **previous** day's 3 words — today's writers become tomorrow's decoy pool, which is how it gets a good multiple-choice round without real-time players.
 
 ### Commands
 ```bash
-cd the-daily-cock
+cd cockerel
 node Tools/build-words.mjs    # re-import words.json + fakeDefs.json from ../ordkrig
 node Tools/sync-tokens.mjs    # re-copy tokens.css/Fredoka/Nesen mark from ../shunwg
 npm test                       # node --test js/engine.test.mjs — scoring/rollover/streak vectors
@@ -130,4 +130,4 @@ npm run web                    # or `npm run ios` / `npm run android`
 - `server/db.mjs` — the only impure module: file-backed JSON store (`server/data/`, gitignored except `seed.json`) + the daily rollover. A single day's points settle in **two passes at two different times** (guess-points one rollover after the day ends, write-points one rollover after that) — see the long comment at the top of `db.mjs` before touching settlement logic.
 - `js/storage.js` — the seam (`storageLocal()` today; a `storageRemote()` swap-in is the future path to real hosted persistence — that's a new decision to make explicitly, not a quiet default).
 - Visual identity (tokens, Fredoka, the Nesen mark) is copied from `shunwg/`, not referenced live — re-sync via `Tools/sync-tokens.mjs` after upstream changes.
-- `app/` — an Expo/React Native port of the same game, branded **"Cockerel"** (`iOS first`, then Android/web from one codebase, modeled on `ordkrig/`'s setup), against a separate `daily-c-staging` Fly.io backend so its testers don't collide with the production web app's. Read `app/AGENTS.md` before working there — same rule as `ordkrig/AGENTS.md`: no `eas build`/`eas submit`/App Store Connect action from an agent, ever.
+- `app/` — an Expo/React Native port of the same game (`iOS first`, then Android/web from one codebase, modeled on `ordkrig/`'s setup), against a separate `cockerel-staging` Fly.io backend so its testers don't collide with the production web app's. Read `app/AGENTS.md` before working there — same rule as `ordkrig/AGENTS.md`: no `eas build`/`eas submit`/App Store Connect action from an agent, ever.

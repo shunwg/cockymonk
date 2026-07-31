@@ -12,9 +12,9 @@ See [`ordkrig/CLAUDE.md`](ordkrig/CLAUDE.md).
 A Norwegian game-master bluffing party game for iOS. The long-term plan is a SwiftUI/Swift app, but day-to-day work currently happens in a browser-based prototype ("the Lab") built with vanilla JS/CSS.
 See [`shunwg/CLAUDE.md`](shunwg/CLAUDE.md).
 
-### [`the-daily-cock/`](the-daily-cock) — The Daily Cock
+### [`cockerel/`](cockerel) — Cockerel
 A Wordle-style daily spinoff of Cocky Monk: write bluff definitions for today's words, then guess yesterday's real definitions. Standalone vanilla JS/CSS app with a small Node backend; borrows word data from Ordkrig and visual style from Cocky Monk.
-See [`the-daily-cock/CLAUDE.md`](the-daily-cock/CLAUDE.md).
+See [`cockerel/CLAUDE.md`](cockerel/CLAUDE.md).
 
 ## Note for contributors
 
