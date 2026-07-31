@@ -221,12 +221,30 @@ function themeToggleLabel() {
 function googleSectionHtml() {
   if (!googleClientId) return "";
   if (identity.googleLinked) {
-    return `<p class="empty-note">Innlogget med Google — poengene og streaken din er trygge selv om du bytter enhet.</p>`;
+    return `
+      <p class="empty-note">Innlogget med Google — poengene og streaken din er trygge selv om du bytter enhet.</p>
+      <button class="btn secondary full" id="google-signout-btn">Logg ut</button>
+    `;
   }
   return `
     <p class="empty-note">Logg inn med Google for å ta med deg poengene og streaken din til en annen enhet eller etter en ominstallering.</p>
     <div id="google-signin-btn" style="display:flex; justify-content:center; margin-bottom:8px"></div>
   `;
+}
+
+/** "Logg ut" — forgets THIS DEVICE's identity only; never touches server
+ * data (that's "Nullstill spillet mitt" / resetPlayer, a real delete). The
+ * server's db.identities still maps the Google account to the same profile,
+ * so signing back in with the SAME account reunites with it via
+ * linkGoogleIdentity's existing-link path (isNewProfile: false, no data
+ * lost) — this is what makes it safe to use on a shared device, or just to
+ * switch which Google account this browser is signed in as. On a deployment
+ * with REQUIRE_GOOGLE_AUTH on, the next load lands straight back on the
+ * sign-in gate. */
+function signOut() {
+  localStorage.removeItem(IDENTITY_KEY);
+  localStorage.removeItem(LEGACY_IDENTITY_KEY);
+  location.reload();
 }
 
 /** Renders the actual Google button into the given container id — must run
@@ -330,6 +348,7 @@ function openSettingsPanel() {
     e.target.textContent = themeToggleLabel();
   });
   if (googleClientId && !identity.googleLinked) renderGoogleButton("google-signin-btn");
+  document.getElementById("google-signout-btn")?.addEventListener("click", signOut);
 }
 
 function openResetConfirm(overlay) {
