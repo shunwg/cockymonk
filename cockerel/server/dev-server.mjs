@@ -248,11 +248,11 @@ createServer(async (req, res) => {
     // db.json (see server/gallery-feedback.mjs). Not tied to withDb's queue
     // since it never touches db.json.
     if (p === "/api/dev/gallery-feedback" && req.method === "POST") {
-      const { screenId, screenLabel, theme, note } = await readBody(req);
+      const { screenId, screenLabel, theme, lang, note } = await readBody(req);
       if (!screenId || !String(note ?? "").trim()) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
       const entry = {
         ts: new Date().toISOString(), screenId, screenLabel: screenLabel ?? null,
-        theme: theme ?? null, note: String(note).trim(),
+        theme: theme ?? null, lang: lang ?? null, note: String(note).trim(),
       };
       await appendGalleryFeedback(entry);
       sendJson(res, 200, { ok: true, entry });

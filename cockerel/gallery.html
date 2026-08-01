@@ -9,14 +9,22 @@
 </head>
 <body>
 <header class="gallery-header">
-  <h1>Cockerel screen gallery <span class="gallery-header-badge">DEV ONLY</span></h1>
+  <div class="gallery-header-top">
+    <h1>Cockerel screen gallery <span class="gallery-header-badge">DEV ONLY</span></h1>
+    <label class="gallery-lang-picker">
+      <span>Preview language</span>
+      <select id="gallery-lang"></select>
+    </label>
+  </div>
   <p>
     Every major screen state, side by side. Scroll horizontally to compare. Each card is a real,
     isolated instance of the app (an iframe) pre-loaded onto that one screen with fixture data —
     <strong>Refresh</strong> restarts its entrance animation and any timer, <strong>Theme</strong>
-    cycles dark/light. Feedback typed below a card is logged server-side with its screen id and
-    theme, timestamped — ask Claude Code to "check the gallery feedback log" to work through it.
-    Not reachable when the server is deployed with <code>DEV_TOOLS=0</code>.
+    cycles dark/light per card, and the <strong>Preview language</strong> dropdown above switches
+    every card at once between Norwegian and English fixture content. Feedback typed below a card
+    is logged server-side with its screen id, theme, and language, timestamped — ask Claude Code to
+    "check the gallery feedback log" to work through it. Not reachable when the server is deployed
+    with <code>DEV_TOOLS=0</code>.
   </p>
 </header>
 <div id="gallery-row" class="gallery-row"></div>

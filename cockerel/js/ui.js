@@ -1031,27 +1031,48 @@ async function routeToCurrentScreen() {
 // submitDefinition, skipGuess, getToday) — for those, `store` is swapped for
 // createFixtureStore()'s in-memory implementation of the exact same
 // storage.js interface, so their real logic runs untouched, no network, no
-// filesystem, resets every reload. Fixture screens are Norwegian-only for
-// now (FIXTURE_WORDS) — see js/gallery-screens.js for the full screen list.
+// filesystem, resets every reload. Fixture words exist for BOTH languages
+// (FIXTURE_WORDS) — gallery.html's navbar dropdown picks which one every
+// card previews, see runGalleryPreview's `lang` param below and
+// js/gallery-screens.js for the full screen list.
 const FIXTURE_IDENTITY = { userId: "gallery-preview-user", displayName: "Ferdigfigur" };
 
-const FIXTURE_WORDS = [
-  { wordId: "fx-1", word: "kneik", truth: "En brå bakke eller kneik i terrenget.", bluffs: [
-    "Et gammelt ord for en liten kniv brukt til fiskerensing.",
-    "Lyden en tømmerkjerre lager i en sving.",
-    "En person som alltid kommer for sent.",
-  ] },
-  { wordId: "fx-2", word: "myrsnipe", truth: "En liten vadefugl som holder til på myr.", bluffs: [
-    "En kjeltring som stjeler fra torvmyrer.",
-    "Et gammelt redskap for å måle myrdybde.",
-    "Kallenavn på en sær nabo på bygda.",
-  ] },
-  { wordId: "fx-3", word: "labbetuss", truth: "Et kjælent ord for noen som tusler stille rundt, ofte om barn eller dyr.", bluffs: [
-    "En type vott brukt av fiskere.",
-    "Et gammelt uttrykk for søvnig forvirring.",
-    "Lyden av tunge støvler i søle.",
-  ] },
-];
+const FIXTURE_WORDS = {
+  no: [
+    { wordId: "fx-1", word: "kneik", truth: "En brå bakke eller kneik i terrenget.", bluffs: [
+      "Et gammelt ord for en liten kniv brukt til fiskerensing.",
+      "Lyden en tømmerkjerre lager i en sving.",
+      "En person som alltid kommer for sent.",
+    ] },
+    { wordId: "fx-2", word: "myrsnipe", truth: "En liten vadefugl som holder til på myr.", bluffs: [
+      "En kjeltring som stjeler fra torvmyrer.",
+      "Et gammelt redskap for å måle myrdybde.",
+      "Kallenavn på en sær nabo på bygda.",
+    ] },
+    { wordId: "fx-3", word: "labbetuss", truth: "Et kjælent ord for noen som tusler stille rundt, ofte om barn eller dyr.", bluffs: [
+      "En type vott brukt av fiskere.",
+      "Et gammelt uttrykk for søvnig forvirring.",
+      "Lyden av tunge støvler i søle.",
+    ] },
+  ],
+  en: [
+    { wordId: "fxen-1", word: "petrichor", truth: "The pleasant, earthy smell that often accompanies the first rain after a long dry spell.", bluffs: [
+      "An old term for a small knife used to clean fish.",
+      "The sound a wooden cart makes going around a bend.",
+      "Someone who is always running late.",
+    ] },
+    { wordId: "fxen-2", word: "gloaming", truth: "Twilight; dusk.", bluffs: [
+      "A con artist who steals from peat bogs.",
+      "An old tool for measuring bog depth.",
+      "A nickname for a strange neighbor in a small town.",
+    ] },
+    { wordId: "fxen-3", word: "somnolent", truth: "Sleepy or drowsy.", bluffs: [
+      "A type of mitten worn by fishermen.",
+      "An old expression for being sleepily confused.",
+      "The sound of heavy boots in mud.",
+    ] },
+  ],
+};
 
 function fixtureProfile(overrides = {}) {
   return { displayName: "Ferdigfigur", rating: 940, rank: 42, streakDays: 4, streakBonusPct: 40, ...overrides };
@@ -1066,11 +1087,12 @@ function fixtureWordOptions(w) {
   ];
 }
 
-function fixtureScoreResult() {
+function fixtureScoreResult(lang) {
+  const words = FIXTURE_WORDS[lang];
   return {
     correctCount: 2, guessTotal: 3, points: 165, pct: 30,
     profile: fixtureProfile({ rating: 985 }),
-    words: FIXTURE_WORDS.map((w, i) => ({
+    words: words.map((w, i) => ({
       wordId: w.wordId, word: w.word, correct: i !== 1,
       options: fixtureWordOptions(w).map((o) => ({
         id: o.id, text: o.text, isTruth: o.kind === "truth",
@@ -1081,14 +1103,15 @@ function fixtureScoreResult() {
   };
 }
 
-function createFixtureStore() {
+function createFixtureStore(lang) {
+  const words = FIXTURE_WORDS[lang];
   let guesses = []; // { wordId, choiceId, correct }
   const submitted = new Set();
   let profile = fixtureProfile({ rating: 820, streakDays: 3, streakBonusPct: 30 });
   // A couple of "other players'" guesses on the first word, seeded up front,
   // so the hint has real data to show without requiring any prior action.
   const otherGuesses = [
-    { wordId: "fx-1", choiceId: "a" }, { wordId: "fx-1", choiceId: "c" }, { wordId: "fx-1", choiceId: "c" },
+    { wordId: words[0].wordId, choiceId: "a" }, { wordId: words[0].wordId, choiceId: "c" }, { wordId: words[0].wordId, choiceId: "c" },
   ];
 
   function today() {
@@ -1098,9 +1121,9 @@ function createFixtureStore() {
       // settings button gets clicked — the fixture screens themselves never
       // read this field, since they're always called with an explicit
       // fixture-built state, not through the real getToday()/byLang shape.
-      enabledLangs: ["no"],
-      writeWords: FIXTURE_WORDS.map((w) => ({ wordId: w.wordId, word: w.word, alreadySubmitted: submitted.has(w.wordId) })),
-      guessWords: FIXTURE_WORDS.map((w) => {
+      enabledLangs: [lang],
+      writeWords: words.map((w) => ({ wordId: w.wordId, word: w.word, alreadySubmitted: submitted.has(w.wordId) })),
+      guessWords: words.map((w) => {
         const mine = guesses.find((g) => g.wordId === w.wordId);
         return {
           wordId: w.wordId, word: w.word,
@@ -1113,14 +1136,14 @@ function createFixtureStore() {
   }
 
   function finalizeGuessingIfDone() {
-    if (guesses.length < FIXTURE_WORDS.length) return null;
+    if (guesses.length < words.length) return null;
     const table = [-50, 0, 120, 300];
     const correctCount = guesses.filter((g) => g.correct).length;
     const points = table[Math.min(correctCount, table.length - 1)];
     profile = { ...profile, rating: profile.rating + points };
     return {
-      correctCount, guessTotal: FIXTURE_WORDS.length, points, pct: 0, profile,
-      words: FIXTURE_WORDS.map((w) => {
+      correctCount, guessTotal: words.length, points, pct: 0, profile,
+      words: words.map((w) => {
         const g = guesses.find((x) => x.wordId === w.wordId);
         return {
           wordId: w.wordId, word: w.word, correct: Boolean(g?.correct),
@@ -1136,7 +1159,7 @@ function createFixtureStore() {
     getConfig: async () => ({ ok: true, devTools: true, googleClientId: null, requireGoogleAuth: false }),
     getToday: async () => today(),
     submitGuess: async (_userId, wordId, choiceId) => {
-      const correct = fixtureWordOptions(FIXTURE_WORDS.find((w) => w.wordId === wordId)).find((o) => o.id === choiceId)?.kind === "truth";
+      const correct = fixtureWordOptions(words.find((w) => w.wordId === wordId)).find((o) => o.id === choiceId)?.kind === "truth";
       guesses.push({ wordId, choiceId, correct });
       return { ok: true, correct, guessResult: finalizeGuessingIfDone(), profile };
     },
@@ -1156,85 +1179,93 @@ function createFixtureStore() {
     ackRecap: async () => ({ ok: true }),
     resetPlayer: async () => ({ ok: true }),
     signInWithGoogle: async () => ({ ok: false }),
-    setEnabledLangs: async () => ({ ok: true, enabledLangs: ["no"] }),
+    setEnabledLangs: async () => ({ ok: true, enabledLangs: [lang] }),
     listDays: async () => ({ days: [], current: null }),
     listPlayers: async () => ({ players: [] }),
     advanceDay: async () => ({ todayKey: null }),
   };
 }
 
+// Every entry takes the `lang` gallery.html's navbar dropdown currently has
+// selected — "language-picker" (bilingual by nature) and "sign-in-gate"
+// (shown before any language is chosen, deliberately kept Norwegian — see
+// its own comment) are the two screens that ignore it, matching real app
+// behavior exactly.
 const GALLERY_PREVIEW_SCREENS = {
   "language-picker": () => renderLanguagePicker(() => {}),
-  "name": () => renderNameScreen("no", FIXTURE_IDENTITY.displayName, () => {}),
-  "how-to-play": () => renderHowToPlay("no", () => {}),
-  "welcome": () => renderWelcomeStep("no", FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
-  "ready": () => {
+  "name": (lang) => renderNameScreen(lang, FIXTURE_IDENTITY.displayName, () => {}),
+  "how-to-play": (lang) => renderHowToPlay(lang, () => {}),
+  "welcome": (lang) => renderWelcomeStep(lang, FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
+  "ready": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, "no");
-    renderReadyStep({ profile }, "no", () => {});
+    renderHeaderImmediate(profile, lang);
+    renderReadyStep({ profile }, lang, () => {});
   },
-  "choose-today-lang": () => {
-    renderChooseTodayLangStep("no", ["no", "en"], {
+  "choose-today-lang": (lang) => {
+    renderChooseTodayLangStep(lang, ["no", "en"], {
       no: { profile: fixtureProfile() }, en: { profile: fixtureProfile({ rating: 700, streakDays: 2, streakBonusPct: 20 }) },
     });
   },
-  "write-recap-none": () => {
+  "write-recap-none": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, "no");
-    renderWriteRecap({ fooledByWord: [] }, profile, "no", () => {});
+    renderHeaderImmediate(profile, lang);
+    renderWriteRecap({ fooledByWord: [] }, profile, lang, () => {});
   },
-  "write-recap-fooled": () => {
+  "write-recap-fooled": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, "no");
+    const words = FIXTURE_WORDS[lang];
+    renderHeaderImmediate(profile, lang);
     renderWriteRecap({
-      fooledByWord: [{ wordId: "fx-1", count: 7 }, { wordId: "fx-2", count: 3 }],
+      fooledByWord: [{ wordId: words[0].wordId, count: 7 }, { wordId: words[1].wordId, count: 3 }],
       writeStreakPct: profile.streakBonusPct, writeBasePoints: 112, writePoints: 123,
-    }, profile, "no", () => {});
+    }, profile, lang, () => {});
   },
-  "guess": async () => {
+  "guess": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, "no");
-    renderGuessWordStep(state, "no");
+    renderHeaderImmediate(state.profile, lang);
+    renderGuessWordStep(state, lang);
   },
-  "guess-hint": async () => {
+  "guess-hint": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, "no");
-    renderGuessWordStep(state, "no");
+    renderHeaderImmediate(state.profile, lang);
+    renderGuessWordStep(state, lang);
     document.getElementById(`hint-${state.guessWords[0].wordId}`)?.click();
   },
-  "timeout-guess": () => { renderHeaderImmediate(fixtureProfile(), "no"); renderTimeoutStep("guess", "no", () => {}); },
-  "score": () => { renderHeaderImmediate(fixtureProfile({ rating: 820 }), "no"); renderScoreStep(fixtureScoreResult(), "no", () => {}); },
-  "write": async () => {
+  "timeout-guess": (lang) => { renderHeaderImmediate(fixtureProfile(), lang); renderTimeoutStep("guess", lang, () => {}); },
+  "score": (lang) => { renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang); renderScoreStep(fixtureScoreResult(lang), lang, () => {}); },
+  "write": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, "no");
-    renderWriteWordStep(state, "no");
+    renderHeaderImmediate(state.profile, lang);
+    renderWriteWordStep(state, lang);
   },
-  "timeout-write": () => { renderHeaderImmediate(fixtureProfile(), "no"); renderTimeoutStep("write", "no", () => {}); },
-  "done": () => {
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), "no");
-    renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, "no", null);
+  "timeout-write": (lang) => { renderHeaderImmediate(fixtureProfile(), lang); renderTimeoutStep("write", lang, () => {}); },
+  "done": (lang) => {
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
+    renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, lang, null);
   },
-  "done-with-other-lang": () => {
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), "no");
+  "done-with-other-lang": (lang) => {
+    const otherLang = lang === "no" ? "en" : "no";
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
     renderDoneStep(
-      { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, "no",
-      { lang: "en", state: { profile: fixtureProfile({ rating: 700 }) } },
+      { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, lang,
+      { lang: otherLang, state: { profile: fixtureProfile({ rating: 700 }) } },
     );
   },
   "sign-in-gate": () => renderSignInGate(),
 };
 
-async function runGalleryPreview(screenId, theme) {
+async function runGalleryPreview(screenId, theme, lang) {
   applyTheme(theme === "dark" ? "dark" : "light");
   identity = FIXTURE_IDENTITY;
-  store = createFixtureStore();
+  const previewLang = LANGS.includes(lang) ? lang : "no";
+  store = createFixtureStore(previewLang);
   renderSettingsButton();
   const renderFn = GALLERY_SCREENS.some((s) => s.id === screenId) ? GALLERY_PREVIEW_SCREENS[screenId] : null;
   if (!renderFn) {
     app.replaceChildren(el(`<div class="screen"><div class="card"><h2>Unknown preview screen</h2><p>"${screenId}" isn't in gallery-screens.js.</p></div></div>`));
     return;
   }
-  await renderFn();
+  await renderFn(previewLang);
 }
 
 // -- boot / player flows ------------------------------------------------
@@ -1251,7 +1282,8 @@ async function main() {
 
   const previewId = new URLSearchParams(location.search).get("preview");
   if (previewId && devToolsEnabled) {
-    await runGalleryPreview(previewId, new URLSearchParams(location.search).get("theme"));
+    const params = new URLSearchParams(location.search);
+    await runGalleryPreview(previewId, params.get("theme"), params.get("lang"));
     return;
   }
 

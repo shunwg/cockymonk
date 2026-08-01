@@ -12,7 +12,26 @@ html, body {
 }
 
 .gallery-header { padding: 20px 24px 8px; }
+.gallery-header-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .gallery-header h1 { font-size: 20px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+.gallery-lang-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #9a9aa5;
+  margin-bottom: 6px;
+}
+.gallery-lang-picker select {
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  border: 1px solid #3d3d48;
+  background: #23232c;
+  color: #e8e8ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
 .gallery-header-badge {
   font-size: 11px;
   font-weight: 700;

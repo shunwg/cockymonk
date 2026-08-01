@@ -125,8 +125,11 @@ row of phone-sized cards, one per major screen state (the language picker, name/
 the "choose a language for today" step, both write-recap variants, guess + guess-with-hint, both timeout
 screens, score, write, both done-step variants, the Google sign-in gate). The canonical list of screens
 lives in `js/gallery-screens.js`; `js/gallery.js` (gallery.html's own script) builds the cards from it.
-Every card's fixture data is Norwegian-only (`FIXTURE_WORDS` in `js/ui.js`) — the gallery previews the
-dual-language UI/routing screens themselves, not what a fully-English screen looks like end to end.
+A **navbar dropdown** ("Preview language") is a single GLOBAL choice applying to every card at once —
+unlike per-card Theme, which stays independent — switching every card's `?lang=` param and rebuilding
+its iframe src; `FIXTURE_WORDS` in `js/ui.js` has both a `no` and an `en` entry to back it. Exactly two
+cards ignore the dropdown, matching real app behavior: `language-picker` (bilingual by nature) and
+`sign-in-gate` (shown before any language is chosen, deliberately kept Norwegian).
 
 Each card is a real, isolated iframe pointing at `index.html?preview=<id>&theme=dark|light` — the
 actual screen is rendered by the real code in `js/ui.js` (see `runGalleryPreview` there), reusing every
