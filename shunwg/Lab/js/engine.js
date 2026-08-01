@@ -1,4 +1,4 @@
-// engine.js — pure Cocky Monk rules engine. Lane A owns this file (LANES.md).
+// engine.js — pure Snifferoo rules engine. Lane A owns this file (LANES.md).
 // No DOM, no timers, no Math.random — randomness comes in via an injected rng.
 // Rules authority: Tools/engine-vectors.json (PRD §5.3–§5.5). The SwiftUI
 // GameEngine must mirror these functions 1:1; keep every rule in a named,

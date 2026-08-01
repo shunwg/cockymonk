@@ -10,7 +10,7 @@ Alle visuelle referanser i dette prosjektet bruker **skjermnummer**. Si «endre 
 |---|---|
 | Hele galleriet (levende, alltid ferskt) | `node Tools/serve-lab.mjs` → <http://localhost:8787/Lab/gallery.html> (dyplenke: `#s07`) |
 | Én skjerm i full størrelse | <http://localhost:8787/Lab/index.html?fixture=07> |
-| Uten server (dobbeltklikk) | `dist/CockyMonk.html?fixture=07` — virker på `file://` |
+| Uten server (dobbeltklikk) | `dist/Snifferoo.html?fixture=07` — virker på `file://` |
 | Stillbilder (denne mappa) | `node Tools/snap-screens.mjs` (alle) eller `… 07` (én) — regenerer etter UI-endringer og commit dem sammen |
 
 Skjermene er *poserte*: faste spillere (Åse, Markus, Ingrid, Jonas), faste poeng, faste stemmer — definert i `Lab/js/fixtures.js`, voktet av `node --test Lab/js/fixtures.test.mjs`. PNG-ene er referanse, ikke fasit — galleriet er alltid sannheten.

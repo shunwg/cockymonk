@@ -1,4 +1,4 @@
-# DESIGN.md v3 — Cocky Monk design system
+# DESIGN.md v3 — Snifferoo design system
 
 **Subject:** a living-room quiz-show where one player runs the stage and everyone else lies for points, progress told by pawns on a board.
 **Job:** legible across a table, delicious to lie in, and a board that makes every point *felt*.
@@ -7,42 +7,104 @@
 
 ## 1. Principles
 1. **The table is the screen.** Arm's-length legibility; the GM phone doubles as a little stage.
-2. **Color means something.** Truth = green, bluff = pink, your-move = yellow, **GM = violet**. Icons always back color up.
+2. **Colour means something, and never says it alone.** Truth = `confirmed`, bluff = `alert`, your move = `action`, **GM = `private`**. A shape or an icon always backs the colour up (§9).
 3. **Pieces, not pixels.** Every surface behaves like a physical game component — hard shadows, mechanical presses, paper texture.
 4. **Two stages per round:** the Reveal (who lied to whom) then the Board (what it cost). Never merge them.
 5. **Themes change clothes, never rules.** All three boards share one geometry, one physics of hopping, one sound grammar.
 
 ## 2. Tokens
 
-### Color (themes may override background layers only)
+### Color — MONOCHROME, LIGHT (redesigned 2026-07-28)
+
+**Inverted 2026-07-28b.** The page is white and the cards are the dark plane —
+black and white interchanged, so the app reads predominantly white. This was NOT
+a mechanical luminance flip: that inverts values but not ROLES. "Hairline" and
+"recessed" are defined *relative to the page*, so a straight flip turned the
+hairline near-white (invisible on white) and pushed the secret card the wrong
+way. The roles are re-derived below; the value ORDER inside each family is
+preserved, so the hierarchy the dark version earned survives the flip.
+
+The player ramp flipped with it and is now bounded from the other side: the
+initial inside each token is white, and white-on-token needs 4.5:1, which caps
+how *light* a token may be.
+
+
+One greyscale ramp. No hue anywhere: not in the chrome, not in the player
+identities, not in the three board themes. Requested directly ("så svart, hvitt
+og grått som mulig, men på en moderne og minimalistisk måte"), and it sharpens
+§9 rather than fighting it — *never colour alone* becomes *never colour at all*,
+so every distinction has to be carried by value, fill, weight or shape.
+
 | Token | Hex | Use |
 |---|---|---|
-| `inkNight` | `#1B1B2E` | App background base |
-| `paper` | `#FFF6E8` | Cards, sheets |
-| `inkText` | `#23233B` | Text and borders on paper |
-| `paperText` | `#F4EFE4` | Text on inkNight |
-| `truthGreen` | `#3BD489` | Truth reveal, correct vote |
-| `bluffPink` | `#FF5C97` | Bluff unmasking, bluff points, the Nose |
-| `turnYellow` | `#FFC53D` | Primary CTA, active player |
-| `gmViolet` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, victory sting |
-| `mutedViolet` | `#8A87B8` | Secondary text, dividers, eyebrows |
+| `backdrop` | `#0B0B0C` | App background |
+| `raised` | `#17171C` | Inputs and recessed fields on the backdrop |
+| `line` | `#2A2A2F` | Hairlines — the only border weight left |
+| `sheet` | `#F4F4F2` | Cards, options — the reading surface |
+| `sheetSunk` | `#E4E4E1` | An option that has receded (a revealed bluff) |
+| `ink` | `#0B0B0C` | Text on `sheet` |
+| `inkInverse` | `#F4F4F2` | Text on `backdrop` |
+| `confirmed` | `#FFFFFF` | The truth. The brightest value in the app |
+| `alert` | `#8F8F94` | Bluff. A MID grey — it carries dark text, never light |
+| `action` | `#F4F4F2` | Primary CTA: the brightest plate, black label |
+| `private` | `#3D3D42` | Game-master, and the inverted secret card |
+| `quiet` | `#6F6F74` | Dividers, pending, board path |
 
-8 avatar colors: a fixed saturated palette readable on both `inkNight` and `paper` (defined once in `Theme.swift`, contrast ≥ 4.5:1 snapshot-tested).
+**Value IS the hierarchy, so the values must differ.** Three steps, dim to bright:
+an option you may pick (`sheetSunk`), the button that commits (`sheet`), the revealed
+truth (`confirmed`, pure white + ink ring). The CTA and a vote option were briefly the
+*same* value — survivable in colour, fatal in greyscale, where it read as five equal
+buttons and broke §6's one-primary-action rule.
+
+**What replaced the colours that carried meaning.** Green-truth and pink-bluff
+were doing real work in the reveal, so three separate mechanisms took over:
+truth is a pure-white plate with a heavy ink ring, a revealed bluff *sinks* to
+`sheetSunk` and dims, and a GM decoy keeps the dashed "classified" edge. Three
+different channels, so they survive greyscale, Dynamic Type XL and colour
+blindness alike.
+
+**Player identity.** Eight greys are not eight hues — at 18 px they are a
+guessing game. So the player's **initial is drawn inside the token** and the
+value only reinforces it. The ramp is bounded below by the black initial needing
+4.5:1 *inside* the token, and ordered to maximise the weakest adjacent pair
+(2.09:1, found exhaustively across all 8! orderings; a naive light/dark zigzag
+scored 1.24).
+
+**The board themes are desaturated by luminance**, not by an HSL saturation
+wipe — that preserves every value relationship (dark wood stays dark, snow stays
+bright) while removing hue, so Salongen/Fjellet/Verdensrommet stay distinguishable
+by texture and form rather than by colour.
 
 ### Type
 | Role | Face | Notes |
 |---|---|---|
 | Display (card words, headings, scores, letter chips) | **Fredoka** SemiBold/Bold — OFL, bundled, license row in ASSETS.md; SF Rounded fallback | Card words are the hero: scale toward 52 pt, slightly tight tracking |
 | Body / UI | SF Pro | Dynamic Type throughout |
-| Eyebrows (section labels like "ORDET ER") | Fredoka 12 pt, uppercase, +0.14 em tracking, mutedViolet | Quiet structure without headers |
+| Eyebrows (section labels like "ORDET ER") | Fredoka 12 pt, uppercase, +0.14 em tracking, `quietText` | Quiet structure without headers |
 
-### Surface language — "pieces on a table"
-- **Hard offset shadows** (≈4 pt x / 5 pt y, near-black, no blur) on cards, options, buttons. Never soft material shadows.
-- **Mechanical press:** buttons carry a colored under-shadow; on press the button translates 4 pt down and the shadow compresses to 1 pt.
-- **Paper grain:** cards get a faint 1-pt horizontal line texture at ~2% ink. The secret-truth card is **dashed-border "classified"** in gmViolet with no grain.
-- **Layered background:** violet glow top-right + pink glow bottom-left + faint dot grid over `inkNight`. Never a flat fill.
-- Shapes: 22 pt card radius, 16 pt buttons, capsule chips; 2.5 pt ink borders everywhere. Nothing sharp.
-- **Iconography:** functional emoji only (👑 leader crown, theme landmark marks). Everything decorative is *drawn* — the logo, the mode-select phone icons. Never emoji in the brand line.
+### Surface language — minimal, not "pieces on a table"
+
+*Rewritten 2026-07-28.* The previous language stacked three separate ways of
+saying "physical object": a 2.5 pt ink outline, a hard offset shadow, and paper
+grain — on every card, option and button. In greyscale those stop reading as
+texture and start reading as noise, and DESIGN-DIRECTION.md §6 is explicit:
+one dominant idea per screen, remove decoration before adding it.
+
+- **No outlines by default.** A near-white plane on a near-black ground is
+  already the strongest edge available; drawing one on top is redundant.
+- **Hairlines, 1 px, `line`** — for the things that genuinely need an edge
+  without a fill: secondary buttons, chips, inputs, segment controls.
+- **No hard offset shadows. No paper grain. No letterpress.**
+- **The press survives.** `translateY(2px)` plus a slight dim: it is a named
+  beat (§7) and the only tactile feedback a flat control has. What went is the
+  coloured 5 px under-shadow, which was drawing a plastic toy.
+- **Hierarchy is value.** The primary action is simply the brightest thing on
+  the screen — there is no "yellow means go" left to lean on.
+- **The one inversion is the secret card**: dark plane, light text, dashed edge.
+  Inversion is the loudest statement a greyscale system can make, so it is spent
+  on the one surface a player is forbidden to see, and nowhere else.
+- Shapes: 22 pt card radius, 16 pt buttons, capsule chips. Nothing sharp.
+- **Iconography:** functional emoji only. Everything decorative is *drawn*.
 
 ## 3. The three boards
 One `BoardLayout` (a winding serpentine of *target* spaces, Start → Mål) rendered by three `BoardTheme`s. Raw sprite material: Kenney CC0 packs in `AssetsIncoming/` (see ASSETS.md) — recolor and curate; never ship raw defaults.
@@ -56,25 +118,27 @@ One `BoardLayout` (a winding serpentine of *target* spaces, Start → Mål) rend
 | ⅓ / ⅔ landmarks | Coffee table / grandfather clock chime | Tregrensa (treeline) / Snøgrensa (pawns get a knit cap) | Satellite flyby / asteroid belt |
 | Mål moment | Trophy on doily + confetti | Summit flag planted + wind gust | Moon landing + flag + slow-mo dust |
 | Hop sound | Wooden tap | Boot crunch | Soft thruster pop |
-| Palette accents | Warm browns + `turnYellow` | Greens/greys + snow white | Indigo + `gmViolet` glow |
+| Palette accents | Warm browns + `action` | Greens/greys + snow white | Indigo + `private` glow |
 | Extra | — | — | Goal space pulses a slow gold ring (2 s) until claimed — all themes inherit this |
 
 Rules: identical space geometry and pawn physics; only layers, sprites, particles, and sounds differ. A theme is one config struct + assets — a 4th theme must be a one-file job.
 
 ## 4. Signature 1: **Nesen** — the mark and the mechanic
-**The logo** (SVG in the reference demo): a round paper face, two dot eyes, a sly open smile, and a long pink ink-outlined nose reaching right. This IS the app icon (face on `turnYellow`), the top-bar brand, the loader, and every empty state — Cocky Monk personified without a word.
+**The logo**: a round paper face, two dot eyes, a sly smirk, and a long ink-outlined nose reaching right. This IS the app icon (face on `action`), the top-bar brand, the loader, and every empty state.
 
-**In play:** the nose grows one springy notch per vote a lie collected (rising "boing" pitch per notch). GM decoys grow a **violet** nose — the room learns to fear it. The game's best liar takes the **Gullnese** badge on the winner screen, separate from winning on points, so there are two things to brag about. Reduced Motion: crossfade to final length.
+> **Pending redraw.** DESIGN-DIRECTION.md §3 makes the rat a *player token*, not a character: small, stylised, a silhouette rather than a face. The Nose survives that change and is arguably better served by it — a lengthening **snout on a silhouette** carries the `--notch` scale more clearly than a nose bolted to a face does. The mark below is the current drawing, not the target.
+
+**In play:** the nose grows one springy notch per vote a lie collected (rising "boing" pitch per notch). GM decoys grow a **`private`-coloured** nose — the room learns to fear it. The game's best liar takes the **Gullnese** badge on the winner screen, separate from winning on points, so there are two things to brag about. Reduced Motion: crossfade to final length.
 
 **Mark geometry** *(amended 2026-07-27 — was unspecified, which let the drawing drift)*. One drawing serves the logo and every avatar, so it is pinned here rather than left to each implementation:
 
 | | |
 |---|---|
-| Head | Bevelled cream disc — outer `#E8D5AE` ring, inner `#FFF6E8` face, `2.8`-unit `inkText` outline on a 32-unit head. Hard offset shadow, no blur. |
+| Head | Bevelled cream disc — outer `#E8D5AE` ring, inner `sheet` face, `2.8`-unit `ink` outline on a 32-unit head. Hard offset shadow, no blur. |
 | Eyes | Two dots at 35% height, 26% in from each side. |
 | Brows | Flat, short, high (20% height, 18% wide, ±8°). Long or steep reads as angry, not sly. |
 | Smirk | A single tilted arc (−9°), lower-left of centre. Never a symmetric smile, and never an upward hook — it tangles with the nose's cap. |
-| Nose | A **full capsule lying across** the face at 43% height, `bluffPink`, ink-outlined, jutting ~50% of a head-width past the rim. Not a half-capsule bolted to the edge: that reads as a spout. |
+| Nose | A **full capsule lying across** the face at 43% height, `alert`, ink-outlined, jutting ~50% of a head-width past the rim. Not a half-capsule bolted to the edge: that reads as a spout. |
 
 **Data vs decoration.** The same drawing has two jobs and they must stay visibly separate. A nose marked *decorative* (logo, mascots, app icon) is a fixed length. A nose that **reports a vote count** is `0.5 + 0.33 × notch` head-widths and must be exact — a decorative nose on a reporting face would be a lie about the score. Every feature dimension is a ratio of one size property so proportions hold from 34 px to 512 px, and the ink outline is an inset ring rather than a border (a border shrinks the padding box and silently drifts every child percentage). The app icon is `Lab/icon.svg`, rastered by `node Tools/make-icons.mjs`.
 
@@ -86,7 +150,7 @@ Rules: identical space geometry and pawn physics; only layers, sprites, particle
 - Board phase hard cap 20 s (PRD §11) — hop timing compresses automatically on big rounds.
 
 ## 6. GM Dashboard — the quiz-show desk
-Top→bottom: eyebrow + card word (display type) · the truth on the dashed gmViolet "classified" card, **hold-to-peek** (blurred until pressed, so shoulder-surfers see nothing) · decoy composer (0–2 one-liners) · **tick-in row**: one chip per bluffer, "tenker…" pulsing until it flips with a snap + `.light` haptic to "klar ✓" as each submission lands (in practice/party these arrive live on real delays) · the **Åpne avstemning** button: full-width `turnYellow`, dim until all lies are in, then arms with a slow pulse. Pressing it fires the card-shuffle sound on every device. During voting the dashboard becomes a live anonymous tally.
+Top→bottom: eyebrow + card word (display type) · the truth on the dashed `private` "classified" card, **hold-to-peek** (blurred until pressed, so shoulder-surfers see nothing) · decoy composer (0–2 one-liners) · **tick-in row**: one chip per bluffer, "tenker…" pulsing until it flips with a snap + `.light` haptic to "klar ✓" as each submission lands (in practice/party these arrive live on real delays) · the **Åpne avstemning** button: full-width `action`, dim until all lies are in, then arms with a slow pulse. Pressing it fires the card-shuffle sound on every device. During voting the dashboard becomes a live anonymous tally.
 
 ## 7. Motion & sound grammar
 | Moment | Treatment |
@@ -97,11 +161,14 @@ Top→bottom: eyebrow + card word (display type) · the truth on the dashed gmVi
 | Vote cast | `card-slide` + `.light` |
 | Tally | Anonymous dots land per option with soft pops; "n/total inne" counts up |
 | Reveal card entrance | Newest card **pops** (scale .85→1 with −1.5° un-rotate, spring); nose grows with boing ×votes |
-| Truth reveal | Dim → truth card scales 1.06→1.0, `truthGreen` glow + shadow, confetti, `.success` |
-| GM steal | Screen tint pulses `gmViolet`, sting, `.heavy` |
+| Truth reveal | Dim → truth card scales 1.06→1.0, `confirmed` glow + shadow, confetti, `.success` |
+| GM steal | Screen tint pulses `private`, sting, `.heavy` |
 | Reveal pacing | Human GM taps each beat; a bot GM (practice mode) auto-paces at ~1.7 s/beat with a tap-to-skip button |
 | Waiting room | Your face **bobs** gently (±7 pt, 2.4 s loop) wearing its smile; bot/player chips pulse "tenker…". No music by default |
 | Goal space | Slow gold pulse ring (2 s) until claimed |
+| **Countdown** *(amended 2026-07-28 — was a conic ring)* | A depleting **bar**, `scaleX` on the compositor, gliding over 1 s between the once-a-second writes so it never steps. Thickens 8 → 10 → 13 px as it passes warn and urgent, so the state survives greyscale and colour-blindness — never colour alone (§9) |
+| **Closing window (15 s)** | The screen begins to breathe: an inset vignette whose **rate climbs** from 0.8 Hz to 2.5 Hz as zero approaches, so the acceleration itself is the message. One soft `closing` tone + a short `closing` tap on entry; the pulse after that is a **state**, not a beat, and never re-triggers sound or haptics. **Capped at 2.5 Hz: WCAG 2.3.1 puts the seizure threshold at three flashes a second — a safety limit, not taste.** Reduced Motion rests at the trough, a steady dim edge, with sound and haptic carrying more |
+| **Urgent (5 s)** | The second and louder beat: `urgent` tone + `.warning` haptic, edge-triggered once. Only fires at a player who still **owes an answer** — on BLUFF, VOTE or GM_DASH. A spectator, a timed-out player, or anyone on a waiting screen gets neither pulse nor buzz, because an effect that says "act now" to someone who already acted is a lie about their own state |
 All audio ducks under, never over, the room. One-shots ≤ 1.5 s. Sources CC0 or OFL only, logged in `Resources/Audio/CREDITS.md` / ASSETS.md.
 
 ## 8. Voice

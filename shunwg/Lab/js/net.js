@@ -37,7 +37,12 @@ export const NET = {
 // bandwidth, so a small share of hostile networks simply won't connect, and we
 // say so out loud instead of hanging.
 export const NET_CONFIG = Object.freeze({
-  PREFIX: "cm-",                 // namespaces us on the shared public broker
+  // Namespaces us on the shared PUBLIC broker, so it has to be ours alone.
+  // Changing this invalidates every share-link already in the wild: a room id is
+  // PREFIX + code, and a guest on an old link asks the broker for a peer that no
+  // longer exists. Done once here, deliberately, at the rename (2026-07-28) and
+  // before the open room starts handing out links people keep.
+  PREFIX: "sn-",
   CODE_LEN: 6,
   CODE_ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",  // no 0/O/1/I — read aloud
   CONNECT_TIMEOUT_MS: 8000,
@@ -46,6 +51,22 @@ export const NET_CONFIG = Object.freeze({
   ICE: [{ urls: "stun:stun.l.google.com:19302" }],
   MIN_PLAYERS: 3,
   MAX_PLAYERS: 8,
+
+  // The well-known room. "Spill over nett" has no code to share: everyone asks
+  // the broker for this one id, the first to arrive gets it and hosts, and
+  // everyone after that connects to them.
+  //
+  // Cannot collide with a generated code: CODE_ALPHABET excludes O (and I, 0, 1)
+  // precisely because they are unreadable aloud, so netRoomCode() can never
+  // produce "OPEN" — the namespace is free by construction, not by luck.
+  OPEN_CODE: "OPEN",
+
+  // How long a client waits before trying to take over an empty open room.
+  // RANDOMISED: if every orphaned client retried on the same schedule they would
+  // collide on the claim, and the one that lost would have destroyed its peer
+  // for nothing. A spread means one wins quickly and the rest just join it.
+  RECLAIM_MIN_MS: 400,
+  RECLAIM_SPREAD_MS: 1600,
 });
 
 /**
@@ -217,13 +238,17 @@ function ntPeerCtor() {
  * nothing to look up and no host migration — if the host leaves, the room is
  * over, which we tell people rather than hide.
  */
-export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError, rng = Math.random }) {
+export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, onError, rng = Math.random, code: fixedCode = null }) {
   const Peer = ntPeerCtor();
   let attempt = 0;
   const conns = new Map();     // pid -> DataConnection
 
   const start = () => {
-    const code = netRoomCode(rng);
+    // A fixed code means "claim THIS room or tell me you couldn't" — the open
+    // room (NET_CONFIG.OPEN_CODE). Retrying with a fresh random id, which is
+    // right for a private room whose code nobody has yet seen, would silently
+    // strand the caller in a room of one that no one else can find.
+    const code = fixedCode ?? netRoomCode(rng);
     const peer = new Peer(NET_CONFIG.PREFIX + code, { config: { iceServers: NET_CONFIG.ICE } });
     const timeout = setTimeout(() => {
       peer.destroy();
@@ -281,8 +306,20 @@ export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, 
 
     peer.on("error", (err) => {
       clearTimeout(timeout);
-      // A taken id is a collision on the shared broker, not a real failure.
-      if (err?.type === "unavailable-id" && ++attempt < NET_CONFIG.ID_RETRIES) { peer.destroy(); start(); return; }
+      // A taken id on a RANDOM code is a collision on the shared broker, not a
+      // real failure — roll another one.
+      if (err?.type === "unavailable-id" && !fixedCode && ++attempt < NET_CONFIG.ID_RETRIES) {
+        peer.destroy(); start(); return;
+      }
+      // A taken id on a FIXED code is the answer, not an error: somebody else
+      // got to the open room first, so the caller should go and join them. This
+      // IS the claim race, resolved by the broker rather than by any
+      // coordination of ours — exactly one peer can hold an id.
+      if (err?.type === "unavailable-id" && fixedCode) {
+        peer.destroy();                 // release before the caller opens a new one
+        onError?.("id-taken");
+        return;
+      }
       NET.error = err?.type ?? "error";
       onError?.(NET.error);
     });
@@ -298,6 +335,50 @@ export function netHost({ pid, name, profile, onMessage, onPeerChange, onReady, 
 
   start();
   return NET;
+}
+
+/**
+ * Walk into the open room — "Spill over nett", no code to share.
+ *
+ * One door, two outcomes, and the caller does not choose between them: try to
+ * claim the well-known id; if the broker says it is taken, join whoever holds
+ * it. The broker guarantees exactly one peer per id, so two people pressing the
+ * button in the same instant cannot both become host, and the loser is already
+ * holding the information it needs — who to connect to.
+ *
+ * @param onRole  ("host" | "client") — fires once the outcome is known, so the
+ *                UI can seat bots (host) or wait for state (client). Separate
+ *                from onReady because the ROLE is the interesting fact here,
+ *                whereas the room code is always OPEN_CODE.
+ *
+ * What this deliberately does NOT do: keep the room alive when the last person
+ * leaves. There is no server, so "always running" can only ever mean "the first
+ * person to arrive starts it, and bots fill the table until humans show up".
+ * Anything else would be a claim the architecture cannot honour.
+ */
+export function netOpen({ onRole, ...opts }) {
+  const code = NET_CONFIG.OPEN_CODE;
+  return netHost({
+    ...opts,
+    code,
+    onReady: (c) => { onRole?.("host"); opts.onReady?.(c); },
+    onError: (reason) => {
+      if (reason !== "id-taken") { opts.onError?.(reason); return; }
+      netJoin({
+        ...opts,
+        code,
+        onReady: (c) => { onRole?.("client"); opts.onReady?.(c); },
+      });
+    },
+  });
+}
+
+/**
+ * The randomised wait before trying to take over an orphaned open room.
+ * Pure and injectable so the spread is testable without a clock.
+ */
+export function netReclaimDelay(rng = Math.random) {
+  return NET_CONFIG.RECLAIM_MIN_MS + Math.floor(rng() * NET_CONFIG.RECLAIM_SPREAD_MS);
 }
 
 /** Join a room by code. */

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Deck + fakes gatekeeper — cross-platform twin of scripts/validate_deck.sh
+ * Deck + fakes gatekeeper. Was the cross-platform twin of a shell script; that
+ * script went with the macOS scaffolding on 2026-07-28, so this is now the only
+ * implementation rather than one of two that could drift.
  * (the shell script delegates here when node is available; its jq path remains
  * the macOS fallback). Zero dependencies, Node >= 18, ESM.
  *

@@ -17,7 +17,7 @@
 // never while serving the Lab, so it must not depend on anyone remembering.
 // Per-module prefixes: fixtures.js → fx*, clock.js → ck*, rating.js → rt*, net.js → nt*.
 //
-// Usage:  node Tools/build-standalone.mjs   →   dist/CockyMonk.html
+// Usage:  node Tools/build-standalone.mjs   →   dist/Snifferoo.html
 // The frozen demo and the componentized Lab remain the sources of truth; this is
 // a generated artifact (regenerate after any Lab/content/token change).
 
@@ -103,13 +103,13 @@ async function main() {
 <meta name="theme-color" content="#1B1B2E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Cocky Monk">
+<meta name="apple-mobile-web-app-title" content="Snifferoo">
 <!-- Icons as data URIs, because this build is ONE file: a href to icon.svg would
      404 the moment someone emails it to a friend. No manifest for the same
      reason — a single file has no scope to install. -->
 <link rel="icon" href="data:image/svg+xml;base64,${iconSvgB64}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="data:image/png;base64,${icon180B64}">
-<title>Cocky Monk</title>
+<title>Snifferoo</title>
 <!-- Fredoka is base64-inlined in the <style> below (offline brand); no network font. -->
 <style>
 ${css}
@@ -142,10 +142,10 @@ ${gameJs}
 `;
 
   await mkdir(p("dist"), { recursive: true });
-  await writeFile(p("dist/CockyMonk.html"), html, "utf8");
+  await writeFile(p("dist/Snifferoo.html"), html, "utf8");
   const bytes = Buffer.byteLength(html);
   const kb = (bytes / 1024).toFixed(0);
-  console.log(`dist/CockyMonk.html  (${kb} KB)  · ${cardCount} cards · ${LOTTIE.length} Lottie · self-contained`);
+  console.log(`dist/Snifferoo.html  (${kb} KB)  · ${cardCount} cards · ${LOTTIE.length} Lottie · self-contained`);
 
   // The whole point of this file is that you can double-click it, play offline,
   // and send it to a friend. A bundle that quietly grows past a megabyte stops
@@ -179,8 +179,8 @@ ${gameJs}
 })();
 </script>
 `;
-  await writeFile(p("dist/CockyMonk.artifact.html"), artifact, "utf8");
-  console.log(`dist/CockyMonk.artifact.html  (${(Buffer.byteLength(artifact) / 1024).toFixed(0)} KB)  · for claude.ai Artifact`);
+  await writeFile(p("dist/Snifferoo.artifact.html"), artifact, "utf8");
+  console.log(`dist/Snifferoo.artifact.html  (${(Buffer.byteLength(artifact) / 1024).toFixed(0)} KB)  · for claude.ai Artifact`);
 }
 
 main().catch((e) => { console.error("build failed:", e); process.exit(1); });

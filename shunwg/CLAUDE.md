@@ -1,70 +1,110 @@
-# CLAUDE.md — Cocky Monk project constitution
+# CLAUDE.md — Snifferoo project constitution
 
-You are building a Norwegian bluffing party game for iOS. **PRD.md is the spec, DESIGN.md is the look, `Reference/cocky-monk-demo.html` is the canonical prototype (open it in a browser when prose is ambiguous — its flow, pacing, and scoring are canonical), and this file is the law.** When they conflict: PRD > DESIGN > this file. If something is unspecified, propose in plan mode — don't invent silently.
+A Norwegian bluffing party game. **PRD.md is the spec, DESIGN.md is the look,
+`Reference/cocky-monk-demo.html` is the canonical prototype, and this file is the law.** When they
+conflict: PRD > DESIGN > this file. If something is unspecified, propose in plan mode — don't invent
+silently.
 
-**Canon rule:** `Reference/cocky-monk-demo.html` is **FROZEN** — never edited, ever. The iteration space is `Lab/` (a componentized browser port). Intentional Lab deviations from the demo get a dated row in `Lab/DIVERGENCE.md` and only graduate via an explicit PRD/DESIGN amendment. Rules authority for scoring/edge cases is `Tools/engine-vectors.json` (generated from PRD §5.3/§5.5) — not the Lab, not the demo's JS.
+**What exists today:** the browser build in `Lab/` is the live product, deployed to
+https://shunwg.github.io/cockymonk/. **The iOS app is a spec, not a codebase** — the empty
+`Sources/`, `Tests/`, `scripts/` and `project.yml` scaffolding was removed on 2026-07-28 because
+nothing had ever been built against it. The plan survives in PRD.md and `MAC_RUNBOOK.md`, and the
+files are one `git checkout` away in history.
 
-## Stack (fixed)
-- SwiftUI · iOS 18+ · Swift 6 strict concurrency · Xcode project generated from `project.yml` (XcodeGen)
-- Architecture: MVVM-light. One `@Observable GameEngine` owns all game state as an explicit state machine (`enum GamePhase`, incl. the GM role rotation). Views are dumb.
-- **Bots:** practice-mode opponents are `BotBrain` participants on the loopback transport (delays, 35% truth-find, decoy gating per PRD §4). Bot tuning constants live in one file, never inline.
-- **Fonts:** Fredoka (OFL) is the only bundled font; license row in ASSETS.md before the file enters the project.
-- **Transport rule:** GameEngine talks only to the `Transport` protocol — `LoopbackTransport` (hotseat) and `MultipeerTransport` (party mode, MultipeerConnectivity). No MPC types outside `Sources/Transport/`.
-- **Theme rule:** board visuals only via the `BoardTheme` protocol (Salongen/Fjellet/Verdensrommet). Rules code never branches on theme; adding a theme is one config + assets, zero engine changes.
-- Persistence: SwiftData for game-in-progress + seen-cards; `@AppStorage` for settings (incl. language nb/en — decks are per-language: deck_nb.json / deck_en.json). The browser Lab additionally persists one versioned `localStorage` key (`cockymonk.profile.v1`) — see `Lab/js/rating.js`.
-- No third-party Swift packages without asking. **Exception (approved 2026-07-18): `lottie-ios`** — pinned ≥ 4.5.0, SPM only, used exclusively behind the `MotionPlayer` protocol for celebration overlays (confetti, Gullnese, landmark moments). Core game motion remains native SwiftUI springs. No other packages without asking.
-- No networking beyond local MultipeerConnectivity **in `Sources/`** — if you find yourself importing URLSession there, stop.
-- **Exception (approved 2026-07-25): PeerJS (MIT), vendored at `Lab/vendor/peerjs.min.js`, browser Lab only.** WebRTC data channels plus a public broker for signalling, used exclusively behind the transport seam in `Lab/js/net.js` — no `Peer` type anywhere else, and the broker never sees game content. Scoped by PRD §2.1 to the web build: `Sources/` gains no networking and the App Store label stays "Data Not Collected". Same shape as the `lottie-ios` exception above: one library, one seam, named here or it doesn't ship.
+**Canon rule:** `Reference/cocky-monk-demo.html` is **FROZEN** — never edited, ever. The iteration
+space is `Lab/`. Intentional Lab deviations get a dated row in `Lab/DIVERGENCE.md` and only graduate
+via an explicit PRD/DESIGN amendment. Rules authority for scoring/edge cases is
+`Tools/engine-vectors.json` (generated from PRD §5.3/§5.5) — not the Lab, not the demo's JS.
+
+## Architecture — the seams that must hold
+
+- **Transport rule:** game logic talks only to the transport seam. In the Lab that is
+  `netLoopback()` / `netHost()` / `netJoin()`; on iOS it will be a `Transport` protocol with
+  `LoopbackTransport` (hotseat) and `MultipeerTransport`. Callers cannot tell which they hold.
+- **Theme rule:** board visuals only via the theme seam (Salongen/Fjellet/Verdensrommet). Rules code
+  never branches on theme; adding a theme is one config + assets, zero engine changes.
+- **The engine has no clock.** `Lab/js/clock.js` decides *when*; the engine then receives an ordinary
+  action it cannot tell apart from a player acting. That split is why every timeout rule is provable
+  by a vector with no timing in it.
+- **Only the host advances the game.** Clients send intents and render what they're told. No state
+  merge, so no desync class. `netProject()` is the only way state leaves the host — a naive broadcast
+  ships `card.truth` to everyone and destroys the game while looking fine in a solo test.
+
+### Approved third-party exceptions — named here or it doesn't ship
+- **`lottie-ios`** (2026-07-18): pinned ≥ 4.5.0, SPM only, exclusively behind the `MotionPlayer`
+  protocol for celebration overlays. Core game motion stays native springs.
+- **PeerJS (MIT)** (2026-07-25): vendored at `Lab/vendor/peerjs.min.js`, **browser Lab only**.
+  WebRTC data channels + a public broker for signalling, used exclusively behind the transport seam
+  in `Lab/js/net.js` — no `Peer` type anywhere else, and the broker never sees game content. Scoped
+  by PRD §2.1 to the web build, so an iOS target gains no networking when one exists.
+
+No other packages without asking.
 
 ## Files & ownership
 | Path | Rule |
 |---|---|
-| `Sources/Engine/` | Pure logic, no SwiftUI imports, 100% unit-testable |
-| `Sources/Views/` | SwiftUI only, no game rules logic |
-| `Resources/deck_nb.json`, `deck_en.json` | **Only** the card-author skill writes here; always validate after (`node Tools/validate_deck.mjs --all`, or `scripts/validate_deck.sh` on Mac) |
-| `AssetsIncoming/` | CC0 quarry (Kenney packs) — read-only raw material; only the asset-wrangler skill promotes files out of it, with a license row in ASSETS.md |
-| `Resources/deck_nb.sample.json` | Schema reference — never shipped, never edited |
-| `DesignSystem/tokens.json` | **Single source of truth** for all design tokens. `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, and `DesignSystem/DESIGN-TOKENS.md` are GENERATED by `node Tools/tokens-build.mjs` — never hand-edit them |
-| `Lab/` | Windows-testable browser playground (componentized port of the demo). Iterates freely on visuals; rules parity enforced by engine vectors. See `Lab/CLAUDE.md` |
-| `Lab/js/net.js` | The **only** file that may touch `Peer`, WebRTC, or the broker (PRD §2.1). Everything else talks to the transport seam. `netProject()` decides what a given seat is allowed to see — the truth never leaves the GM before the reveal |
-| `Lab/js/clock.js` | Phase deadlines + the single `setInterval`. The engine stays timerless; this is where every countdown constant lives (bot pacing stays in `bots.js TUNING`) |
-| `Lab/js/rating.js` | Elo math + the one `localStorage` key. Pure and testable; never imports DOM or net |
-| `Content/` | Lane C workshop: word-candidate lists, VERIFY queue. Ship truth stays in `Resources/`. See `Content/CLAUDE.md` |
-| `Tools/` | Zero-dependency Node scripts (build/validate/serve) — the cross-platform toolchain |
+| `DesignSystem/tokens.json` | **Single source of truth** for all design tokens. `Lab/css/tokens.css` and `DesignSystem/DESIGN-TOKENS.md` are GENERATED by `node Tools/tokens-build.mjs` — never hand-edit them |
+| `Resources/deck_nb.json`, `deck_en.json` | **Only** the card-author skill writes here; always `node Tools/validate_deck.mjs --all` after |
+| `Resources/deck_*.sample.json` | Schema reference — never shipped, never edited |
+| `Lab/js/net.js` | The **only** file that may touch `Peer`, WebRTC, or the broker |
+| `Lab/js/clock.js` | Phase deadlines + the single `setInterval`. Every countdown constant lives here (bot pacing stays in `bots.js TUNING`) |
+| `Lab/js/rating.js` | Elo math + the one `localStorage` key. Pure; never imports DOM or net |
+| `Lab/` | The browser game. See `Lab/CLAUDE.md` |
+| `Content/` | Word workshop: candidate lists, VERIFY queue. Ship truth stays in `Resources/` |
+| `Tools/` | Zero-dependency Node scripts — the cross-platform toolchain and every gate |
 | `Resources/Lottie/` | Original generated Lottie JSON only, ≤200 KB each, every file has an ASSETS.md row |
-| `Screens/` | The permanent 01–23 screen registry (`SCREENS.md`) + reference PNGs. PNGs are regenerated by `node Tools/snap-screens.mjs` — refresh them in the commit that changes a screen |
-| `Specs/` | Team specs (bokmål). `SCORING.md` is GENERATED by `node Tools/rules-sheet.mjs` from the engine vectors — never hand-edit; `FLOW.md`/`ONLINE-PLAY.md` are hand-written. ONLINE-PLAY described the future until PRD §2.1 (2026-07-25) put online rooms in scope for the web build |
-| `Reference/cocky-monk-demo.html` | **FROZEN** (see Canon rule above) |
-| `project.yml` | Edit this, then `xcodegen generate` — never hand-edit the .xcodeproj |
-| `scripts/` | Prefer these over raw xcodebuild incantations (macOS only) |
+| `Screens/` | Permanent 01–23 screen registry + PNGs, regenerated by `node Tools/snap-screens.mjs` — refresh in the commit that changes a screen |
+| `Specs/` | Team specs (bokmål). `SCORING.md` is GENERATED by `node Tools/rules-sheet.mjs` — never hand-edit; `FLOW.md`/`ONLINE-PLAY.md` are hand-written |
+| `AssetsIncoming/` | CC0 quarry, **not in git**. Only asset-wrangler promotes out of it, with an ASSETS.md licence row |
+| `Reference/cocky-monk-demo.html` | **FROZEN** (see Canon rule) |
 
-## Segments (4 generalists, gate-based)
-The team are generalists — nobody owns a lane. Instead: **one branch works in one segment, and that segment's standalone gate (test) must be green before merge.** The 7-segment matrix, gates, and interface contracts live in `LANES.md`; the human map (bokmål) is `TEAM.md`. Everything visual is referenced by permanent screen number — `Screens/SCREENS.md`, 01–18 ("endre 07"). Cross-segment edits go through `/director`. (File headers may still say "Lane A/B/C" — the legacy mapping table sits in LANES.md.)
+## Workflow
+1. **Plan mode first** for anything bigger than a one-file fix. Reference the PRD section.
+2. Build and look at it: `node Tools/serve-lab.mjs`, exercise the changed flow, and view the screen
+   by number. **"The tests pass" is not "it works"** — a screen can be green and still be wrong.
+3. **Run the gates before every commit** (the full list is in README.md; `/qa` runs the battery).
+   New logic ships with tests in the same commit.
+4. Rebuild `node Tools/build-standalone.mjs` and re-snap changed screens in the same commit.
+5. Commit per step, message referencing the PRD section — e.g. `M3: handover privacy screen (PRD 5.2#2)`.
 
-## Workflow (every task, no exceptions)
-1. **Plan mode first** for anything bigger than a one-file fix. Reference the PRD section you're implementing.
-2. Build with `scripts/build.sh`; fix every warning before proceeding.
-3. **Verify visually:** run on the iPhone 16 simulator, exercise the changed flow, screenshot it (playtest-loop skill). "It compiles" is not "it works".
-4. Run `scripts/test.sh`. New logic in `Sources/Engine/` ships with tests in the same commit.
-5. Commit per milestone-step with a message referencing the PRD section (e.g. `M3: handover privacy screen (PRD 5.2#2)`).
+**Definition of done:** gates green · the changed screen looked at, not just tested · Dynamic Type XL
+doesn't break layout · Reduced Motion still lands the beat · all user-facing strings in **both** nb
+and en · no ad-hoc colours or fonts outside `tokens.json`.
 
-## Definition of done (per feature)
-- [ ] Builds warning-free · [ ] tests green · [ ] simulator screenshot reviewed · [ ] Dynamic Type XL doesn't break layout · [ ] all user-facing strings in the String Catalog (nb + en) · [ ] matches DESIGN.md tokens (no ad-hoc colors/fonts)
+## Segments
+Generalists, no fixed owners: **one branch works in one segment, and that segment's gate must be
+green before merge.** Matrix and contracts in `LANES.md` (English); the human map is `TEAM.md`
+(bokmål). Everything visual is referenced by screen number — `Screens/SCREENS.md`, 01–23 ("endre
+07"). Cross-segment edits go through `/director`.
 
 ## Language rules
-- UI copy: Norwegian bokmål primary, English secondary, via String Catalog. Tone per DESIGN.md §Voice — playful, never childish.
+- UI copy: Norwegian bokmål primary, English secondary. **No string ships in one language only.**
+  Tone per DESIGN.md §Voice — playful, never childish.
 - Code, comments, commit messages, test names: English.
-- Team-facing docs (`TEAM.md`, `Screens/`, `Specs/`): Norwegian bokmål. Technical contracts (LANES.md, TOOLBELT.md, runbooks, this file): English.
+- Team-facing docs (`TEAM.md`, `Screens/`, `Specs/`): bokmål. Technical contracts (`README.md`,
+  `LANES.md`, `TOOLBELT.md`, runbooks, this file): English.
 
 ## Guardrails
-- Never touch signing, provisioning, or `ExportOptions.plist` without explicit go-ahead (release-captain skill handles releases).
+- Never touch signing, provisioning, or `ExportOptions.plist` without explicit go-ahead.
 - Never delete or bulk-rewrite `deck_nb.json` — append/patch only.
-- Never add analytics, tracking, or network permissions. The iOS privacy label is "Data Not Collected" and stays that way — PRD §2.1 scopes online play to the browser Lab precisely so this stays true.
-- The web build stores a profile (name, rating, career nose) in `localStorage` and nowhere else. It must always be erasable from the profile screen, and the About copy must describe it honestly — never re-assert "we store nothing".
-- The name "Kokkelimonke" and any published game's card text must not appear anywhere in the repo. (This file and PRD §3 are the only permitted mentions — of the restriction itself.)
+- Never add analytics, tracking, or network permissions. The iOS privacy label is "Data Not
+  Collected" and stays that way — PRD §2.1 scopes online play to the browser Lab precisely so this
+  stays true.
+- The web build stores a profile (name, rating, career nose) in `localStorage` and nowhere else. It
+  must always be erasable from the profile screen, and the About copy must describe it honestly —
+  never re-assert "we store nothing".
+- The name "Kokkelimonke" and any published game's card text must not appear anywhere in the repo.
+  (This file and PRD §3 are the only permitted mentions — of the restriction itself.)
 
 ## Toolbelt
-MCPs, plugins, and skills live in `TOOLBELT.md`. Skills in `.claude/skills/`: **card-author** (deck content), **playtest-loop** (build-run-verify), **release-captain** (TestFlight), **asset-wrangler** (licensed art/audio), **game-director** (phase-gated feature orchestrator), **qa-gate** (validator battery), **playtest-panel** (simulated player personas), **motion-designer** (original Lottie assets), **game-feel** (how it feels to touch — game-state motion, input response, haptics, pacing; Swink-derived). Two `reference-*` skills (Unity/Unreal, HLSL/GLSL) are background reading only and deliberately do not auto-load — see TOOLBELT.md. Subagents in `.claude/agents/`: `swift-reviewer` (run before every commit of Engine code), `swiftui-specialist` (complex UI). Slash commands: `/playtest`, `/newcards`, `/ship`, `/theme`, `/director`, `/qa`.
+Full list in `TOOLBELT.md`. Skills in `.claude/skills/`: **card-author** (deck content),
+**game-feel** (how it feels to touch — motion, input response, haptics, pacing; Swink-derived),
+**qa-gate** (validator battery), **game-director** (phase-gated orchestrator), **playtest-panel**
+(simulated player personas), **motion-designer** (original Lottie), **asset-wrangler** (licensed
+media), **playtest-loop** + **release-captain** (iOS, Mac day). The two `reference-*` skills
+(Unity/Unreal, HLSL/GLSL) describe engines this project does not use and deliberately do not
+auto-load. Subagents: `swift-reviewer`, `swiftui-specialist` (both Mac day). Slash commands:
+`/playtest`, `/newcards`, `/ship`, `/theme`, `/director`, `/qa`.
 
 ## When stuck
 Two failed attempts at the same bug → stop, write down what you know, ask. Don't thrash the codebase.

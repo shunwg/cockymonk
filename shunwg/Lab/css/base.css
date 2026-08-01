@@ -1,6 +1,47 @@
 /* base.css — app shell, typography, cards, buttons, inputs. Lane B.
  * Every value that exists as a token MUST come from tokens.css. */
 
+
+/* ---------- drawn marks ----------
+   Two shapes the interface needs as ICONS rather than as illustrations: the rat
+   (the leader's marker) and the cheese wedge (the goal). Kept as CSS masks so
+   they inherit currentColor and cost nothing at any size — and so there is
+   exactly ONE copy of each, rather than an emoji at every call site.
+   Data URIs, not files, so the single-file bundle stays single-file. */
+:root {
+  --mark-rat: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66"><path fill="black" d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle fill="black" cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="black" stroke-width="5.5" stroke-linecap="round"/></svg>');
+  --mark-cheese: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 40"><path fill="black" d="M4 30V16.5c0-1 .7-1.9 1.7-2.1L41.4 6.1c1.6-.4 3.1.9 3.1 2.5V30a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9.5-9.2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm18 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8ZM24 13.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>');
+}
+
+
+/* ---------- TEXT POLARITY ----------
+   The inversion made the PAGE light and the CARDS dark, which split one rule
+   into two: text on the page is dark, text on a card is light. Components that
+   named a page colour while sitting on a card went invisible — "Kopier lenke"
+   and "Hemmelig sannhet" both measured 1.00:1, which is not low contrast, it is
+   the same colour twice.
+
+   Scoped here ONCE rather than patched per component, so a new element dropped
+   inside a card inherits the right polarity instead of joining the bug. */
+.card, .opt, .wordchip, .banner.gm, .btn.gm, .pt.gm {
+  color: var(--color-text-on-surface);
+}
+.card .small, .card .sub, .card .eyebrow,
+.opt .small, .opt .sub, .wordchip .eyebrow, .wordchip .small,
+.banner.gm .small, .btn.gm .small {
+  color: var(--color-text-secondary-on-surface);
+}
+/* A secondary button inside a card is a card citizen: light text, light rule. */
+.card .btn.secondary, .opt .btn.secondary {
+  color: var(--color-text-on-surface);
+  box-shadow: inset 0 0 0 1px #ffffff2e;
+}
+.card .btn.secondary:active, .opt .btn.secondary:active { background: #ffffff10; }
+/* Chips and pills likewise. */
+.card .pchip, .card .ratingpill, .opt .ratingpill {
+  color: var(--color-text-secondary-on-surface); border-color: #ffffff2e;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 
@@ -8,8 +49,8 @@ body {
   color: var(--color-text-on-bg);
   font-family: var(--type-display-family);
   background:
-    radial-gradient(600px 340px at 85% -80px, var(--color-bg-layers-glow-violet), transparent 70%),
-    radial-gradient(520px 320px at 0% 110%, var(--color-bg-layers-glow-pink), transparent 70%),
+    radial-gradient(600px 340px at 85% -80px, var(--color-bg-layers-glow-primary), transparent 70%),
+    radial-gradient(520px 320px at 0% 110%, var(--color-bg-layers-glow-secondary), transparent 70%),
     radial-gradient(var(--color-bg-layers-dot-grid) 1.2px, transparent 1.2px) 0 0 / 26px 26px,
     var(--color-bg);
   display: flex;
@@ -42,11 +83,11 @@ body {
    self-contained wherever it appears (topbar, hero, standalone bundle). */
 .brand .small { font-weight: 500; }
 .iconbtn {
-  background: #ffffff10; border: 2px solid #ffffff2e; color: var(--color-text-on-bg);
+  background: transparent; border: 1px solid var(--color-hairline); color: var(--color-text-on-bg);
   border-radius: var(--radius-chip); padding: 5px 13px; font: inherit; font-weight: 600; cursor: pointer;
   min-height: 44px; min-width: 44px;   /* touch target (DESIGN §9) */
 }
-.iconbtn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 2px; }
+.iconbtn:focus-visible { outline: 2px solid var(--color-accent-turn); outline-offset: 2px; }
 
 h1 { font-weight: var(--type-h1-weight); font-size: var(--type-h1-size); margin: 8px 0 4px; line-height: var(--type-h1-line-height); letter-spacing: var(--type-h1-tracking); }
 h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin: 16px 0 8px; letter-spacing: var(--type-h2-tracking); }
@@ -57,56 +98,72 @@ h2 { font-weight: var(--type-h2-weight); font-size: var(--type-h2-size); margin:
   letter-spacing: var(--type-eyebrow-tracking); text-transform: uppercase; color: var(--color-text-secondary);
 }
 .eyebrow::before { content: ""; width: 14px; height: 2px; border-radius: 2px; background: currentColor; opacity: .55; }
-.card .eyebrow { color: #8a7a5c; }
+.card .eyebrow { color: var(--color-quiet); }
 
+/* MONOCHROME + MINIMAL (2026-07-28). The 2.5 px ink outline, the hard offset
+   shadow and the paper grain were three separate ways of saying "this is a
+   physical object". In greyscale they stop reading as texture and start reading
+   as clutter — DESIGN-DIRECTION.md §6: one dominant idea per screen, and remove
+   decoration before adding it. A near-white plane on a near-black ground is
+   already the strongest edge available; it does not need an outline drawn on
+   top of it. */
 .card {
   background: var(--color-surface); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); border-radius: var(--radius-card);
-  padding: 18px; box-shadow: var(--shadow-hard); margin-bottom: 14px;
-  background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000006 3px 4px); /* paper grain */
+  border-radius: var(--radius-card);
+  padding: 20px; margin-bottom: 14px;
 }
+/* The secret card is the one surface that must NOT look like the others: it is
+   the only thing on screen a player is forbidden to see. With no colour left to
+   carry that, it inverts instead — dark plane, light text — plus the dashed
+   "classified" edge it always had. Inversion is the loudest statement a
+   greyscale system can make, which is why it is spent here and nowhere else. */
 .card.secret {
-  /* The lavender gradient IS the background-image; it also overrides .card's paper
-     grain, so no separate grain-suppression is needed. (A stray `background-image:
-     none` here previously erased the gradient → transparent card → unreadable truth.) */
-  background: linear-gradient(145deg, #efe6ff, #ddccff);
-  border-color: var(--color-accent-gm); border-style: dashed;   /* "classified" */
-  box-shadow: var(--shadow-hard), inset 0 0 22px #9b6dff1f;     /* faint dossier glow */
+  background: var(--color-surface-secret);
+  color: var(--color-text-on-surface);
+  border: 1.5px dashed var(--color-text-secondary);
 }
+.card.secret .eyebrow, .card.secret .small { color: var(--color-text-secondary-on-surface); }
 
 .word {
   font-family: var(--type-display-family); font-size: var(--type-card-word-size);
   font-weight: var(--type-card-word-weight); line-height: var(--type-card-word-line-height);
   word-break: break-word; color: var(--color-text-on-surface); letter-spacing: var(--type-card-word-tracking);
-  text-shadow: 0 1px 0 #ffffffcc, 0 -1px 0 #0000000f;   /* letterpress — pressed into the paper */
 }
 
+/* The primary action is simply the BRIGHTEST thing on the screen. In monochrome
+   that is the entire hierarchy — there is no "yellow means go" left, so value
+   carries it: white plate, black label, nothing else competing.
+   The press keeps a real translate. It is a named beat (DESIGN.md §7) and the
+   only tactile feedback a flat button has; what goes is the coloured 5 px
+   under-shadow, which was drawing a plastic toy. */
 .btn {
-  display: block; width: 100%; border: 2.5px solid var(--color-border); border-radius: var(--radius-button);
-  padding: 16px; font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 12px;
-  background: var(--color-accent-turn); color: var(--color-text-on-surface); box-shadow: 0 5px 0 #b8860bcc;
-  transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
+  display: block; width: 100%; border: 0; border-radius: var(--radius-button);
+  padding: 16px; font: inherit; font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 10px;
+  background: var(--color-accent-turn); color: var(--color-text-on-surface);
+  letter-spacing: -0.1px;
+  transition: transform var(--motion-dur-button-press), opacity var(--motion-dur-button-press),
+              background var(--motion-dur-button-press);
 }
-.btn:active:not(:disabled) { transform: translateY(var(--shadow-press-translate)); box-shadow: 0 1px 0 #b8860bcc; }
-.btn:disabled { opacity: .35; cursor: default; box-shadow: none; }
-.btn.secondary { background: #ffffff0e; color: var(--color-text-on-bg); border-color: #ffffff3a; box-shadow: 0 5px 0 #00000055; font-weight: 600; }
-.btn.secondary:active { box-shadow: 0 1px 0 #00000055; }
-.btn.gm { background: var(--color-accent-gm); color: #fff; box-shadow: 0 5px 0 #5c3ab8; }
-.btn.gm:active { box-shadow: 0 1px 0 #5c3ab8; }
+.btn:active:not(:disabled) { transform: translateY(2px); opacity: .88; }
+.btn:disabled { opacity: .28; cursor: default; }
+.btn.secondary {
+  background: transparent; color: var(--color-text-on-bg);
+  box-shadow: inset 0 0 0 1px var(--color-hairline); font-weight: 500;
+}
+.btn.secondary:active { background: #00000008; }
+.btn.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .btn.pulse:not(:disabled) { animation: pulse var(--motion-dur-armed-pulse) ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
-.btn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 3px; }
+.btn:focus-visible { outline: 2px solid var(--color-accent-turn); outline-offset: 3px; }
 
-input[type=text] {
+input[type=text], textarea {
   width: 100%; padding: 14px; font: inherit; font-size: 17px; border-radius: var(--radius-button);
-  border: 2.5px solid var(--color-border); background: #fff; color: var(--color-text-on-surface);
+  border: 0; box-shadow: inset 0 0 0 1px var(--color-hairline);
+  background: var(--color-bg-raised); color: var(--color-text-on-bg);
 }
-textarea {
-  width: 100%; padding: 14px; font: inherit; font-size: 18px; border-radius: var(--radius-button);
-  border: 2.5px solid var(--color-border); background: #fff; color: var(--color-text-on-surface);
-  resize: none; height: 100px;
-}
-input:focus, textarea:focus { outline: 3px solid var(--color-accent-turn); outline-offset: 1px; }
+textarea { font-size: 18px; resize: none; height: 108px; line-height: 1.45; }
+input::placeholder, textarea::placeholder { color: var(--color-text-secondary); opacity: .7; }
+input:focus, textarea:focus { outline: 2px solid var(--color-accent-turn); outline-offset: 2px; }
 
 /* Snappy default entrance (movement starts immediately → feels faster). Only real
    screen changes get it — ui.js gates the class so mid-screen updates don't re-fade. */

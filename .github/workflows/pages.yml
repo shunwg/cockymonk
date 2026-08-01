@@ -58,16 +58,16 @@ jobs:
       # notice is whoever you sent the link to.
       - name: Verify the bundle is real
         run: |
-          test -s dist/CockyMonk.html
-          bytes=$(wc -c < dist/CockyMonk.html)
+          test -s dist/Snifferoo.html
+          bytes=$(wc -c < dist/Snifferoo.html)
           echo "bundle: $bytes bytes"
           test "$bytes" -gt 400000
-          grep -q "<title>Cocky Monk</title>" dist/CockyMonk.html
+          grep -q "<title>Snifferoo</title>" dist/Snifferoo.html
 
       - name: Stage site
         run: |
           mkdir site
-          cp dist/CockyMonk.html site/index.html
+          cp dist/Snifferoo.html site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

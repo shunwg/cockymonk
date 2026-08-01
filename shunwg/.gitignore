@@ -19,3 +19,18 @@ node_modules/
 
 # Orchestrator scratch (gate artifacts are committed; scratch is not)
 .design/*/scratch/
+
+# The claude.ai Artifact variant of the bundle (~850 KB, generated). The MAIN
+# bundle dist/Snifferoo.html IS tracked, because "Play Snifferoo.cmd" opens it
+# directly and double-click-to-play must work with no Node and no build step.
+# This variant only exists to be pasted into an Artifact — regenerate on demand
+# with `node Tools/build-standalone.mjs`.
+dist/*.artifact.html
+
+# The CC0 quarry. 1518 files / 11 MB of raw Kenney packs — 89% of everything this
+# repo used to track, for material that is downloaded, never edited, and freely
+# re-downloadable. Nothing reads these at build or test time: the two references
+# in the tree (Tools/check-game-feel.mjs, Sources/DesignSystem/Theme.swift) are
+# comments recording which source file a sound is PLANNED to be promoted from.
+# ASSETS.md carries the pack list and download URLs — restore from there.
+AssetsIncoming/

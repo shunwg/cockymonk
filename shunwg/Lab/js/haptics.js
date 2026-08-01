@@ -34,6 +34,12 @@ export const HAPTICS = Object.freeze({
   success: [12, 30, 24],  // the truth. Two pulses: an event, not a tick
   heavy: 40,              // the GM stole the round. The only one meant to feel like a thud
   warning: [24, 48, 24],  // the clock has gone urgent and you have not acted
+  // The clock has entered its closing window (15 s) and you have not acted. One
+  // short tap, lighter than `warning`, because it is the quieter half of a
+  // two-beat escalation: this says "moving", warning says "nearly gone". Fired
+  // once on entry — the pulse that follows is a visual state, and buzzing at
+  // 2.5 Hz for fifteen seconds would drain the battery and the goodwill.
+  closing: 16,
 });
 
 // Suppressed by mute, and ONLY by mute. A muted party game means "be discreet",

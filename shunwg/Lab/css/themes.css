@@ -9,7 +9,7 @@
 .theme-salongen .boardwrap {
   --board-rail: var(--color-theme-salongen-rail);
   background:
-    radial-gradient(130% 90% at 50% -12%, #b3823f66 0%, transparent 55%),          /* overhead lamp pool */
+    radial-gradient(130% 90% at 50% -12%, #8b8b9066 0%, transparent 55%),          /* overhead lamp pool */
     repeating-linear-gradient(93deg,                                                /* fine grain (3° skew) */
       #00000016 0 2px, transparent 2px 5px, #ffffff0c 5px 6px, transparent 6px 24px),
     repeating-linear-gradient(90deg,                                                /* plank seams */
@@ -17,14 +17,7 @@
       var(--color-theme-salongen-board-alt)  50px 97px, #0000002e 97px 100px),
     var(--color-theme-salongen-board-base);
 }
-.theme-salongen .space {
-  background: radial-gradient(circle at 38% 30%, #e6c79a 0%, #c49a63 46%, #9a7038 100%);
-  border: 2.5px solid #4d341f; color: #3a2614;
-  box-shadow:
-    inset 0 2px 2px #ffffff55, inset 0 -3px 4px #00000066,
-    inset 0 0 0 3px #ffffff22,        /* concentric inlay ring — turned wood */
-    0 2px 0 #00000055;
-}
+.theme-salongen .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ============================================================
    Fjellet — layered paper-cut ridges (sky→forest→snow) + cairn discs
@@ -41,13 +34,7 @@
       var(--color-theme-fjellet-forest-low) 80%,
       var(--color-theme-fjellet-snow)       100%);
 }
-.theme-fjellet .space {
-  background:
-    radial-gradient(circle at 50% 20%, #f2efe9 0 16%, transparent 17%),   /* crown-stone glint */
-    radial-gradient(circle at 36% 34%, #d9d3c7, #a9a294 68%, #837c6e 100%);
-  border: 2.5px solid #5a544a; color: #3f3b32;
-  box-shadow: inset 0 2px 2px #ffffff66, inset 0 -3px 5px #00000044, 0 2px 0 #00000044;
-}
+.theme-fjellet .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ============================================================
    Verdensrommet — deep space: nebula + two star layers + drift + orbit-ring discs
@@ -55,8 +42,8 @@
 .theme-rom .boardwrap {
   --board-rail: var(--color-theme-verdensrommet-rail);
   background:
-    radial-gradient(90% 60% at 18% 8%,  #3a2a6a66, transparent 60%),   /* nebula 1 */
-    radial-gradient(80% 60% at 88% 92%, #6d3a9a4d, transparent 60%),   /* nebula 2 */
+    radial-gradient(90% 60% at 18% 8%,  #35353a66, transparent 60%),   /* nebula 1 */
+    radial-gradient(80% 60% at 88% 92%, #5353584d, transparent 60%),   /* nebula 2 */
     var(--color-theme-verdensrommet-space);
   background-image:
     radial-gradient(var(--color-theme-verdensrommet-star-bright) 1.2px, transparent 1.2px),
@@ -68,27 +55,36 @@
   content: ""; position: absolute; inset: -20%; pointer-events: none;
   background-image:
     radial-gradient(1.6px 1.6px at 40px 60px,   #ffffff, transparent),
-    radial-gradient(1.3px 1.3px at 150px 120px, #cfe3ff, transparent),
+    radial-gradient(1.3px 1.3px at 150px 120px, #e1e1e6, transparent),
     radial-gradient(1px 1px     at 240px 200px, #ffffffcc, transparent);
   background-size: 260px 260px;
   animation: starDrift 42s linear infinite; will-change: transform;
 }
 @keyframes starDrift { to { transform: translate3d(-260px, -130px, 0); } }
-.theme-rom .space {
-  background: radial-gradient(circle at 50% 50%, #1c1c46 0 54%, #141430 55%);
-  border: 2.5px solid var(--color-accent-gm); color: #d6c8ff;
-  box-shadow: 0 0 0 2px #9b6dff22, 0 0 12px #9b6dff66 inset, 0 0 10px #9b6dff33;   /* orbit-ring halo */
-}
+.theme-rom .space { /* fill comes from .space — the corridor must stay continuous */ }
 
 /* ---------- per-theme routed track stroke (drawn by ui.js drawTrack) ---------- */
-.theme-salongen .track-path polyline { stroke: #caa15a; }   /* inlaid brass groove */
-.theme-fjellet  .track-path polyline { stroke: #ffffffaa; }  /* dotted snow trail */
-.theme-rom      .track-path polyline { stroke: #b79bffcc; }  /* faint orbit dashes */
+/* The corridor is a SURFACE now, not a line, so it takes --color-surface in
+   every theme. Themes still differ in what surrounds it — that is the point of
+   the wall grid and theboard backdrop. */
 
 /* ---------- per-theme pawn flavor (shared physics live in screens.css) ---------- */
 .theme-fjellet .pawn { box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25), 0 0 0 2px #ffffff33; }
 .theme-rom .pawn::after {                /* exhaust puff on hop (ui.js adds .hopping ~350 ms) */
-  content: ""; position: absolute; bottom: -6px; width: 8px; height: 8px; border-radius: 50%; background: #ffd18a; opacity: 0;
+  content: ""; position: absolute; bottom: -6px; width: 8px; height: 8px; border-radius: 50%; background: #d8d8dd; opacity: 0;
 }
 .theme-rom .pawn.hopping::after { animation: puff .35s ease-out; }
 @keyframes puff { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: translateY(8px) scale(1.3); } }
+
+/* THE BLOCK IS THE BOARD. Each theme used to paint .boardwrap as a material —
+   wood, snowfield, starfield — which was right when the board was a tray of
+   stones. Now the board is a solid the corridor is cut out of, and a painted
+   material behind a light corridor just makes the corridor look like a hole in
+   a photograph. The block is one flat token in every theme; the themes keep
+   their identity in the landmarks and the celebration, not in the substrate. */
+.theme-salongen .boardwrap,
+.theme-fjellet .boardwrap,
+.theme-rom .boardwrap {
+  background: var(--color-surface);
+  background-image: none;
+}

@@ -2,21 +2,23 @@
  * handover hold-button, confetti. Lane B. Token-pure. */
 
 .modebtn {
-  text-align: left; background: var(--color-surface); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); border-radius: var(--radius-card); padding: 16px;
-  box-shadow: var(--shadow-hard); display: flex; gap: 14px; align-items: center;
+  text-align: left; background: transparent; color: var(--color-text-on-bg);
+  box-shadow: inset 0 0 0 1px var(--color-hairline); border: 0;
+  border-radius: var(--radius-card); padding: 18px;
+  display: flex; gap: 16px; align-items: center; margin-top: 10px;
+  transition: background var(--motion-dur-button-press), transform var(--motion-dur-button-press);
 }
-.modebtn:active { transform: translateY(var(--shadow-press-translate)); box-shadow: var(--shadow-hard-pressed); }
-.modebtn small { display: block; font-weight: 500; color: #5c5645; margin-top: 3px; line-height: 1.35; }
-.modebtn b { font-size: 18px; }
+.modebtn:active { transform: translateY(2px); background: #0000000a; }
+.modebtn small { display: block; font-weight: 400; color: var(--color-text-secondary); margin-top: 4px; line-height: 1.45; }
+.modebtn b { font-size: 17px; font-weight: 600; }
 .phones { flex: none; display: flex; gap: 4px; align-items: flex-end; }
-.phoneico { width: 20px; height: 32px; border: 2.5px solid var(--color-border); border-radius: 6px; background: #fff; position: relative; }
+.phoneico { width: 18px; height: 30px; border: 1.5px solid var(--color-text-secondary); border-radius: 5px; background: transparent; position: relative; }
 .phoneico::after {
   content: ""; position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
-  width: 6px; height: 2.5px; border-radius: 2px; background: var(--color-border);
+  width: 6px; height: 2px; border-radius: 2px; background: var(--color-text-secondary);
 }
-.phoneico.p2 { height: 26px; background: var(--color-accent-turn); }
-.phoneico.p3 { height: 29px; background: #ffe1ec; }
+.phoneico.p2 { height: 24px; background: var(--color-accent-turn); border-color: var(--color-accent-turn); }
+.phoneico.p3 { height: 27px; }
 
 /* ---- phase countdown (PRD §5.2a) ----------------------------------------
    --p is the fraction still to run, 1 → 0, and is the ONLY property the
@@ -38,7 +40,7 @@
    own the drama (DESIGN.md §5 boldness budget). */
 .ratingpill {
   display: inline-block; margin-left: 6px; padding: 2px 10px; border-radius: 999px;
-  background: rgba(255,255,255,.08); border: 1px solid var(--color-text-secondary);
+  background: rgba(0,0,0,.04); border: 1px solid var(--color-text-secondary);
   color: var(--color-text-secondary); font-size: 13px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -48,73 +50,119 @@
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.clockwrap { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+/* The countdown, as a depleting bar rather than a ring.
+
+   WHY IT GLIDES, AND WHY THAT IS NOT DECORATION. ckPaint() only fires when the
+   displayed integer SECOND changes — roughly 1 Hz — because repainting more
+   often would be work for nothing. A ring losing 1/60th of a turn per step is
+   invisible; a full-width bar stepping 1/60th of its length is very visible,
+   and an instantaneous jump in a moving element reads as blinking rather than
+   as motion (game-feel skill, principle 7).
+
+   So the glide is CSS, not JS: one transition carries each 1 Hz write smoothly
+   to the next value on the compositor, and the tick rate stays where it was.
+   `transform: scaleX()` rather than `width` for the same reason — width
+   relayouts every frame, transform does not. */
+.clockwrap { margin: 4px 0 10px; }
+.clockhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px;
+}
 .clockwrap .clocklabel { color: var(--color-text-secondary); font-size: 14px; }
-.clock {
-  --clockcol: var(--color-timer-calm);
-  position: relative; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 50%;
-  background: conic-gradient(var(--clockcol) calc(var(--p, 1) * 360deg), rgba(255,255,255,.10) 0);
-  transition: background var(--motion-dur-timer-tick) linear;
-  display: grid; place-items: center;
-}
-.clock::after {
-  content: ""; position: absolute; inset: 5px; border-radius: 50%;
-  background: var(--color-bg); transition: inset var(--motion-dur-timer-tick) linear;
-}
-.clock .clocknum {
-  position: relative; z-index: 1;
+.clockwrap .clocknum {
   font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums;
   color: var(--color-text-on-bg);
 }
-.clock.warn { --clockcol: var(--color-timer-warn); }
-.clock.urgent { --clockcol: var(--color-timer-urgent); }
-.clock.urgent::after { inset: 3px; }            /* ring thins — a shape change, not just a hue */
-.clock.urgent .clocknum { color: var(--color-timer-urgent); }
-@media (prefers-reduced-motion: no-preference) {
-  .clock.urgent { animation: clockpulse var(--motion-dur-timer-urgent-pulse) ease-in-out infinite; }
+.clockbar {
+  --clockcol: var(--color-timer-calm);
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: rgba(0,0,0,.10);
+  transition: height var(--motion-dur-timer-tick) linear;
 }
-@keyframes clockpulse { 50% { transform: scale(1.08); } }
+.clockbar .clockfill {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--clockcol);
+  transform-origin: left center;
+  transform: scaleX(var(--p, 1));
+  transition: transform var(--motion-dur-timer-bar-glide) linear,
+              background var(--motion-dur-timer-tick) linear;
+}
+.clockbar.warn { --clockcol: var(--color-timer-warn); }
+.clockbar.urgent { --clockcol: var(--color-timer-urgent); }
+/* Never colour alone (DESIGN.md §9). The bar THICKENS as it runs out, so the
+   state is legible to a colour-blind player and in a grayscale screenshot. */
+.clockbar.warn { height: 10px; }
+.clockbar.urgent { height: 13px; }
+.clockwrap .clocknum.urgent { color: var(--color-timer-urgent); }
 
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .pchip {
   display: flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: var(--radius-chip);
-  font-weight: 600; font-size: 14px; background: #ffffff14; border: 2px solid #ffffff2a;
+  font-weight: 500; font-size: 14px; background: transparent; border: 1px solid var(--color-hairline);
   transition: transform var(--spring-chip-flip-duration) var(--spring-chip-flip-ease),
               background var(--spring-chip-flip-duration), box-shadow var(--spring-chip-flip-duration);
-  color: var(--color-text-on-bg); box-shadow: 0 2px 0 rgba(0,0,0,.28);
+  color: var(--color-text-on-bg);
 }
-.card .pchip { color: var(--color-text-on-surface); background: #00000010; border-color: #00000022; }
-.pchip .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid rgba(0,0,0,.25); }
+.card .pchip { color: var(--color-text-on-surface); background: transparent; border-color: #00000022; }
+/* The identity token. Eight greys alone would be a guessing game at 14 px, so the
+   player INITIAL is drawn inside — the mark carries the identity and the value
+   only reinforces it (DESIGN.md §9, DESIGN-DIRECTION.md §7). */
+.dot {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  color: var(--color-text-on-surface); font-family: var(--type-display-family);
+}
 .pchip.done {
   background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: var(--color-accent-truth);
-  transform: rotateX(360deg) scale(1.04); box-shadow: 0 2px 0 #1d8f5b;   /* mechanical snap + truthGreen under-shadow */
+  transform: rotateX(360deg) scale(1.04);
 }
 
 .seg { display: flex; gap: 8px; margin: 8px 0; }
 .seg button {
-  flex: 1; padding: 12px 6px; border-radius: var(--radius-button); border: 2px solid #ffffff30;
-  background: #ffffff0a; color: var(--color-text-on-bg); font: inherit; font-weight: 600; cursor: pointer; font-size: 14px;
+  flex: 1; padding: 12px 6px; border-radius: var(--radius-button); border: 1px solid var(--color-hairline);
+  background: transparent; color: var(--color-text-secondary); font: inherit; font-weight: 500; cursor: pointer; font-size: 14px;
+  transition: background var(--motion-dur-button-press), color var(--motion-dur-button-press);
 }
 .seg button.on {
   background: var(--color-accent-turn); color: var(--color-text-on-surface); border-color: var(--color-accent-turn);
-  box-shadow: 0 3px 0 #b8860bcc; font-weight: 700;
+  font-weight: 600;
 }
 
+/* VALUE IS THE HIERARCHY, so the values must actually differ. The CTA and a
+   vote option were both `sheet` — pixel-identical — which meant the one control
+   that COMMITS looked exactly like the four cards that merely OFFER. In colour
+   that was survivable; in greyscale, value is the only channel left, so it read
+   as five equal buttons and broke DESIGN-DIRECTION.md §6 (one primary action
+   per screen).
+   Three steps now, dim → bright: an option you may pick (sunk), the button that
+   commits (sheet), and the revealed truth (pure white + ink ring). */
 .opt {
-  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); border-radius: var(--radius-card); padding: 14px; margin-bottom: 11px;
-  cursor: pointer; box-shadow: var(--shadow-hard);
-  transition: transform var(--motion-dur-button-press), box-shadow var(--motion-dur-button-press);
+  display: flex; gap: 12px; align-items: flex-start; background: var(--color-surface-sunk); color: var(--color-text-on-surface);
+  border: 0; border-radius: var(--radius-card); padding: 15px; margin-bottom: 10px;
+  cursor: pointer;
+  transition: transform var(--motion-dur-button-press), opacity var(--motion-dur-button-press);
 }
-.opt:active { transform: translateY(3px); box-shadow: var(--shadow-hard-pressed); }
+.opt:active { transform: translateY(2px); opacity: .9; }
 .opt .letter {
-  flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--color-border); color: var(--color-surface);
-  font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family: var(--type-display-family);
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); color: var(--color-text-on-surface);
+  font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 16px; font-family: var(--type-display-family);
 }
-/* tinted hard shadows → each option reads as a colored physical tile (color means something) */
-.opt.truth { border-color: var(--color-accent-truth); background: #e7fff3; box-shadow: 4px 5px 0 #1d8f5b88, 0 0 22px #3bd48944; }
-.opt.bluff { border-color: var(--color-accent-bluff); box-shadow: 4px 5px 0 #c23a6a88; }
-.opt.decoy { border-color: var(--color-accent-gm); border-style: dashed; box-shadow: 4px 5px 0 #6b4bb888; }
+/* THE REVEAL, WITHOUT COLOUR. Green-truth and pink-bluff carried this moment; in
+   greyscale the same three states have to come from value, fill and edge:
+     truth  — pure white plate + a heavy ink ring. The brightest thing on screen.
+     bluff  — a SUNK, dimmer plate that visibly recedes behind the truth.
+     decoy  — the dashed "classified" edge the secret card already uses.
+   Three different mechanisms, so they stay apart in greyscale, at Dynamic Type
+   XL, and for a colour-blind player (DESIGN.md §9). */
+.opt.truth {
+  background: var(--color-accent-truth);
+  box-shadow: inset 0 0 0 2.5px var(--color-text-on-surface);
+}
+.opt.truth .letter { background: var(--color-text-on-surface); color: var(--color-accent-truth); box-shadow: none; }
+.opt.bluff { background: var(--color-surface-sunk); opacity: .62; }
+.opt.decoy { background: var(--color-surface-sunk); opacity: .78; box-shadow: inset 0 0 0 1.5px var(--color-text-on-surface); }
+.opt.decoy .letter { box-shadow: none; border: 1.5px dashed var(--color-text-on-surface); }
 
 .pop { animation: pop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease); }
 @keyframes pop { 0% { opacity: 0; transform: scale(.85) rotate(-1.5deg); } 100% { opacity: 1; transform: none; } }
@@ -164,6 +212,30 @@
 }
 .face::before { left: 26%; }
 .face::after { right: 26%; }
+/* EARS — what turns the head into a rat.
+
+   DESIGN-DIRECTION.md §3 asks for a rat rather than a character, and the mark
+   already solved this in profile: a long snout reads as a rat. The avatar is
+   face-on and has a Nose jutting right, so on its own it read as the old monk.
+   Two ears is the whole difference, and it costs one element.
+
+   Deliberately NOT a second drawing: this is the same head, the same --fs
+   ratios, the same Nose on the same --notch scale. The Nose keeps reporting
+   votes exactly as before (DESIGN.md §4) — only the species changed.
+
+   They sit BEHIND the head (z-index 0 vs the head's stacking context) so the
+   inset outline still reads as one continuous silhouette. */
+.face .ears { position: absolute; inset: 0; pointer-events: none; }
+.face .ears::before, .face .ears::after {
+  content: ""; position: absolute; top: calc(var(--fs) * -.17);
+  width: 40%; height: 40%; border-radius: 50%;
+  background: var(--pc, currentColor);
+  box-shadow: inset 0 0 0 calc(var(--fs) * .075) var(--color-border);
+  z-index: -1;
+}
+.face .ears::before { left: -4%; }
+.face .ears::after { right: -4%; }
+
 .face .brows { position: absolute; inset: 0; pointer-events: none; }
 .face .brows::before, .face .brows::after {   /* the cocky part: flat, high, unbothered */
   content: ""; position: absolute; top: 20%; width: 18%; height: 6%; border-radius: 99px;
@@ -236,8 +308,12 @@
    one would run straight through the name beside it. Anywhere a face sits inline
    with text, buy back exactly the overflow — hence --notch living on .face. */
 .author .face, .gullnese-card .face { margin-right: max(0px, calc(var(--fs) * (.33 * var(--notch, 0) - .04))); }
-.nose.violet { background: var(--color-accent-gm); }
-.nose.gold { background: gold; }
+.nose.gm { background: var(--color-accent-gm); }
+/* The Gullnese. Its whole job is "this is the special one", which colour used
+   to say with literal `gold` — the last named colour in the app, and invisible
+   to a hex scan. In monochrome the special one is simply the BRIGHTEST, with a
+   ring so it is not value alone (DESIGN.md §9). */
+.nose.gold { background: var(--color-accent-truth); box-shadow: 0 0 0 1.5px var(--color-text-on-surface); }
 
 /* Back button: same 44 px target as its siblings, but visually quieter than the
    help/theme buttons — it is an escape hatch, not an invitation. */
@@ -263,11 +339,12 @@
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
 
 .banner {
+  color: var(--color-text-on-surface);
   border-radius: var(--radius-button); padding: 12px 14px; font-weight: 700; text-align: center;
   margin-bottom: 11px; border: 2.5px solid transparent;
 }
-.banner.gm { background: var(--color-accent-gm); color: #fff; border-color: #5c3ab8; box-shadow: 0 4px 0 #5c3ab8; }
-.banner.green { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: #1d8f5b; box-shadow: 0 4px 0 #1d8f5b; }
+.banner.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); border-color: transparent; }
+.banner.ok { background: var(--color-accent-truth); color: var(--color-text-on-surface); border-color: transparent; }
 
 .thinking { display: inline-block; animation: think var(--motion-dur-think-pulse) ease-in-out infinite; }
 @keyframes think { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
@@ -275,15 +352,15 @@
 .handover {
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 24px; z-index: 50;
-  background: radial-gradient(500px 400px at 50% 30%, #2a2a46, var(--color-bg) 75%);
+  background: radial-gradient(500px 400px at 50% 30%, #2d2d32, var(--color-bg) 75%);
 }
 .holdbtn {
   width: 156px; height: 156px; border-radius: 50%; border: none; cursor: pointer; margin-top: 28px;
   font: inherit; font-weight: 700; font-size: 16px; color: var(--color-text-on-surface);
-  background: conic-gradient(var(--color-accent-turn) calc(var(--p, 0) * 1%), #ffffff18 0);
+  background: conic-gradient(var(--color-accent-turn) calc(var(--p, 0) * 1%), #00000018 0);
   display: flex; align-items: center; justify-content: center;
   user-select: none; -webkit-user-select: none; touch-action: none;
-  box-shadow: 0 6px 0 rgba(0,0,0,.45);
+  box-shadow: 0 6px 0 rgba(0,0,0,.18);
 }
 .holdbtn .inner {
   width: 122px; height: 122px; border-radius: 50%; background: var(--color-accent-turn);
@@ -353,8 +430,18 @@
    Reduced Motion: base.css kills the animation, so `.siren.on` deliberately
    RESTS at the trough — a steady dim edge glow rather than nothing at all. The
    beat still lands, with the sound and the haptic carrying more of it
-   (game-feel skill, principle 10). It is also why the peak is what it is:
-   ~1.5 flashes/second, comfortably under WCAG 2.3.1's three. */
+   (game-feel skill, principle 10).
+
+   THE RATE NOW CLIMBS (2026-07-28). It used to be a fixed 330 ms half-cycle for
+   the final 5 s; it now opens at 15 s and accelerates, period driven by `--hz`
+   from clockPulseHz(). The acceleration is the information — a fixed rate tells
+   you "urgent", a rising one tells you "and getting worse".
+
+   THE CEILING IS A SAFETY LIMIT, NOT A TASTE DECISION. clockPulseHz() caps at
+   2.5 Hz because WCAG 2.3.1 puts the photosensitive-seizure threshold at three
+   flashes per second, and a full-screen pulse is exactly that stimulus. The
+   fallback below is 1.5 so a missing `--hz` can never produce a faster beat
+   than the old fixed one. Do not raise either number. */
 .siren {
   position: fixed; inset: 0; pointer-events: none; z-index: 40;
   opacity: 0;
@@ -363,7 +450,7 @@
 .siren.on { opacity: .10; }                    /* the trough — and the RM resting state */
 @media (prefers-reduced-motion: no-preference) {
   .siren.on {
-    animation: sirenWail calc(var(--motion-dur-siren-half-cycle) * 2) ease-in-out infinite;
+    animation: sirenWail calc(1s / var(--hz, 1.5)) ease-in-out infinite;
   }
 }
 @keyframes sirenWail {

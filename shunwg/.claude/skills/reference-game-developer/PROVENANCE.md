@@ -10,13 +10,13 @@
 
 ## Why it is here, and why it will never fire on its own
 
-This skill is **Unity and Unreal**: C# `MonoBehaviour`, C++ Actors, ECS, colliders, object pooling, `GetComponent` caching, lag compensation, Unity Profiler / Unreal Insights. Cocky Monk has no game engine, no physics engine, no WebGL and no compiled render loop — the Lab is DOM + CSS and the app is SwiftUI. **Nothing in this file applies to our stack.** It is installed as background reading only, at the user's explicit request.
+This skill is **Unity and Unreal**: C# `MonoBehaviour`, C++ Actors, ECS, colliders, object pooling, `GetComponent` caching, lag compensation, Unity Profiler / Unreal Insights. Snifferoo has no game engine, no physics engine, no WebGL and no compiled render loop — the Lab is DOM + CSS and the app is SwiftUI. **Nothing in this file applies to our stack.** It is installed as background reading only, at the user's explicit request.
 
 Because it does not apply, the auto-trigger has been removed. The body is byte-identical to upstream; only the frontmatter `description` was replaced. The original is preserved verbatim in `UPSTREAM-FRONTMATTER.txt`, and its trigger list was the problem:
 
 > `Trigger keywords: Unity, Unreal Engine, game development, ECS architecture, game physics, multiplayer networking, game optimization, shader programming, game AI`
 
-"game development", "game optimization" and "multiplayer networking" all describe work we do every day, so left alone this skill would load itself into ordinary Cocky Monk sessions and answer CSS questions with object pooling. The replacement description says REFERENCE ONLY and names `game-feel` as the skill to use instead.
+"game development", "game optimization" and "multiplayer networking" all describe work we do every day, so left alone this skill would load itself into ordinary Snifferoo sessions and answer CSS questions with object pooling. The replacement description says REFERENCE ONLY and names `game-feel` as the skill to use instead.
 
 Renamed `game-developer` → `reference-game-developer` so the prefix reads as reference at a glance in the skills list.
 

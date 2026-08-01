@@ -1,6 +1,6 @@
 # ONLINE-PLAY.md — parring i dag, nett i nettleseren, poengliste i morgen
 
-> **STATUS ENDRET 2026-07-25.** PRD **§2.1** flyttet nett-spill inn i scope — men **kun for nettleser-bygget** (`Lab/`, `dist/CockyMonk.html`, GitHub Pages). iOS-appen i `Sources/` er urørt: fortsatt kun lokal MultipeerConnectivity, fortsatt «Data Not Collected».
+> **STATUS ENDRET 2026-07-25.** PRD **§2.1** flyttet nett-spill inn i scope — men **kun for nettleser-bygget** (`Lab/`, `dist/Snifferoo.html`, GitHub Pages). iOS-appen i `Sources/` er urørt: fortsatt kun lokal MultipeerConnectivity, fortsatt «Data Not Collected».
 >
 > Del 1 og 2 er **bygget**. Del 4 (Game Center på iOS) er fortsatt **fremtid** og venter på Mac-dag.
 

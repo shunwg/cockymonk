@@ -1,6 +1,6 @@
 ---
 name: game-feel
-description: The house discipline for how Cocky Monk feels to touch — game-state motion, input response, haptics, sound pairing, and pacing. Use when adding or tuning any animation, transition, press state, haptic, timer, reveal beat or board hop; when someone says "make it feel better", "juicier", "snappier", "more satisfying", "too slow", "too floaty", "cheap", or "unfinished"; when auditing polish before a playtest; or when deciding whether an effect is allowed to exist. Not for Lottie celebration overlays — that is motion-designer.
+description: The house discipline for how Snifferoo feels to touch — game-state motion, input response, haptics, sound pairing, and pacing. Use when adding or tuning any animation, transition, press state, haptic, timer, reveal beat or board hop; when someone says "make it feel better", "juicier", "snappier", "more satisfying", "too slow", "too floaty", "cheap", or "unfinished"; when auditing polish before a playtest; or when deciding whether an effect is allowed to exist. Not for Lottie celebration overlays — that is motion-designer.
 ---
 
 # Game Feel
@@ -16,7 +16,7 @@ Derived from *Game Feel: A Game Designer's Guide to Virtual Sensation*, Steve Sw
 
 Swink's definition of game feel has three building blocks: real-time control, simulated space, and polish. Their overlaps make seven regions. Run our own game through the test:
 
-| Building block | Cocky Monk |
+| Building block | Snifferoo |
 |---|---|
 | **Real-time control** | Almost none. Turn-based discrete taps. Three exceptions, listed below. |
 | **Simulated space** | None. The board *depicts* space; nobody steers through it. |

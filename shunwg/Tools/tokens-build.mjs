@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// tokens-build.mjs — Cocky Monk design-token pipeline (LANES.md seam 2).
+// tokens-build.mjs — Snifferoo design-token pipeline (LANES.md seam 2).
 //
 // Reads DesignSystem/tokens.json (single source of truth) and emits:
 //   1. Lab/css/tokens.css              — CSS custom properties for the Lab
-//   2. Sources/DesignSystem/Theme.swift — SwiftUI token enums
+//   2. (retired 2026-07-28) Sources/DesignSystem/Theme.swift — SwiftUI token enums
 //   3. DesignSystem/DESIGN-TOKENS.md    — human-readable reference w/ WCAG contrast
 //
 // Usage:
@@ -28,7 +28,7 @@ function getPath(obj, path) {
   return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
-/** Resolve "{color.core.x}" reference strings, recursively (a ref may point at a ref). */
+/** Resolve "{color.palette.x}" reference strings, recursively (a ref may point at a ref). */
 function resolveRef(value, seen = new Set()) {
   if (typeof value !== "string") return value;
   const m = value.match(/^\{([\w.]+)\}$/);
@@ -133,13 +133,13 @@ function buildCss() {
   L.push("");
   L.push(":root {");
 
-  L.push("  /* ---- color.core ---- */");
-  for (const [name, v] of Object.entries(tokens.color.core)) {
+  L.push("  /* ---- color.palette ---- */");
+  for (const [name, v] of Object.entries(tokens.color.palette)) {
     if (isMeta(name) || Array.isArray(v)) continue;
     L.push(`  --color-${kebab(name)}: ${v};`);
   }
-  tokens.color.core.avatar.forEach((hex, i) => L.push(`  --color-avatar-${i + 1}: ${hex};`));
-  tokens.color.core.confetti.forEach((hex, i) => L.push(`  --color-confetti-${i + 1}: ${hex};`));
+  tokens.color.palette.player.forEach((hex, i) => L.push(`  --color-player-${i + 1}: ${hex};`));
+  tokens.color.palette.confetti.forEach((hex, i) => L.push(`  --color-confetti-${i + 1}: ${hex};`));
 
   L.push("");
   L.push("  /* ---- color.semantic (resolved from core) ---- */");
@@ -265,25 +265,26 @@ function buildSwift() {
   L.push("    enum ColorToken {");
   L.push("");
   L.push("        // Core palette (DESIGN.md §2)");
-  for (const [name, v] of Object.entries(tokens.color.core)) {
+  for (const [name, v] of Object.entries(tokens.color.palette)) {
     if (isMeta(name) || Array.isArray(v)) continue;
     L.push(`        static let ${name} = ${swiftColor(v)}  // ${v}`);
   }
   L.push("");
-  L.push("        /// 8 fixed saturated avatar colors (demo AVA[]) — used as fills with ink borders.");
-  L.push("        static let avatarPalette: [Color] = [");
-  for (const hex of tokens.color.core.avatar) L.push(`            ${swiftColor(hex)},  // ${hex}`);
+  L.push("        /// 8 fixed player identity colors (demo AVA[]) — fills with ink borders.");
+  L.push("        /// Never the ONLY signal of identity: the name and marker carry it too (DESIGN.md §9).");
+  L.push("        static let playerPalette: [Color] = [");
+  for (const hex of tokens.color.palette.player) L.push(`            ${swiftColor(hex)},  // ${hex}`);
   L.push("        ]");
   L.push("");
   L.push("        /// 5 confetti colors (demo confetti()).");
   L.push("        static let confettiPalette: [Color] = [");
-  for (const hex of tokens.color.core.confetti) L.push(`            ${swiftColor(hex)},  // ${hex}`);
+  for (const hex of tokens.color.palette.confetti) L.push(`            ${swiftColor(hex)},  // ${hex}`);
   L.push("        ]");
   L.push("");
   L.push("        // Semantic roles (resolve to core — keep Views on these, not on core names)");
   for (const [path, v] of flatten(tokens.color.semantic)) {
     const resolved = resolveRef(v);
-    const refNote = typeof v === "string" && v.startsWith("{") ? v.slice(1, -1).replace("color.core.", "") : resolved;
+    const refNote = typeof v === "string" && v.startsWith("{") ? v.slice(1, -1).replace("color.palette.", "") : resolved;
     if (resolved.startsWith("#") && resolved.length === 7 && typeof v === "string" && v.startsWith("{")) {
       L.push(`        static let ${camelJoin(path)} = ${refNote}  // ${resolved}`);
     } else {
@@ -408,7 +409,7 @@ function buildMarkdown() {
 
   L.push(`<!-- ${HEADER} -->`);
   L.push("");
-  L.push("# Cocky Monk design tokens");
+  L.push("# Snifferoo design tokens");
   L.push("");
   L.push(`Source of truth: \`DesignSystem/tokens.json\` (v${tokens.meta.version}) — ${tokens.meta.source}.`);
   L.push(`Generated outputs: ${tokens.meta.generatedOutputs.map((p) => `\`${p}\``).join(" · ")}.`);
@@ -430,7 +431,7 @@ function buildMarkdown() {
     gmViolet: "Everything game-master: dashboard chrome, GM chip, decoys, victory sting",
     mutedViolet: "Secondary text, dividers, eyebrows",
   };
-  for (const [name, v] of Object.entries(tokens.color.core)) {
+  for (const [name, v] of Object.entries(tokens.color.palette)) {
     if (isMeta(name) || Array.isArray(v)) continue;
     L.push(`| \`${name}\` | \`${v}\` | ${coreUse[name] ?? ""} |`);
   }
@@ -439,13 +440,13 @@ function buildMarkdown() {
   L.push("");
   L.push("| # | Hex |");
   L.push("|---|---|");
-  tokens.color.core.avatar.forEach((hex, i) => L.push(`| ${i + 1} | \`${hex}\` |`));
+  tokens.color.palette.player.forEach((hex, i) => L.push(`| ${i + 1} | \`${hex}\` |`));
   L.push("");
   L.push("### Confetti palette (demo `confetti()`, 5)");
   L.push("");
   L.push("| # | Hex |");
   L.push("|---|---|");
-  tokens.color.core.confetti.forEach((hex, i) => L.push(`| ${i + 1} | \`${hex}\` |`));
+  tokens.color.palette.confetti.forEach((hex, i) => L.push(`| ${i + 1} | \`${hex}\` |`));
   L.push("");
 
   L.push("## Semantic roles");
@@ -594,9 +595,13 @@ for (const [event, file] of Object.entries(tokens.sound.grammar)) {
   }
 }
 
+// Sources/DesignSystem/Theme.swift was a third target until 2026-07-28. The iOS
+// scaffolding it fed was deleted (nothing was ever built against it), and a
+// generator target with no consumer is a file that exists only to be checked.
+// buildSwift() is kept below, unreferenced, so restoring the iOS bridge is one
+// line here rather than a rewrite — see MAC_RUNBOOK.md.
 const outputs = [
   { rel: "Lab/css/tokens.css", content: buildCss() },
-  { rel: "Sources/DesignSystem/Theme.swift", content: buildSwift() },
   { rel: "DesignSystem/DESIGN-TOKENS.md", content: buildMarkdown() },
 ];
 

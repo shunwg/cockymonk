@@ -1,94 +1,124 @@
-# Cocky Monk starter kit
-Everything Claude Code needs to build a game-master-led bluffing party game for iOS — spec, constitution, design system, house skills, and scripts. Unzip into an empty folder, do the 5-minute edit, run setup, start building.
+# Snifferoo
 
-**Lost in the folder?** Open **[00-START-HER.md](00-START-HER.md)** — the one-page map (bokmål): three doors in, plus one line on every folder and root file.
+A game-master-led bluffing party game in Norwegian bokmål and English. One player draws an obscure
+word and its real meaning; everyone else invents a definition convincing enough to steal votes. The
+browser build is the live product; an iOS app is specced and scaffolded but not yet built.
 
-## ▶ Play the full game right now (Windows, no install)
-Double-click **`Play Cocky Monk.cmd`** — or open **`dist/CockyMonk.html`** in any browser. It's the complete game in one self-contained file: a branded Home screen with a 30-second illustrated how-to, hotseat (pass-one-phone) and practice-vs-bots modes, all 3 richly-themed boards (parlor wood / paper-cut mountains / deep space) with a routed race track, the reveal ceremony with the boinging Nose, board race, Gullnese award, sound, and the six Lottie celebrations. Fredoka is embedded, so the brand looks right even offline. No Node, no server.
+Team map in bokmål: **[TEAM.md](TEAM.md)**. Segment matrix and interface contracts: **[LANES.md](LANES.md)**.
 
-Rebuild it after changing anything in `Lab/`, `Resources/`, or `DesignSystem/`:
+## Play it
+
+| | |
+|---|---|
+| **Locally, no install** | Double-click `Play Snifferoo.cmd`, or open `dist/Snifferoo.html` in any browser |
+| **Online** | https://shunwg.github.io/cockymonk/ — deployed from `main` by `.github/workflows/pages.yml` |
+
+The bundle is one self-contained file: game, decks, fonts, Lottie celebrations, all inlined. No Node,
+no server, works offline.
+
+## Develop
+
 ```bash
-node Tools/build-standalone.mjs      # → dist/CockyMonk.html
-```
-To iterate on the game with live reload instead, run the Lab dev server: `node Tools/serve-lab.mjs` → http://localhost:8787/Lab/. Every screen is also viewable in isolation, by number: the gallery at http://localhost:8787/Lab/gallery.html (or double-click `Open Screen Gallery.cmd`).
-
-## What's in the box
-| File | What it is | Edit how often |
-|---|---|---|
-| `PRD.md` | v3 spec — game-master flow, board-race scoring, 3 themes, nb/en, milestones M1–M10 | When the game design changes |
-| `CLAUDE.md` | Project constitution Claude Code obeys every session | Rarely — keep it lean |
-| `DESIGN.md` | Playful design system: tokens, the Nose, motion, sound, voice | When the look evolves |
-| `TOOLBELT.md` | Invited external plugins/MCPs/skills, tiered Core → Situational | When you add/drop tools |
-| `ASSETS.md` + `AssetsIncoming/` | License ledger + 1,540 bundled CC0 assets (Kenney: pieces, icons, card/UI audio) | When assets are promoted |
-| `TEAM.md` | The team memo (bokmål): 7 segments anyone can enter, each with its own gate test; how the 4 of us collaborate | When the team changes |
-| `LANES.md` | The segment matrix + interface contracts (technical, English) — gates replace fixed owners | When the team changes |
-| `Screens/` | Permanent screen registry 01–18 ("endre 07") + reference PNGs; live gallery at `/Lab/gallery.html`, snap via `node Tools/snap-screens.mjs` | When screens change |
-| `Specs/` | SCORING.md (generated from the engine vectors — bokmål rules sheet) · FLOW.md (GM/player/bot beat map) · ONLINE-PLAY.md (future, gated) | With rules/flow changes |
-| `MAC_RUNBOOK.md` | Every macOS-only step (Xcode, lottie-ios, M1–M10, TestFlight, App Store checklist), staged for Mac day | Mac day |
-| `DesignSystem/tokens.json` | **Single source of truth** for all design tokens → generates `Lab/css/tokens.css`, `Sources/DesignSystem/Theme.swift`, `DESIGN-TOKENS.md` | Via `/director` |
-| `Lab/` | Componentized browser port of the demo — play, iterate and test the game on Windows (`node Tools/serve-lab.mjs`) | Daily (Lane B) |
-| `Content/` | Word-candidate lists per language + VERIFY queue (Lane C workshop) | Content days |
-| `Tools/` | Zero-dep Node toolchain: validate_deck · tokens-build · serve-lab · engine-vectors.json (the rules contract) | Rarely |
-| `Resources/deck_nb.json` + `deck_en.json` + `fakes_*.json` | The shipping decks + bot fake pools (card-author skill only) | `/newcards` |
-| `Resources/Lottie/` | Original generated celebration animations (preview: `/Lab/lottie/player.html`) | motion-designer |
-| `.claude/skills/` | card-author · playtest-loop · release-captain · asset-wrangler · **game-director** · **qa-gate** · **playtest-panel** · **motion-designer** | They're yours — sharpen them |
-| `.claude/agents/` | swift-reviewer · swiftui-specialist subagents | Rarely |
-| `.claude/commands/` | `/playtest` · `/newcards` · `/ship` · `/theme` · `/director` · `/qa` | Rarely |
-| `scripts/` | setup · build · run · test · validate_deck · ship (macOS; validate_deck delegates to Node) | Rarely |
-| `project.yml` | XcodeGen spec → generates the .xcodeproj | Version bumps, signing |
-| `Resources/deck_*.sample.json` | Card schema + example cards (nb + en) | Never (reference only) |
-| `Reference/cocky-monk-demo.html` | **FROZEN canonical prototype** — flow, pacing, scoring, bot behavior, all 3 themes. Open in any browser; never edit (iterate in `Lab/`) | Never |
-
-## The 5-minute edit checklist (before first run)
-| # | Where | Do |
-|---|---|---|
-| 1 | `project.yml` | Replace both `EDITME`s: bundle id prefix + your Apple Team ID |
-| 2 | `PRD.md` §13 | Answer the open questions (name! en deck? default theme?), delete the section |
-| 3 | — | Name is set: **Cocky Monk**. Before public release: 30-min trademark search (Patentstyret + EUIPO) |
-| 4 | `scripts/ship.sh` header | (Later, at M7) set the three ASC_* env vars |
-
-## Two tracks: Windows now, Mac later
-Everything Xcode-shaped (build, simulator, TestFlight) needs macOS — see `MAC_RUNBOOK.md` when a Mac is available.
-Until then, the whole studio system runs on Windows: the browser Lab (`node Tools/serve-lab.mjs`), engine rule tests
-(`node --test Lab/js/engine.test.mjs`), deck authoring + validation (`node Tools/validate_deck.mjs --all`), the design-token
-pipeline (`node Tools/tokens-build.mjs`), and the Lottie preview page. How the team splits the work: `TEAM.md` (bokmål) + `LANES.md`.
-
-## First run
-```bash
-cd cocky-monk-starter
-git init && git add -A && git commit -m "starter kit"
-bash scripts/setup.sh        # checks tools, adds XcodeBuildMCP, clones ios-simulator skill
-claude                       # then inside the session:
-# /plugin install frontend-design
-# /plugin install code-review
-# /plugin install security-guidance
+node Tools/serve-lab.mjs                 # http://localhost:8787/Lab/ — live reload
 ```
 
-## Kickoff prompts (paste in order, one per session-ish)
-**Session 1 — plan:**
-> Read PRD.md, CLAUDE.md, DESIGN.md, TOOLBELT.md and ASSETS.md. Enter plan mode. Propose the architecture (GameEngine + Transport + BoardTheme protocols) and a task breakdown for milestone M1 only. Ultrathink. Do not write code yet.
+- **One screen in isolation:** `…/Lab/index.html?fixture=07`, or the gallery at `/Lab/gallery.html`
+  (`Open Screen Gallery.cmd`). Every screen has a permanent number — say "endre 07".
+- **Rebuild the bundle** after any change under `Lab/`, `Resources/` or `DesignSystem/`:
+  `node Tools/build-standalone.mjs`
+- **Re-snap screen PNGs** in the same commit that changes a screen: `node Tools/snap-screens.mjs`
 
-**Session 2+ — build loop:**
-> Implement the next task from the M{n} plan. Follow the CLAUDE.md workflow: build, playtest-loop with screenshots, tests, then commit.
+Node ≥ 18 is the only requirement on Windows.
 
-**Content day:**
-> /newcards 50
+## The gates
 
-**When M3 lands:**
-> /playtest full hotseat round with 3 players
+Everything below must be green before a merge. This is the whole quality system — there is no CI
+that will catch it for you later.
 
-**When M5 lands:**
-> /theme Salongen
+```bash
+node --test Lab/js/engine.test.mjs Lab/js/fixtures.test.mjs Lab/js/fakepool.test.mjs Lab/js/online.test.mjs
+node Tools/tokens-build.mjs --check      # generated token outputs match tokens.json
+node Tools/rules-sheet.mjs --check       # Specs/SCORING.md matches the engine vectors
+node Tools/validate_deck.mjs --all       # deck schema + the trademark grep
+node Tools/check-game-feel.mjs --check   # DESIGN.md §7 motion register vs the code
+node Tools/check-fake-parity.mjs --check # bot fakes aren't trivially exploitable
+```
 
-**When M7 arrives:**
-> /ship testflight
+Or `/qa` in Claude Code to run the battery, `/qa --ship` before anything leaves the house.
 
-## Working rhythm that keeps quality high
-1. Plan mode before every milestone — you edit the plan, Claude executes it.
-2. Never accept "done" without the playtest-loop verdict table + screenshots.
-3. Run the `swift-reviewer` subagent on Engine code before merging.
-4. One milestone per sitting. Small commits. Double-Escape rewinds a bad Claude step; git rewinds a bad milestone.
-5. When you correct Claude the same way three times → move the correction into CLAUDE.md or a skill (that's what `/plugin install skill-creator` is for).
+## What's authored, and what's generated
 
-## Legal reminder
-Ship under your own name with your own cards. The published game this project is inspired by — its name, card texts, and art — is off-limits (see PRD §3; the deck validator even greps for the forbidden name).
+Getting this backwards is the most common way to lose work. **Never hand-edit a generated file** —
+and never hand-resolve one in a merge conflict; take either side and regenerate.
+
+| Generated | From |
+|---|---|
+| `Lab/css/tokens.css`, `DesignSystem/DESIGN-TOKENS.md` | `DesignSystem/tokens.json` via `Tools/tokens-build.mjs` |
+| `Specs/SCORING.md` | `Tools/engine-vectors.json` via `Tools/rules-sheet.mjs` |
+| `dist/Snifferoo.html` | the whole Lab via `Tools/build-standalone.mjs` |
+| `Screens/png/*` | fixtures via `Tools/snap-screens.mjs` |
+
+`Reference/cocky-monk-demo.html` is **frozen** — the canonical prototype, never edited. The Lab
+iterates; deviations get a dated row in `Lab/DIVERGENCE.md`.
+
+## The map
+
+| Path | What |
+|---|---|
+| `Lab/` | **The game.** `js/` + `css/`, a componentized port of the frozen demo |
+| `Screens/` | Permanent screen registry 01–23 (`SCREENS.md`) + reference PNGs |
+| `Specs/` | `SCORING.md` (generated) · `FLOW.md` (beat map) · `ONLINE-PLAY.md` (rooms) |
+| `Resources/` | What ships: decks `deck_nb/en.json`, bot fake pools, audio, Lottie |
+| `Content/` | Word workshop — candidate lists per language + the VERIFY queue |
+| `DesignSystem/` | `tokens.json`, the single source of truth for colour/type/motion |
+| `Tools/` | Zero-dependency Node toolchain — build, validate, serve, snap, gates |
+| `dist/` | The built single-file game. Generated, but **tracked** so double-click-to-play works |
+| `Reference/` | The FROZEN prototype |
+| `AssetsIncoming/` | CC0 quarry (Kenney). **Not in git** — see `ASSETS.md` to restore |
+| `.claude/` | Skills and slash commands, versioned with the repo |
+
+Root docs: `PRD.md` (the spec) · `DESIGN.md` (the look) · `CLAUDE.md` (the constitution) ·
+`ASSETS.md` (licence ledger) · `TOOLBELT.md` (invited tools) · `TEAM.md` / `LANES.md` (who does
+what) · `MAC_RUNBOOK.md` (Mac day).
+
+## Working in git
+
+`main` always works. Everything else happens on a branch named `segment/short-what` —
+`skjermer/13-nese`, `ordlister/25-nye-nb`, `regler/omkamp-fix`.
+
+```bash
+git pull
+git checkout -b segment/what
+# …work, then run that segment's gate…
+git add -A && git commit -m "13: nose vs author label"
+git push -u origin segment/what
+```
+
+Then **Compare & pull request** on GitHub, someone glances at it, merge, delete the branch.
+
+**Two people can sit in the same file for days.** Git merges by line, not by file — a real conflict
+needs you both to have touched the *same lines*, and then it stops and asks rather than silently
+picking a winner. When it does stop, keep what's right (often both sides), delete the `<<<<<<<`
+markers, `git add` the file, `git commit`.
+
+**Named versions** are tags, not branches:
+
+```bash
+git tag -a v0.2 -m "Segments + screens"
+git push origin v0.2
+```
+
+GitHub Releases turns a tag into a download page — the right home for `dist/Snifferoo.html` when
+handing the game to a tester who doesn't use git.
+
+**Never commit secrets.** Nothing here needs one today; when Mac day brings signing certificates
+they stay out of git (see `.gitignore` and `MAC_RUNBOOK.md`).
+
+**Because `dist/` is tracked**, a Lab change should ship with a rebuilt bundle in the same commit,
+or you get pointless conflicts there.
+
+## Legal
+
+Ship under your own name with your own cards. The published game this project is inspired by — its
+name, card texts and art — is off-limits (PRD §3). The deck validator greps for the forbidden name,
+so `validate_deck.mjs --all` is also the trademark check.

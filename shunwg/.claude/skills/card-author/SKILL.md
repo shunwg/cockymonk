@@ -1,6 +1,6 @@
 ---
 name: card-author
-description: Author, expand, review, or fix cards in the Cocky Monk deck (Resources/deck_nb.json, deck_en.json) and the practice-mode bot fake pools (fakes_nb.json, fakes_en.json). Use this skill whenever the user asks for new cards, more cards, deck content, obscure words, card ideas, deck cleanup, difficulty balancing, or anything touching deck_nb.json — even if they don't say "card-author". Also use it when validate_deck.sh fails.
+description: Author, expand, review, or fix cards in the Snifferoo deck (Resources/deck_nb.json, deck_en.json) and the practice-mode bot fake pools (fakes_nb.json, fakes_en.json). Use this skill whenever the user asks for new cards, more cards, deck content, obscure words, card ideas, deck cleanup, difficulty balancing, or anything touching deck_nb.json — even if they don't say "card-author". Also use it when validate_deck.sh fails.
 ---
 
 # Card Author
@@ -30,7 +30,7 @@ Generic, original, plausible-against-any-word definitions for practice-mode bots
 1. Read the current deck; note the highest id and the difficulty mix.
 2. Draft in batches of 25, pulling candidates from the `Content/wordlists/` domain files (inspiration only, never card text) and rotating domains between batches. For each word, silently ask: *Would two Norwegians at a party plausibly know this? If yes → too easy, cut.* And: *Does the truth make people say "that can't be right"? If yes → keep.*
 3. Self-review the batch against Hard rules 1–4. Cut weak cards rather than fixing them — volume is cheap, quality isn't.
-4. Append to the target deck (`Resources/deck_nb.json` / `deck_en.json`), then run `node Tools/validate_deck.mjs` (`scripts/validate_deck.sh` delegates to it). Fix anything it flags before reporting done.
+4. Append to the target deck (`Resources/deck_nb.json` / `deck_en.json`), then run `node Tools/validate_deck.mjs`. Fix anything it flags before reporting done.
 5. Report: how many added, difficulty mix, any `VERIFY` notes for the human — every `VERIFY` card must also have its row in `Content/VERIFY-QUEUE.md`.
 
 ## Word-hunting grounds (for inspiration, not copying)

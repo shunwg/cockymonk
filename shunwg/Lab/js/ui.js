@@ -15,21 +15,21 @@ import { THEMES, nextTheme } from "./themes.js";
 import { STR, AVA, MINI_DECK, MINI_FAKES, esc, rnd, later, clearTimers, freshUi, newPid } from "./state.js";
 import {
   TIMERS, defaultTimers, clockDeadline, clockArm, clockClear, clockLeft, clockSeconds,
-  clockLevel, clockFraction, clockSkew,
+  clockLevel, clockFraction, clockSkew, clockPulseHz,
 } from "./clock.js";
 import {
   RATING, ratingDeltas, ratingApply, ratingLoad, ratingSave, ratingReset,
   ratingNoseCap, ratingTier,
 } from "./rating.js";
 import {
-  NET, NET_CONFIG, netLoopback, netHost, netJoin, netProject, netShareLink,
+  NET, NET_CONFIG, netLoopback, netHost, netJoin, netOpen, netReclaimDelay, netProject, netShareLink,
   netRoomFromUrl, netTally, netVotesIn, netBroadcastState, netBroadcastLobby, netJoinOpen,
   netSeatKind, netStartScore,
 } from "./net.js";
 import {
   preloadCelebrations, playCelebration, mountLottie, clearCelebrations, reduceMotion, LANDMARK_FOR,
 } from "./lottie.js";
-import { getFixture } from "./fixtures.js";
+import { getFixture, FX_NOW } from "./fixtures.js";
 
 /* ---------- state ---------- */
 let U = freshUi();       // screen flow (Lane B)
@@ -39,7 +39,6 @@ let PROFILE = null;      // this device's career (rating.js); loaded once at boo
 let lastScreen = null;   // gate the entrance animation to REAL screen changes (not surgical re-renders)
 
 const t = (k, ...a) => { const v = STR[U.lang][k]; return typeof v === "function" ? v(...a) : v; };
-const party = () => U.mode === "party";
 
 // Seats stay the wire format — G.bluffs, G.votes, deltas and the engine's
 // Array(playerCount) returns are all seat-keyed, and every vector assumes it.
@@ -75,6 +74,44 @@ const bluffOrder = () => bluffersExpected(G);
 // own host, so this is true everywhere except on a joined client.
 const isHost = () => NET.isHost;
 const online = () => NET.kind !== "loopback";
+
+/* Does every player have their OWN screen?
+   True for practice-vs-bots and for EVERY online room. False only for one
+   phone, where the device is physically handed round the table — the one mode
+   with a handover screen, a "send telefonen videre" button, and a per-seat
+   U.cur that walks.
+
+   This used to be `U.mode === "party"`, which made a mode STRING the source of
+   truth for a question about the transport. Four separate net paths had to
+   remember to assign `U.mode = "party"` to compensate ("same screens as
+   practice; the seats differ"), and the open room forgot — so its host was
+   shown the pass-the-phone flow in a game where every player is on a different
+   device. Deriving it from online() instead means a new online entry point
+   cannot make that mistake: there is nothing left to remember. */
+const ownScreen = () => U.mode === "party" || online();
+
+/* The identity token. Monochrome took hue away from player identity, so the
+   INITIAL does the work the colour used to: eight greys at 18 px are a guessing
+   game, one letter is not. The value is now reinforcement, not the signal —
+   which is what DESIGN.md §9 asked for all along ("never colour alone"), simply
+   forced into the open by removing the colour.
+
+   Falls back to a dot when a name is missing, rather than rendering an empty
+   circle that looks like a bug. */
+/* Inline drawn marks. DESIGN.md §2 allows functional emoji, but 👑 and 👃 are
+   FULL COLOUR — in a monochrome app they were the loudest pixels on the board,
+   and they were reporting real values (who is GM, how many votes a lie caught).
+   These are the same two shapes as the CSS masks in base.css, inlined where a
+   mask cannot reach (inside a text run). */
+const markRat = (h = 11) =>
+  `<svg viewBox="0 0 100 66" height="${h}" width="${(h * 1.5).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/></svg>`;
+const markCrown = (h = 11) =>
+  `<svg viewBox="0 0 24 18" height="${h}" width="${(h * 1.33).toFixed(0)}" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M2 15.5 0.6 4.2c-.1-.9 1-1.5 1.7-.9L7 7 10.9.9c.5-.8 1.7-.8 2.2 0L17 7l4.7-3.7c.7-.6 1.8 0 1.7.9L22 15.5a1 1 0 0 1-1 .9H3a1 1 0 0 1-1-.9Z"/></svg>`;
+
+const dot = (color, name = "") => {
+  const ch = String(name).trim().charAt(0).toUpperCase();
+  return `<span class="dot" style="background:${color}">${ch ? esc(ch) : ""}</span>`;
+};
 const app = document.getElementById("app");
 
 // The mark. Literal hexes, not tokens: this is the brand asset, it must render
@@ -83,21 +120,41 @@ const app = document.getElementById("app");
 // face at 34–68 px (bevelled token · flat brows · dot eyes · smirk · capsule
 // Nose) — change one, change both. The hard offset shadow is drawn in-SVG rather
 // than via a CSS filter so the mark carries it everywhere it appears.
-const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.447).toFixed(1)}" height="${sz}" viewBox="0 0 55 38" fill="none" role="img" aria-hidden="true">
-  <g fill="#141425">
-    <circle cx="18.8" cy="20.3" r="16"/>
-    <rect x="18" y="19.2" width="34.2" height="7.7" rx="3.85"/>
-  </g>
-  <circle cx="20" cy="18.5" r="16" fill="#E8D5AE"/>
-  <circle cx="21.4" cy="17.1" r="14.3" fill="#FFF6E8"/>
-  <circle cx="20" cy="18.5" r="16" stroke="#23233B" stroke-width="2.8"/>
-  <g stroke="#23233B" stroke-linecap="round" fill="none">
-    <path d="M11 9 15.2 9.6" stroke-width="2"/><path d="M27.4 9 23.2 9.6" stroke-width="2"/>
-    <path d="M15 26.2q3.2 3.4 6.6-.6" stroke-width="2.5"/>
-  </g>
-  <circle cx="13.3" cy="13.9" r="1.7" fill="#23233B"/><circle cx="25.1" cy="13.9" r="1.7" fill="#23233B"/>
-  <rect x="19.2" y="17.4" width="34.2" height="5.2" rx="2.6" fill="#FF5C97" stroke="#23233B" stroke-width="2.5"/>
-</svg>`;
+/* The mark: a mouse in profile — one body, one ear, one tail.
+
+   IT WAS A DUCK, TWICE. First as a head with a long horizontal snout and two
+   circles merged into the outline: that is a bill and no ears. Then as a rat
+   assembled from three overlapping shapes, which looked right at 60 px and fell
+   apart at 84 px — the ear only overlapped the back by a unit, so it detached,
+   and the seams between shapes read as lumps. Small-size antialiasing had been
+   hiding the joins.
+
+   So the body and head are now ONE smooth path. Nothing to come apart.
+
+   THE EAR OVERLAPS THE BACK BY HALF ITS RADIUS. Anything less separates at
+   large sizes, and a floating circle above a blob is a balloon.
+
+   THE TAIL IS A STROKE, AND IT ENDS FREE. A stroke tapers and curves where a
+   filled outline needs both edges drawn and looks clumsy this small. Ending
+   free matters more: three earlier tails curved back toward the body, and a
+   closed loop on the side of a rounded mass is a mug handle. Four tails were
+   rendered at 22/40/80 px before this one — the difference is only visible
+   side by side, which is why they were.
+
+   currentColor throughout, so one drawing serves light-on-dark and
+   dark-on-light. The eye is a masked hole, correct on any background.
+
+   No extrusion. It survived from the previous mark and wrecked this one: a
+   whole animal has gaps between tail, haunch and snout, and offset copies fill
+   them in. At badge size it was a blob with a circle on it. */
+const LOGO = (sz = 26) => {
+  const art = '<path d="M26 50c-10-4-14-16-6-24 10-10 30-14 46-10 12 3 21 10 30 19 2 2 2 5-1 6-10 5-21 8-33 9-14 1-27 1-36 0Z"/><circle cx="62" cy="20" r="12"/><path d="M27 51C16 58 5 56 4 48" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>';
+  return '<svg class="logo" width="' + (sz * 1.5).toFixed(1) + '" height="' + sz + '" viewBox="0 0 100 66"'
+    + ' fill="currentColor" role="img" aria-hidden="true">'
+    + '<defs><mask id="snEye"><rect width="100" height="66" fill="#fff"/>'
+    + '<circle cx="77" cy="36" r="3.8" fill="#000"/></mask></defs>'
+    + '<g mask="url(#snEye)">' + art + '</g></svg>';
+};
 
 // Every avatar in the app, from the 34 px author chip to the 68 px mascot. Six
 // call sites used to hand-roll this markup with per-site pixel geometry, and two
@@ -105,8 +162,8 @@ const LOGO = (sz = 26) => `<svg class="logo" width="${(sz * 1.447).toFixed(1)}" 
 // one place: components.css scales all of it off --fs. `notch` is the vote count
 // the Nose is bragging about; the width formula is CSS's, not ours.
 const face = ({ color, size = 34, mood = "", notch = 0, tone = "", grow = false, bob = false, brand = false }) =>
-  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};background:${color}">
-     <i class="brows"></i><i class="smile"></i>
+  `<span class="face ${mood}${bob ? " bob" : ""}" style="--fs:${size}px;--notch:${notch};--pc:${color};background:${color}">
+     <i class="ears"></i><i class="brows"></i><i class="smile"></i>
      <i class="nose ${tone}${brand ? " brand" : ""}${grow ? " grow" : ""}"></i>
    </span>`;
 
@@ -156,10 +213,14 @@ const timersOn = () => Boolean(G?.timers?.on);
 function clockHtml(labelKey) {
   if (!timersOn() || !G.deadline) return "";
   const left = clockLeft(G.deadline);
+  const level = clockLevel(left);
   return `<div class="clockwrap">
-    <div class="clock ${clockLevel(left)}" id="clockring" role="timer" aria-live="off"
-         style="--p:${clockFraction(G.deadline)}"><span class="clocknum">${clockSeconds(left)}</span></div>
-    <span class="clocklabel">${t(labelKey)}</span>
+    <div class="clockhead">
+      <span class="clocklabel">${t(labelKey)}</span>
+      <span class="clocknum ${level}" id="clocknum">${clockSeconds(left)}</span>
+    </div>
+    <div class="clockbar ${level}" id="clockbar" role="timer" aria-live="off"
+         style="--p:${clockFraction(G.deadline)}"><span class="clockfill"></span></div>
     <span class="sr-live" id="clocksr" aria-live="assertive"></span>
   </div>`;
 }
@@ -189,9 +250,20 @@ let ckSaid = null;
    pulse that follows is a state, not a beat. */
 const ACTING_SCREENS = ["BLUFF", "VOTE", "GM_DASH"];
 let sirenOn = false;
+let sirenHz = 0;
 
-function sirenSet(active) {
-  if (active === sirenOn) return;                 // edge only — no per-tick work
+/* The rate, written every tick while the pulse is running. One custom property
+   on one fixed element — the same surgical discipline as the rest of ckPaint,
+   and cheap enough to do at 1 Hz without thinking about it. CSS turns it into a
+   period; no JS animation loop exists or should. */
+function sirenRate(hz) {
+  if (hz === sirenHz) return;
+  sirenHz = hz;
+  document.getElementById("siren")?.style.setProperty("--hz", hz);
+}
+
+function sirenSet(active, hz = 0) {
+  if (active === sirenOn) { if (active) sirenRate(hz); return; }   // rate keeps climbing
   sirenOn = active;
   let el = document.getElementById("siren");
   if (!el && active) {
@@ -208,21 +280,44 @@ function sirenSet(active) {
   } else if (el) {
     el.classList.toggle("on", active);
   }
-  if (active) { play("urgent"); haptic("warning"); }
+  if (active) { sirenHz = -1; sirenRate(hz); play("closing"); haptic("closing"); }
+  else sirenHz = 0;
 }
 
 function sirenClear() { sirenSet(false); document.getElementById("siren")?.remove(); }
 
+let ckUrgent = false;
+
 function ckPaint(leftMs, level) {
-  sirenSet(level === "urgent" && ACTING_SCREENS.includes(U.screen));
-  const el = document.getElementById("clockring");
+  // WHO gets the pulse, and it is the whole point of this line. The rate says
+  // "time is nearly up"; the gate says "AND you still owe an answer". Fire it at
+  // someone who already submitted and it is a claim about their state that is
+  // simply false — worse than not firing at all (game-feel skill, principle 2).
+  // The screen a player is on IS that fact, so a spectator, a timed-out player
+  // and anyone on WAIT/VOTEWAIT are excluded for free.
+  const owes = ACTING_SCREENS.includes(U.screen);
+  const hz = clockPulseHz(leftMs);
+  sirenSet(hz > 0 && owes, hz);
+
+  // The second beat. Entering the closing window is one event (in sirenSet);
+  // crossing into urgent is another, and a rising rate alone would slide past it
+  // unmarked. Edge-triggered, so it lands once — the pulse either side of it is
+  // a state, not a beat, and must never re-trigger sound or haptics per cycle.
+  const nowUrgent = level === "urgent" && owes;
+  if (nowUrgent && !ckUrgent) { play("urgent"); haptic("warning"); }
+  ckUrgent = nowUrgent;
+
+  const el = document.getElementById("clockbar");
   if (!el) return;
   el.style.setProperty("--p", clockFraction(G.deadline) ?? 0);
   el.classList.toggle("warn", level === "warn");
   el.classList.toggle("urgent", level === "urgent");
-  const num = el.querySelector(".clocknum");
+  const num = document.getElementById("clocknum");
   const secs = clockSeconds(leftMs);
-  if (num) num.textContent = secs;
+  if (num) {
+    num.textContent = secs;
+    num.classList.toggle("urgent", level === "urgent");
+  }
   // A silent countdown strands VoiceOver users (DESIGN.md §9). Two announcements
   // per phase, not sixty: one warning, one at zero.
   const sr = document.getElementById("clocksr");
@@ -251,6 +346,7 @@ function refreshClock(labelKey) {
 function armClock(phase, ms, onExpire) {
   clockClear();
   ckSaid = null;
+  ckUrgent = false;      // a new phase re-arms the escalation beat
   if (!timersOn()) { G.deadline = null; return; }
   G.deadline = clockDeadline(phase, ms, G.round);
   clockArm({ ...G.deadline, onTick: ckPaint, onExpire: isHost() ? onExpire : null });
@@ -281,7 +377,7 @@ function autoOpenVote() {
   play("cardShuffle"); play("voteOpen"); flashScreen();
   openVote();
   G.phase = "voting";
-  U.screen = party() ? (userIsGm() ? "VOTEWAIT" : "VOTE") : "VOTE";
+  U.screen = ownScreen() ? (userIsGm() ? "VOTEWAIT" : "VOTE") : "VOTE";
   armClock("voting", G.timers.voteMs, onVoteDeadline);
   render(); netPush();
   scheduleBotVotes();
@@ -302,7 +398,7 @@ function onVoteDeadline() {
 // already extends, so this is only for a HUMAN GM. Re-armed per beat by
 // doRevealStep, which arms before it renders (see the note there).
 function armRevealClock() {
-  const botPaced = party() && !userIsGm();
+  const botPaced = ownScreen() && !userIsGm();
   if (botPaced || G.revealIdx >= revealSeq().length) { clockClear(); G.deadline = null; return; }
   armClock("reveal", G.timers.revealMs, doRevealStep);
 }
@@ -341,9 +437,13 @@ function backTarget() {
   if (s === "RULES" || s === "ABOUT" || s === "PROFILE") return { to: U.rulesReturn || "HOME" };
   if (s === "LANG" || s === "MODE") return { to: "HOME" };
   if (s === "PLAYERS" || s === "PARTYSETUP") return { to: "MODE" };
-  if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (party() ? "PARTYSETUP" : "PLAYERS") };
-  if (s === "JOIN") return { to: "PARTYSETUP", leave: true };
-  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "PARTYSETUP", leave: true };
+  if (s === "SETUP") return { to: online() ? "HOST_LOBBY" : (ownScreen() ? "PARTYSETUP" : "PLAYERS") };
+  // Back out of a room and you land on the mode menu, not on the bots-setup
+  // screen. That used to point at PARTYSETUP because party was the neighbouring
+  // menu entry; now that it isn't on the menu, sending someone there would drop
+  // them on a screen they never chose and cannot get to any other way.
+  if (s === "JOIN") return { to: "MODE", leave: true };
+  if (s === "HOST_LOBBY" || s === "LOBBY_WAIT") return { to: "MODE", leave: true };
   if (s === "CONNLOST") return { to: "HOME", leave: true };
   if (s === "WINNER") return { to: "HOME", leave: true };   // the game is over; nothing to confirm
   if (IN_GAME.includes(s)) return { to: "HOME", leave: true, confirm: true };
@@ -427,7 +527,7 @@ function benched(seat = mySeat()) {
 // margin-bottom:11px, and wrapping it let that through where the original inline
 // `margin:10px 0 0` had zeroed it, growing the word card by 11px.
 const watchingBanner = (style = "") =>
-  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>👀 ${t("watchingRound")}</div>`;
+  `<div class="banner" role="status"${style ? ` style="${style}"` : ""}>${t("watchingRound")}</div>`;
 
 function lateNoteHtml() {
   const lj = G?.lateJoin;
@@ -495,13 +595,14 @@ SCREENS.HOME = () => {
      <button class="${U.lang === "nb" ? "on" : ""}" data-lang="nb">Norsk</button>
      <button class="${U.lang === "en" ? "on" : ""}" data-lang="en">English</button>
    </div>
+   <div style="flex:1"></div>
    <div class="hero">
      <div class="home-badge bob">${LOGO(92)}</div>
      <span class="eyebrow">${t("fearNose")}</span>
      <h1 style="font-size:clamp(40px,12vw,54px)">${t("title")}</h1>
      <p class="sub" style="margin:0">${t("homePitch")}</p>
    </div>
-   <div style="flex:1"></div>
+   <div style="flex:1.15"></div>
    <button class="btn" id="hnew">${t("homeNewGame")}</button>
    <button class="btn secondary" id="hrules">${t("homeHowTo")}</button>
    <button class="linkbtn" id="hprofile">${t("homeProfile")} ${ratingPill()}</button>
@@ -526,14 +627,14 @@ SCREENS.RULES = () => {
        <span class="step-b"><b>${t("rulesStep" + n + "t")}</b><small>${t("rulesStep" + n + "b")}</small></span>
      </div>`).join("")}
    <div class="nose-demo" aria-hidden="true">
-     ${[1, 2, 3].map((n) => face({ color: "var(--color-avatar-2)", notch: n })).join("")}
+     ${[1, 2, 3].map((n) => face({ color: "var(--color-player-2)", notch: n })).join("")}
    </div>
    <p class="small" style="text-align:center;margin-top:0">${t("rulesNose")}</p>
    <div class="card">
      <span class="eyebrow">${t("rulesScoreEyebrow")}</span>
-     <div class="scorerow"><span class="pt green">+2</span><span>${t("rulesScore1")}</span></div>
-     <div class="scorerow"><span class="pt pink">+1</span><span>${t("rulesScore2")}</span></div>
-     <div class="scorerow"><span class="pt violet">+2</span><span>${t("rulesScore3")}</span></div>
+     <div class="scorerow"><span class="pt truth">+2</span><span>${t("rulesScore1")}</span></div>
+     <div class="scorerow"><span class="pt bluff">+1</span><span>${t("rulesScore2")}</span></div>
+     <div class="scorerow"><span class="pt gm">+2</span><span>${t("rulesScore3")}</span></div>
      <div class="scorerow"><span class="pt gold">+3</span><span>${t("rulesScore4")}</span></div>
    </div>
    <div style="flex:1"></div>
@@ -568,22 +669,31 @@ SCREENS.LANG = () => {
   });
 };
 
+/* Three doors, in the order they get chosen.
+
+   "Hver sin telefon" (local play against bots) is deliberately NOT here any
+   more. It has not disappeared: it is the fallback when the network cannot be
+   reached — `joinPlayBots` on a failed join, `lostHotseat` when a host vanishes
+   — and the open room already gives you bots when you are the only one in it.
+   As a MENU entry it asked the player to pick their opponents' species before
+   they had picked a game, which is a question nobody arrives wanting to answer. */
 SCREENS.MODE = () => {
   shell(`<h2>${t("mode")}</h2>
    <button class="btn modebtn" data-mode="hotseat">
      <span class="phones"><span class="phoneico"></span></span>
      <span><b>${t("hotseatName")}</b><small>${t("hotseatSub")}</small></span></button>
-   <button class="btn modebtn" data-mode="party">
+   <button class="btn modebtn" data-mode="friends">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("partyName")}</b><small>${t("partySub")}</small></span></button>
-   <button class="btn modebtn" data-mode="online">
+     <span><b>${t("modeFriends")}</b><small>${t("modeFriendsSub")}</small></span></button>
+   <button class="btn modebtn" data-mode="open">
      <span class="phones"><span class="phoneico"></span><span class="phoneico p2"></span><span class="phoneico p3"></span></span>
-     <span><b>${t("modeOnline")}</b><small>${t("modeOnlineSub")}</small></span></button>
+     <span><b>${t("modeOpen")}</b><small>${t("modeOpenSub")}</small></span></button>
    <div style="flex:1"></div>`);
   app.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
     play("confirm");
-    if (b.dataset.mode === "online") { netDoHost(); return; }   // creates the room, then the lobby
-    U.mode = b.dataset.mode; U.screen = party() ? "PARTYSETUP" : "PLAYERS"; render();
+    if (b.dataset.mode === "friends") { netDoHost(); return; }  // a private room with a code
+    if (b.dataset.mode === "open") { netDoOpen(); return; }     // the one shared room
+    U.mode = b.dataset.mode; U.screen = "PLAYERS"; render();
   });
 };
 
@@ -591,7 +701,7 @@ SCREENS.PLAYERS = () => {
   shell(`<h2>${t("players")}</h2>
    <div>${U.names.map((n, i) => `
      <div class="pchip" style="margin-bottom:6px;justify-content:space-between;">
-       <span style="display:flex;gap:8px;align-items:center;"><span class="dot" style="background:${AVA[i]}"></span>${esc(n)}</span>
+       <span style="display:flex;gap:8px;align-items:center;">${dot(AVA[i], n)}${esc(n)}</span>
        <span style="cursor:pointer" data-del="${i}">✕</span></div>`).join("")}</div>
    ${U.names.length < 8 ? `<input type="text" id="pname" placeholder="${t("namePh")}" maxlength="14">
    <button class="btn secondary" id="addp">${t("addPlayer")}</button>` : ""}
@@ -610,7 +720,7 @@ SCREENS.PARTYSETUP = () => {
    <input type="text" id="uname" maxlength="14" value="${esc(U.uname)}" placeholder="${t("namePh")}">
    <h2>${t("bots")}</h2>
    <div class="seg">${[2, 3, 4, 5].map((n) => `
-     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n} 🤖</button>`).join("")}</div>
+     <button class="${U.botCount === n ? "on" : ""}" data-bots="${n}">${n}</button>`).join("")}</div>
    <div style="flex:1"></div>
    <button class="btn" id="tonext">${t("next")}</button>`);
   document.getElementById("uname").oninput = (e) => { U.uname = e.target.value; };
@@ -632,7 +742,7 @@ SCREENS.SETUP = () => {
    <h2>${t("theme")}</h2>
    <div class="seg">${Object.keys(THEMES).map((th) => `
      <button class="${U.theme === th ? "on" : ""}" data-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
-   ${party() ? `
+   ${ownScreen() ? `
    <h2>${t("timerTitle")}</h2>
    <div class="seg">
      <button class="${U.timers.on ? "on" : ""}" data-timer="on">${t("timerOn")}</button>
@@ -678,7 +788,7 @@ function startGame() {
       // Online: the first N seats are the real peers from the lobby, in join
       // order, host first. Everything after them is a bot filling a chair.
       const netPid = U.netSeats?.[i] ?? null;
-      const bot = netPid ? false : (party() && i > 0);
+      const bot = netPid ? false : (ownScreen() && i > 0);
       return {
         name, color: AVA[i], score: 0, bluffVotes: 0, dropped: false,
         // Seat 0 is this device in local play; online it is whichever pid the
@@ -698,10 +808,17 @@ function startGame() {
     revealIdx: 0,                // lives in G, not U: the whole room watches the same beat (PRD §10)
     timedOut: { bluff: [], vote: [] },   // per round, cleared by newRound (D4)
     deadline: null,              // { at, phase, round, totalMs } — an absolute time, never "seconds left"
-    // On for party/practice, off for hotseat: passing one phone round a table
-    // paces itself, and a clock there just adds stress to the couch mode that
-    // never needed it (PRD §5.2a). U.timers holds the host's setup choices.
-    timers: { ...defaultTimers(), ...U.timers, on: party() ? U.timers.on : false },
+    // Off for ONE phone, on for everything else. Passing a single phone round a
+    // table paces itself — the handover IS the clock — and a countdown there
+    // just adds stress to the couch mode that never needed it (PRD §5.2a).
+    // Every other mode has players sitting on their own screens, where nothing
+    // tells you the table is waiting for you.
+    //
+    // Keyed on hotseat rather than on party, which is what it used to be: that
+    // form left the clock OFF in online rooms unless U.mode happened to be
+    // "party", because online sets NET.kind, not U.mode. Exactly the mode that
+    // most needs a deadline was the one silently running without one.
+    timers: { ...defaultTimers(), ...U.timers, on: U.mode === "hotseat" ? false : U.timers.on },
     inOmkamp: false, omkampParticipants: [], preOmkampScores: null,
     goalCelebrated: false, celebrated: false, awaitingNext: false, ratingDone: false,
     lm33: false, lm66: false,   // DESIGN §3 thirds — once per GAME, not per round
@@ -837,7 +954,7 @@ function newRound() {
   G.timedOut = { bluff: [], vote: [] };     // a missed deadline never outlives its round (D4)
   G.deadline = null;
   G.phase = "card";
-  G.gmDecoyDone = !(party() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
+  G.gmDecoyDone = !(ownScreen() && G.gm !== mySeat()); // human GM settles decoys by pressing "open vote"
   U.voteIdx = 0; G.revealIdx = 0; U.draftBluff = "";
   // A joiner announcement lasts its round, no longer — EXCEPT the one for a
   // player who is being dealt in right now. They waited a whole round to hear it.
@@ -845,7 +962,7 @@ function newRound() {
   U.screen = "GM_INTRO"; play("cardDraw"); render(); netPush();
   // Bot GM auto-advances. A REMOTE gm does not: that person taps on their own
   // device, and their tap arrives as a state broadcast.
-  if (party() && !userIsGm() && isBot(G.gm)) later(() => { if (U.screen === "GM_INTRO") enterBluffing(); }, TUNING.GM_INTRO_AUTO_MS);
+  if (ownScreen() && !userIsGm() && isBot(G.gm)) later(() => { if (U.screen === "GM_INTRO") enterBluffing(); }, TUNING.GM_INTRO_AUTO_MS);
 }
 
 /* ---------- GM intro / dashboard ---------- */
@@ -854,12 +971,12 @@ SCREENS.GM_INTRO = () => {
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
      <div class="banner gm">${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</div>
-     <h1 style="color:var(--color-accent-gm)">${party() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
+     <h1 style="color:var(--color-text-on-bg)">${ownScreen() && userIsGm() ? t("youAreGm") : t("gmIs", esc(gm.name))}</h1>
      <p class="sub">${t("fearNose")}</p>
      <div style="display:flex;justify-content:center;margin:16px 0;">
-       ${face({ color: gm.color, size: 68, tone: "violet", brand: true, bob: true })}</div>
+       ${face({ color: gm.color, size: 68, tone: "gm", brand: true, bob: true })}</div>
    </div>
-   ${party() && !userIsGm()
+   ${ownScreen() && !userIsGm()
     ? `<p class="small" style="text-align:center">…</p>`
     : `<button class="btn gm" id="togm">${t("next")}</button>`}`);
   const b = document.getElementById("togm");
@@ -870,7 +987,7 @@ SCREENS.GM_INTRO = () => {
     // deadline. Now the GM has one too, and an unseen deadline is a trap.
     armClock("bluff", G.timers.bluffMs, onBluffDeadline);
     render(); netPush();          // this tap is what opens the floor to everyone
-    if (party()) scheduleBotBluffs();
+    if (ownScreen()) scheduleBotBluffs();
   };
 };
 
@@ -933,10 +1050,10 @@ function refreshGmAction() {
   const allIn = allBluffsSubmitted();
   const waiting = bluffOrder().filter((i) => G.bluffs[i] === undefined).map((i) => G.players[i].name);
   el.innerHTML = allIn
-    ? `<div class="banner green">${t("allIn")}</div>
+    ? `<div class="banner ok">${t("allIn")}</div>
        <button class="btn pulse" id="openvote">🎉 ${t("openVote")}</button>`
     : `<p class="small">${t("waitingFor")}: ${waiting.map(esc).join(", ")}</p>
-       ${party() ? "" : `<button class="btn gm" id="passbtn">${t("passOn")} →</button>`}`;
+       ${ownScreen() ? "" : `<button class="btn gm" id="passbtn">${t("passOn")} →</button>`}`;
   const ov = document.getElementById("openvote");
   if (ov) ov.onclick = gmOpensVote;
   const pb = document.getElementById("passbtn");
@@ -948,7 +1065,7 @@ SCREENS.GM_DASH = () => {
    <p class="small">${t("gmHint")}</p>
    <div class="card"><span class="eyebrow">${t("theWord")}</span><div class="word">${esc(G.card.prompt)}</div></div>
    <div class="card secret" id="secret">
-     <b style="color:var(--color-accent-gm)">🔒 ${t("secret")}</b>
+     <b style="color:var(--color-text-secondary-on-surface)">🔒 ${t("secret")}</b>
      <div id="truthtxt" style="margin-top:6px;filter:blur(7px);transition:filter .2s;">${esc(G.card.truth)}</div>
      <div class="small">${t("peek")}</div></div>
    ${clockHtml("clockDecoy")}
@@ -958,7 +1075,7 @@ SCREENS.GM_DASH = () => {
    <div class="chiprow" style="margin-top:14px;">
      ${bluffOrder().map((i) => {
        const p = G.players[i]; const done = G.bluffs[i] !== undefined;
-       return `<span class="pchip ${done ? "done" : ""}" id="chip${i}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done ? "✓" : (party() ? `<span class="thinking">${t("thinkingDots")}</span>` : "…")}</span>`;
+       return `<span class="pchip ${done ? "done" : ""}" id="chip${i}">${dot(p.color, p.name)}${esc(p.name)} ${done ? "✓" : (ownScreen() ? `<span class="thinking">${t("thinkingDots")}</span>` : "…")}</span>`;
      }).join("")}
    </div>
    <div id="gmaction"></div>`, { gm: true });
@@ -976,7 +1093,7 @@ function gmOpensVote() {
   G.gmDecoyDone = true;
   openVote();
   G.phase = "voting";
-  if (party()) { U.screen = "VOTEWAIT"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); netPush(); scheduleBotVotes(); }
+  if (ownScreen()) { U.screen = "VOTEWAIT"; armClock("voting", G.timers.voteMs, onVoteDeadline); render(); netPush(); scheduleBotVotes(); }
   // Hotseat: the vote clock starts when the phone actually reaches the first
   // voter, not while it is still being passed. (Timers are off in hotseat by
   // default anyway — but if a host turns them on, this is the fair reading.)
@@ -1057,7 +1174,7 @@ SCREENS.BLUFF = () => {
       return;
     }
     G.bluffs[U.cur] = v.trim(); U.draftBluff = ""; play("tickIn");
-    if (party()) { U.screen = "WAIT"; render(); maybeAllBluffsIn(); }
+    if (ownScreen()) { U.screen = "WAIT"; render(); maybeAllBluffsIn(); }
     else if (bluffOrder().some((i) => G.bluffs[i] === undefined)) nextBluffer();
     else hand(G.players[G.gm].name, () => { U.screen = "GM_DASH"; render(); });
   };
@@ -1070,15 +1187,15 @@ SCREENS.WAIT = () => {
   shell(`
    <h2>${t("roundN", G.round)}</h2>
    <div class="card"><div class="word" style="font-size:34px">${esc(G.card.prompt)}</div>
-     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner green" style="margin:10px 0 0">✓</div>`}</div>
+     ${watching ? watchingBanner("margin:10px 0 0") : `<div class="banner ok" style="margin:10px 0 0">✓</div>`}</div>
    ${clockHtml("clockWait")}
    <div class="card">
      <div class="chiprow">
        ${bluffOrder().map((i) => {
          const p = G.players[i]; const done = G.bluffs[i] !== undefined;
-         return `<span class="pchip ${done ? "done" : ""}" id="chip${i}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done ? "✓" : `<span class="thinking">${t("thinkingDots")}</span>`}</span>`;
+         return `<span class="pchip ${done ? "done" : ""}" id="chip${i}">${dot(p.color, p.name)}${esc(p.name)} ${done ? "✓" : `<span class="thinking">${t("thinkingDots")}</span>`}</span>`;
        }).join("")}
-       <span class="pchip"><span class="dot" style="background:${gm.color}"></span>👑 <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
+       <span class="pchip">${dot(gm.color, gm.name)}${markCrown(11)} <span class="thinking">${t("gmComposing", esc(gm.name))}</span></span>
      </div>
      <p class="small" style="margin:8px 0 0">${t("shuffling")}</p>
    </div>
@@ -1107,7 +1224,7 @@ function maybeAllVotesIn() {
   play("drumroll");                      // tension roll as the votes close and the reveal opens
   later(() => {
     computeRound(); G.revealIdx = 0; U.screen = "REVEAL"; render(); netPush();
-    if (party() && !userIsGm() && isBot(G.gm)) later(autoReveal, 1400);
+    if (ownScreen() && !userIsGm() && isBot(G.gm)) later(autoReveal, 1400);
     else armRevealClock();     // a human GM gets a clock; a bot GM already self-paces
   }, 600);
 }
@@ -1125,12 +1242,12 @@ const wordChip = () => !G?.card?.prompt ? "" : `
      <span class="w">${esc(G.card.prompt)}</span></div>`;
 
 SCREENS.VOTE = () => {
-  const voter = party() ? mySeat() : voteOrder()[U.voteIdx];
+  const voter = ownScreen() ? mySeat() : voteOrder()[U.voteIdx];
   const p = G.players[voter];
   const visible = visibleOptionsFor(G.options, voter);
   shell(`
    <div class="banner" style="background:${p.color};color:var(--color-text-on-surface)">
-     ${party() ? t("yourVote") : t("votingTime", esc(p.name))}</div>
+     ${ownScreen() ? t("yourVote") : t("votingTime", esc(p.name))}</div>
    ${wordChip()}
    <p class="small">${t("cantOwn")}</p>
    ${clockHtml("clockVote")}
@@ -1148,7 +1265,7 @@ function castVote(voter, optionId) {
     return;
   }
   G.votes[voter] = optionId;
-  if (party()) { U.screen = "VOTEWAIT"; render(); maybeAllVotesIn(); }
+  if (ownScreen()) { U.screen = "VOTEWAIT"; render(); maybeAllVotesIn(); }
   else {
     U.voteIdx++;
     const vo = voteOrder();
@@ -1162,7 +1279,7 @@ SCREENS.VOTEWAIT = () => {
   shell(`
    <h2>${t("votesIn")} <span class="small">${n}/${total}</span></h2>
    ${wordChip()}
-   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner green">${t("youVoted")}</div>`)}
+   ${userIsGm() ? "" : (benched() ? watchingBanner() : `<div class="banner ok">${t("youVoted")}</div>`)}
    ${clockHtml("clockVote")}
    ${G.options.map((o) => {
      const c = netTally(G, o.id);
@@ -1194,13 +1311,13 @@ SCREENS.REVEAL = () => {
   const seq = revealSeq();
   const shown = seq.slice(0, G.revealIdx);
   const done = G.revealIdx >= seq.length;
-  const hostIsBot = party() && !userIsGm();
+  const hostIsBot = ownScreen() && !userIsGm();
   shell(`
    <h2>${t("revealTitle")} <span class="small">· ${G.inOmkamp ? t("omkamp") : t("roundN", G.round)}</span></h2>
    ${wordChip()}
    ${done ? "" : clockHtml("clockReveal")}
    <div class="reveal ${done ? "truth-shown" : ""}">
-   ${G.doubles.map((i) => `<div class="banner green">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
+   ${G.doubles.map((i) => `<div class="banner ok">${t("doubleHit", esc(G.players[i].name))}</div>`).join("")}
    ${shown.map((o, si) => {
      const voters = Object.entries(G.votes).filter(([, id]) => id === o.id).map(([v]) => G.players[+v]);
      const isT = o.kind === "truth";
@@ -1220,8 +1337,8 @@ SCREENS.REVEAL = () => {
               // just took the round finally smirks about it. Only once the truth is
               // out — before that nobody knows they stole anything.
               const mood = gmA && done && G.gmStole ? "smug" : "";
-              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "violet" : "" })}
-                      <span>${t("by")} ${a === mySeat() && party() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-accent-gm)">${t("gmDecoy")}</span>` : ""}</span>`;
+              return `${face({ color: pl.color, notch: voters.length, grow: true, mood, tone: gmA ? "gm" : "" })}
+                      <span>${t("by")} ${a === mySeat() && ownScreen() ? t("you") : esc(pl.name)}${gmA ? ` · <span style="color:var(--color-text-secondary-on-surface)">${t("gmDecoy")}</span>` : ""}</span>`;
             }).join("")}
           </div>` : ""}
        </div></div>`;
@@ -1237,13 +1354,13 @@ SCREENS.REVEAL = () => {
     : done
       ? `<button class="btn" id="toboard">${t("toBoard")}</button>`
       : `<button class="btn gm" id="revealnext">${hostIsBot ? t("skip") : t("tapReveal")}</button>`}`,
-  { gm: userIsGm() || !party() });
+  { gm: userIsGm() || !ownScreen() });
   const tb = document.getElementById("toboard");
   if (tb) tb.onclick = goBoard;
   const rn = document.getElementById("revealnext");
   if (rn) rn.onclick = () => {
     resetTimers(); doRevealStep();   // re-arms the beat clock itself
-    if (party() && !userIsGm() && G.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
+    if (ownScreen() && !userIsGm() && G.revealIdx < revealSeq().length) later(autoReveal, TUNING.REVEAL_BEAT_MS);
   };
 };
 
@@ -1313,7 +1430,7 @@ SCREENS.BOARD = () => {
    <div style="margin-top:10px">
      ${G.players.map((p, i) => `<div class="scoreline">
         <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>
-        ${esc(p.name)} ${i === G.gm ? "👑" : ""} <span class="small">👃${p.bluffVotes}</span>
+        ${esc(p.name)} ${i === G.gm ? markCrown(11) : ""} <span class="small">${markRat(10)} ${p.bluffVotes}</span>
         ${G.deltas?.[i] ? `<b>+${G.deltas[i]}</b>` : ""}</span>
         <span id="sc${i}">${p.score} ${t("pts")}</span></div>`).join("")}
    </div>
@@ -1335,7 +1452,14 @@ function pawnEl(i) {
     el = document.createElement("div");
     el.id = "pw" + i; el.className = "pawn";
     el.style.background = G.players[i].color;
-    el.textContent = THEMES[U.theme].pawnIcon;
+    // The INITIAL, not a themed emoji. Two reasons, and the second is the one
+    // that matters: emoji are full colour, so ♟/🥾/🚀 were three coloured blobs
+    // sitting in a monochrome app. And DESIGN-DIRECTION.md §3 is explicit that
+    // the rat is SECONDARY to name and marker for identity — with eight grey
+    // pawns on one board, a letter is the only thing that reads at 31 px.
+    // Same identity language as the chips (see dot()), so a player learns it once.
+    el.textContent = String(G.players[i].name ?? "").trim().charAt(0).toUpperCase();
+    el.setAttribute("aria-label", G.players[i].name ?? "");
     document.getElementById("pawns").appendChild(el);
   }
   return el;
@@ -1524,7 +1648,7 @@ SCREENS.OMKAMP = () => {
      <div class="banner gm">⚔️ ${t("omkamp")}</div>
      <h1>${esc(names)}</h1>
      <p class="sub">${t("omkampSub", esc(names))}</p>
-     <p class="small">👑 ${esc(G.players[G.gm].name)}</p>
+     <p class="small">${markCrown(11)} ${esc(G.players[G.gm].name)}</p>
    </div>
    <button class="btn gm" id="startomkamp">${t("next")}</button>`);
   document.getElementById("startomkamp").onclick = () => newRound();
@@ -1536,18 +1660,18 @@ SCREENS.WINNER = () => {
   const liar = [...G.players].sort((a, b) => b.bluffVotes - a.bluffVotes)[0];
   shell(`
    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;">
-     <h1 style="font-size:42px">🏆</h1>
+     <div style="display:flex;justify-content:center;margin-bottom:4px">${markRat(38)}</div>
      <h1>${G.shared ? t("shared") : t("winner", esc(winners[0]?.name ?? ""))}</h1>
      <p class="sub">${t("restOfYou")}</p>
      <div class="card gullnese-card" style="position:relative;display:flex;gap:12px;align-items:center;justify-content:center;">
        ${face({ color: liar.color, size: 48, mood: "delighted", notch: liar.bluffVotes, grow: true, tone: "gold" })}
-       <b>${t("goldNose", esc(liar.name))} (👃 ${liar.bluffVotes})</b>
+       <b>${t("goldNose", esc(liar.name))} (${markRat(12)} ${liar.bluffVotes})</b>
        <span class="gullnese-fx" id="gullnesefx"></span></div>
      <div style="margin-top:14px">${[...G.players].sort((a, b) => b.score - a.score).map((p) => `
-        <div class="scoreline"><span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
+        <div class="scoreline"><span>${dot(p.color, p.name)} ${esc(p.name)}</span><span>${p.score} ${t("pts")}</span></div>`).join("")}</div>
      ${G.ratingMine === undefined ? "" : `<p class="small" style="margin-top:10px">${t("ratingDelta", G.ratingMine)} → ${PROFILE.rating} · ${esc(ratingTier(PROFILE.rating, U.lang))}</p>`}
    </div>
-   <button class="btn" id="replay">${t("playAgain")}</button>`);
+   ${onlineAgainHtml()}`);
   settleRating();
   wakeOff();          // the game is over; stop holding the screen awake
   // Celebration fires once per game (guard survives mute/theme re-renders).
@@ -1561,13 +1685,56 @@ SCREENS.WINNER = () => {
       confetti();   // CSS fallback when lottie-web is unavailable
     }
   }
-  document.getElementById("replay").onclick = () => {
-    resetTimers();
-    const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
-    U = Object.assign(freshUi(), keep, { screen: "SETUP" });
-    render();
-  };
+  bindAgain();
 };
+
+/* THE LOOP. Offline this is unchanged — one button back to setup.
+
+   Online, the room keeps running and the WINNER chooses: length and board, then
+   go. Everyone else is told whose choice they are waiting on, because a screen
+   that simply sits there after a game ends is indistinguishable from one that
+   has crashed. The winner is usually not the host, so the choice travels as an
+   intent the host applies — see netStartNextGame. */
+function iWon() {
+  return (G?.winnersIdx ?? []).includes(mySeat());
+}
+
+function onlineAgainHtml() {
+  if (!online()) return `<button class="btn" id="replay">${t("playAgain")}</button>`;
+  if (!iWon()) {
+    const w = G.players[(G.winnersIdx ?? [])[0]];
+    return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againWaiting", esc(w?.name ?? "?"))}</p>`;
+  }
+  return `<p class="small" style="text-align:center;margin:0 0 6px">${t("againYours")}</p>
+   <div class="seg">${[["kort", 8], ["std", 15], ["mara", 25]].map(([k, v]) => `
+     <button class="${U.target === v ? "on" : ""}" data-again-target="${v}">${t(k)}</button>`).join("")}</div>
+   <div class="seg">${Object.keys(THEMES).map((th) => `
+     <button class="${U.theme === th ? "on" : ""}" data-again-theme="${th}">${t(THEMES[th].nameKey)}</button>`).join("")}</div>
+   <button class="btn" id="replay">${t("againGo")}</button>`;
+}
+
+function bindAgain() {
+  app.querySelectorAll("[data-again-target]").forEach((b) => b.onclick = () => {
+    U.target = Number(b.dataset.againTarget); play("toggle"); render();
+  });
+  app.querySelectorAll("[data-again-theme]").forEach((b) => b.onclick = () => {
+    U.theme = b.dataset.againTheme; play("toggle"); render();
+  });
+  const go = document.getElementById("replay");
+  if (!go) return;
+  go.onclick = () => {
+    play("confirm");
+    if (!online()) {
+      resetTimers();
+      const keep = { lang: U.lang, mode: U.mode, names: U.names.slice(), uname: U.uname, target: U.target, theme: U.theme, botCount: U.botCount, myPid: U.myPid };
+      U = Object.assign(freshUi(), keep, { screen: "SETUP" });
+      render();
+      return;
+    }
+    if (isHost()) { netStartNextGame(U.target, U.theme); return; }
+    NET.send({ t: "again", pid: U.myPid, target: U.target, theme: U.theme });
+  };
+}
 
 /* ---------- online rooms (PRD §2.1) ----------
    Two rules, and everything else follows from them:
@@ -1660,8 +1827,39 @@ function netOnClientMessage(msg, conn) {
       netPush(); maybeAllVotesIn();
       return;
     }
+    // Another game, in the same room. Only a WINNER may ask — the winner-picks
+    // rule is the reward, and without the check any client could restart a game
+    // the moment it ended. Still an INTENT: the host applies it, because only
+    // the host advances the game (rule 1). A second authority here would be the
+    // one place two devices could disagree about what round it is.
+    case "again": {
+      if (G.phase !== "winner") return;
+      if (!(G.winnersIdx ?? []).includes(seat)) return;
+      netStartNextGame(msg.target, msg.theme);
+      return;
+    }
     default: return;
   }
+}
+
+/* Start the NEXT game in the same room. Not a reset: the connections, the
+   ratings and the roster all survive — only the board state is new.
+
+   Bots refill whatever the humans do not cover, which is what keeps the open
+   room playable when people drift away between games. Reads NET.peers fresh
+   rather than reusing U.names, so anyone who arrived during the winner screen
+   is dealt in and anyone who left is not left holding a ghost seat. */
+function netStartNextGame(target, theme) {
+  if (!isHost()) return;
+  const humans = NET.peers.filter((p) => p.connected);
+  const want = Math.max(NET_CONFIG.MIN_PLAYERS, humans.length + 1);
+  const bots = BOT_NAMES[U.lang].slice(0, Math.max(0, want - humans.length));
+  U.names = [...humans.map((p) => p.name), ...bots].slice(0, NET_CONFIG.MAX_PLAYERS);
+  U.netSeats = humans.map((p) => p.pid);
+  if (Number.isFinite(target)) U.target = target;
+  if (theme) U.theme = theme;
+  resetTimers();
+  startGame();
 }
 
 // Client: adopt what the host says. This is the whole client-side game loop.
@@ -1669,7 +1867,7 @@ function netOnHostState(msg) {
   if (!msg.g) return;
   G = msg.g;
   // A client never walked through mode selection, so U.mode is still null and
-  // party() would report false — which shows it a GM's "Neste" button it must
+  // ownScreen() would report false — which shows it a GM's "Neste" button it must
   // not have, and routes it down the hotseat handover path. Online IS the
   // party-shaped flow; say so the moment the first state lands.
   U.mode = "party";
@@ -1720,6 +1918,24 @@ function netHandle(msg, conn) {
 }
 
 function netFail(reason) {
+  // The open room has no single host to lose. When the one holding the
+  // well-known id leaves, whoever is left races for it after a RANDOMISED
+  // wait — fixed backoffs would have every orphan collide on the claim and all
+  // but one destroy their peer for nothing.
+  //
+  // The round in flight cannot be rescued and we do not pretend otherwise: only
+  // the host ever held card.truth, clients hold the redacted netProject view,
+  // and that asymmetry is exactly what makes online play safe. So the honest
+  // recovery is a NEW game, announced as such.
+  if (U.openRoom && reason === "host-gone") {
+    NET.close?.();
+    U.joinError = null;
+    U.screen = "LOBBY_WAIT";
+    U.reclaiming = true;
+    render();
+    later(() => { U.reclaiming = false; netDoOpen(); }, netReclaimDelay());
+    return;
+  }
   NET.error = reason;
   U.screen = "CONNLOST";
   U.lostAt = Date.now();
@@ -1765,7 +1981,7 @@ SCREENS.HOST_LOBBY = () => {
    <div class="card">
      <b>${t("lobbyPlayers", roster.filter((p) => p.connected).length)}</b>
      <div class="chiprow" style="margin-top:8px">${roster.map((p, i) => `
-       <span class="pchip ${p.connected ? "done" : ""}"><span class="dot" style="background:${AVA[i]}"></span>${esc(p.name)}
+       <span class="pchip ${p.connected ? "done" : ""}">${dot(AVA[i], p.name)}${esc(p.name)}
          ${p.pid === U.myPid ? `· ${t("lobbyHost")}` : ""}${p.connected ? "" : `· ${t("lobbyOffline")}`}
          ${p.rating ? `<span class="ratingpill">${p.rating}</span>` : ""}</span>`).join("")}</div>
    </div>
@@ -1812,7 +2028,7 @@ SCREENS.LOBBY_WAIT = () => {
    </div>
    <div class="card">
      <div class="chiprow">${lobbyRoster().map((p, i) => `
-       <span class="pchip ${p.connected ? "done" : ""}"><span class="dot" style="background:${AVA[i]}"></span>${esc(p.name)}
+       <span class="pchip ${p.connected ? "done" : ""}">${dot(AVA[i], p.name)}${esc(p.name)}
          ${p.pid === U.myPid ? `· ${t("lobbyYou")}` : ""}
          ${p.rating ? `<span class="ratingpill">${p.rating}</span>` : ""}</span>`).join("")}</div>
      <p class="small" style="margin:8px 0 0">${t("lobbyWaitingSub")}</p>
@@ -1920,6 +2136,49 @@ function netDoHost() {
     onMessage: netHandle,
     onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
     onReady: () => { play("confirm"); if (U.screen === "HOST_LOBBY") render(); },
+    onError: (reason) => {
+      U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
+      U.screen = "JOIN"; render();
+    },
+  });
+}
+
+/* Walk into the open room — "Spill over nett", no code, no lobby to wait in.
+   One press resolves into either hosting or joining, and which one you got is
+   not a choice the player makes or needs to understand.
+
+   HOST: seated immediately with bots, and the game starts on its own. There is
+   no server, so "a room that is always running" can only honestly mean "the
+   first person through the door starts it and bots hold the table until people
+   arrive". Real arrivals then displace those bots (netSeatKind prefers a bot
+   chair), which is the whole reason the bots are there.
+
+   CLIENT: somebody is already playing. Straight into their game via the same
+   late-join path a shared link uses — a bot's chair if one is free, otherwise
+   the pendingSeats queue until the round boundary. */
+function netDoOpen() {
+  if (typeof globalThis.Peer !== "function") { U.joinError = "netNoPeer"; U.screen = "JOIN"; render(); return; }
+  PROFILE = { ...PROFILE, name: U.uname || PROFILE.name };
+  // Deliberately NOT a novel U.mode value. ownScreen() derives "own device" from
+  // online(), so nothing here has to declare it — and the first version of this
+  // function set U.mode = "open", which made party() false and handed the host
+  // the pass-the-phone flow in a game where nobody shares a phone.
+  U.openRoom = true;
+  U.screen = "LOBBY_WAIT"; render();          // "kobler til…" until the role is known
+  netOpen({
+    pid: U.myPid, name: U.uname || PROFILE.name || "?", profile: PROFILE,
+    onMessage: netHandle,
+    onPeerChange: () => { netBroadcastLobby(); if (U.screen === "HOST_LOBBY") render(); },
+    onRole: (role) => {
+      play("confirm");
+      if (role !== "host") return;            // a client just waits for state
+      // Nobody was here, so open the table rather than showing a lobby with one
+      // name in it and a Start button that is the only thing to press.
+      U.botCount = Math.max(2, NET_CONFIG.MIN_PLAYERS - 1);
+      U.names = [U.uname || PROFILE.name || "?", ...BOT_NAMES[U.lang].slice(0, U.botCount)];
+      startGame();
+    },
+    onReady: () => { if (U.screen === "HOST_LOBBY") render(); },
     onError: (reason) => {
       U.joinError = reason === "timeout" ? "joinFailTimeout" : "joinFailGeneric";
       U.screen = "JOIN"; render();
@@ -2045,7 +2304,14 @@ const bootFx = getFixture(
   new URLSearchParams(location.search).get("fixture")
   ?? (location.hash.match(/^#fixture=(\d{2})$/)?.[1] ?? null),
 );
-if (bootFx) { U = bootFx.u; G = bootFx.g; }
+if (bootFx) {
+  U = bootFx.u; G = bootFx.g;
+  // Pin the clock so a posed screen with a live deadline renders the same
+  // seconds on every run — otherwise snap-screens would rewrite that PNG
+  // constantly and the diff would stop meaning anything. Fixture mode only: in
+  // real play Date.now() is never touched.
+  Date.now = () => FX_NOW;
+}
 // The career profile is the source of this device's identity: its pid outlives
 // reloads, which is what lets a rating mean anything. newPid() stays as the
 // fallback for a browser that refuses storage entirely.

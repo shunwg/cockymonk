@@ -1,6 +1,6 @@
 # TOOLBELT.md — external tools invited into this project
 
-Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a lean belt beats a full one. (Skills are different: they load on demand and cost nothing until invoked — the skill list below can grow.) `scripts/setup.sh` installs the Core tier and prints the rest.
+Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a lean belt beats a full one. (Skills are different: they load on demand and cost nothing until invoked — the skill list below can grow.) Install the Core tier by hand; the list below is the record of what is invited.
 
 **Cross-platform tier (Windows + Mac):** Node ≥ 18 — runs the whole `Tools/` toolchain (`validate_deck.mjs`, `tokens-build.mjs`, `serve-lab.mjs`) and the Lab engine tests. This is the only tool the Windows phase needs.
 
@@ -38,7 +38,7 @@ Philosophy: **5–6 active MCPs max.** Every MCP tool definition eats context; a
 
 **game-feel vs motion-designer** — the split is deliberate and neither may drift into the other. `game-feel` owns *game-state* motion (pawn hops, nose growth, card pops, chip flips, screen entrances), input response, haptics, sound pairing and pacing. `motion-designer` owns *celebration overlays* only, as Lottie JSON. Grounded in Swink's *Game Feel* (2009) ch. 1, which classifies a turn-based bluffing game as "naked polish" — so polish carries the entire feel load, and `game-feel` exists to stop that being spent at random.
 
-### Reference-only skills (not house skills — do not use for Cocky Monk work)
+### Reference-only skills (not house skills — do not use for Snifferoo work)
 `.claude/skills/reference-game-developer` (Unity/Unreal, MIT) and `.claude/skills/reference-shader-techniques` (HLSL/GLSL) were installed 2026-07-26 from the [Snyk game-dev skills roundup](https://snyk.io/articles/top-claude-skills-3d-modeling-game-dev-shader-programming/) at the user's request, as background reading. **Neither applies to this stack** — we have no game engine, no physics engine, no WebGL and no shader stage. Their auto-triggers were removed for exactly that reason: upstream they fire on "game development", "game optimization", "visual effects" and "rendering optimization", which would have loaded Unity object-pooling advice into CSS work. Each carries a `PROVENANCE.md` with the fetch record, the licence position, and the original frontmatter. For anything they sound like they cover, use **game-feel**.
 
-Asset sourcing lives in `ASSETS.md` — 4 Kenney CC0 packs are already bundled in `AssetsIncoming/`. Lottie authoring: the **text-to-lottie** skill (from `diffusionstudio/lottie`, vendored into `.claude/skills/text-to-lottie/` — see its PROVENANCE.md) backs motion-designer with spec maps, motion-taste rules, and recipes; `Lab/vendor/lottie.min.js` (MIT) powers the Lab preview page at `/Lab/lottie/player.html`.
+Asset sourcing lives in `ASSETS.md` — 4 Kenney CC0 packs go in `AssetsIncoming/`, which is **not tracked in git** (download URLs are in ASSETS.md). Lottie authoring: the **text-to-lottie** skill (from `diffusionstudio/lottie`, vendored into `.claude/skills/text-to-lottie/` — see its PROVENANCE.md) backs motion-designer with spec maps, motion-taste rules, and recipes; `Lab/vendor/lottie.min.js` (MIT) powers the Lab preview page at `/Lab/lottie/player.html`.

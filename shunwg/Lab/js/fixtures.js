@@ -51,7 +51,22 @@ function fxMakeG(overrides = {}) {
 
 // Inlined rather than imported from clock.js: fixtures.js deliberately imports
 // only DOM-free, side-effect-free modules, and clock.js owns a live interval.
-const fxTimers = () => ({ on: false, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
+const fxTimers = (on = false) => ({ on, bluffMs: 60000, decoyMs: 45000, voteMs: 45000, revealMs: 25000 });
+
+/* A FROZEN clock, so a running countdown can still be a still life.
+   Every posed screen had `deadline: null` because a live deadline is derived
+   from Date.now() — the rendered seconds would differ between two runs of
+   snap-screens and the committed PNG would flicker forever. So the countdown,
+   which is now one of the loudest things on a play screen, was the one
+   component nobody could review. Exactly the rot fixture 06's comment warns
+   about.
+
+   ui.js pins Date.now() to FX_NOW while a fixture is booting, so `at` minus
+   "now" is exact arithmetic and the PNG is reproducible. Fixture-only: nothing
+   touches the clock in real play. */
+export const FX_NOW = 1774400000000;
+const fxDeadline = (phase, totalMs, leftMs) =>
+  ({ at: FX_NOW + leftMs, phase, round: 1, totalMs });
 
 // A full vote pool the way openVote() builds it: three bluffs + one GM decoy +
 // the truth, shuffled by the engine with a FIXED rng so letters (and therefore
@@ -116,7 +131,15 @@ export const FIXTURES = [
     }) },
 
   { id: "09", screen: "BLUFF", name: "Dikt en løgn",
-    make: () => ({ u: { mode: "hotseat", cur: 1 }, g: fxMakeG() }) },
+    // The one screen posed WITH a running deadline, because writing a lie
+    // against the clock is the moment the countdown exists for. Party mode so
+    // timers are on at all, and 8 s left: inside the 15 s closing window and
+    // past the 10 s warn threshold, so the bar shows depleted + warn + the
+    // thicker profile in a single still.
+    make: () => ({
+      u: { mode: "party", cur: 1 },
+      g: fxMakeG({ timers: fxTimers(true), deadline: fxDeadline("bluff", 60000, 8000) }),
+    }) },
 
   { id: "10", screen: "WAIT", name: "Venterommet",
     // Party view: Markus is GM; Åse + Jonas delivered, Ingrid still thinking.

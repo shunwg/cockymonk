@@ -1,73 +1,85 @@
 <!-- GENERATED from DesignSystem/tokens.json — do not edit (run: node Tools/tokens-build.mjs) -->
 
-# Cocky Monk design tokens
+# Snifferoo design tokens
 
 Source of truth: `DesignSystem/tokens.json` (v1) — DESIGN.md v3 + frozen demo (Reference/cocky-monk-demo.html — demo wins on conflict).
-Generated outputs: `Lab/css/tokens.css` · `Sources/DesignSystem/Theme.swift` · `DesignSystem/DESIGN-TOKENS.md`.
+Generated outputs: `Lab/css/tokens.css` · `DesignSystem/DESIGN-TOKENS.md`.
 Edit this file only. Regenerate: node Tools/tokens-build.mjs · Gate: node Tools/tokens-build.mjs --check.
 
 ## Core colors (DESIGN.md §2)
 
 | Token | Hex | Use |
 |---|---|---|
-| `inkNight` | `#1B1B2E` | App background base |
-| `paper` | `#FFF6E8` | Cards, sheets |
-| `inkText` | `#23233B` | Text and borders on paper |
-| `paperText` | `#F4EFE4` | Text on inkNight |
-| `truthGreen` | `#3BD489` | Truth reveal, correct vote |
-| `bluffPink` | `#FF5C97` | Bluff unmasking, bluff points, the Nose |
-| `turnYellow` | `#FFC53D` | Primary CTA, active player |
-| `gmViolet` | `#9B6DFF` | Everything game-master: dashboard chrome, GM chip, decoys, victory sting |
-| `mutedViolet` | `#8A87B8` | Secondary text, dividers, eyebrows |
-| `mutedVioletText` | `#A6A2D4` |  |
+| `backdrop` | `#FFFFFF` |  |
+| `raised` | `#F1F1EF` |  |
+| `line` | `#D9D9D5` |  |
+| `sheet` | `#16161A` |  |
+| `sheetSunk` | `#33333A` |  |
+| `ink` | `#F6F6F4` |  |
+| `inkInverse` | `#16161A` |  |
+| `confirmed` | `#000000` |  |
+| `alert` | `#6E6E76` |  |
+| `action` | `#16161A` |  |
+| `private` | `#2A2A33` |  |
+| `quiet` | `#8C8C94` |  |
+| `quietText` | `#5A5A62` |  |
+| `quietOnSurface` | `#A8A8B0` |  |
 
 ### Avatar palette (demo `AVA[]`, 8 fixed)
 
 | # | Hex |
 |---|---|
-| 1 | `#FFB020` |
-| 2 | `#4FC3F7` |
-| 3 | `#FF7043` |
-| 4 | `#9CCC65` |
-| 5 | `#BA68C8` |
-| 6 | `#4DD0E1` |
-| 7 | `#F06292` |
-| 8 | `#AED581` |
+| 1 | `#49494f` |
+| 2 | `#6d6d73` |
+| 3 | `#3b3b41` |
+| 4 | `#66666c` |
+| 5 | `#000006` |
+| 6 | `#54545a` |
+| 7 | `#29292f` |
+| 8 | `#5d5d63` |
 
 ### Confetti palette (demo `confetti()`, 5)
 
 | # | Hex |
 |---|---|
-| 1 | `#FFC53D` |
-| 2 | `#FF5C97` |
-| 3 | `#3BD489` |
-| 4 | `#9B6DFF` |
-| 5 | `#4FC3F7` |
+| 1 | `#000006` |
+| 2 | `#3f3f45` |
+| 3 | `#59595f` |
+| 4 | `#69696f` |
+| 5 | `#76767c` |
 
 ## Semantic roles
 
 | Role | References | Resolves to |
 |---|---|---|
-| `bg` | `{color.core.inkNight}` | `#1B1B2E` |
-| `surface` | `{color.core.paper}` | `#FFF6E8` |
-| `text.onSurface` | `{color.core.inkText}` | `#23233B` |
-| `text.onBg` | `{color.core.paperText}` | `#F4EFE4` |
-| `text.secondary` | `{color.core.mutedVioletText}` | `#A6A2D4` |
-| `border` | `{color.core.inkText}` | `#23233B` |
-| `accent.truth` | `{color.core.truthGreen}` | `#3BD489` |
-| `accent.bluff` | `{color.core.bluffPink}` | `#FF5C97` |
-| `accent.gm` | `{color.core.gmViolet}` | `#9B6DFF` |
-| `accent.turn` | `{color.core.turnYellow}` | `#FFC53D` |
-| `status.success` | `{color.core.truthGreen}` | `#3BD489` |
-| `status.warning` | `{color.core.turnYellow}` | `#FFC53D` |
-| `status.error` | `{color.core.bluffPink}` | `#FF5C97` |
-| `status.info` | `{color.core.gmViolet}` | `#9B6DFF` |
-| `timer.calm` | `{color.core.mutedViolet}` | `#8A87B8` |
-| `timer.warn` | `{color.core.turnYellow}` | `#FFC53D` |
-| `timer.urgent` | `{color.core.bluffPink}` | `#FF5C97` |
-| `bgLayers.glowViolet` | *(literal)* | `#9B6DFF26` |
-| `bgLayers.glowPink` | *(literal)* | `#FF5C9722` |
-| `bgLayers.dotGrid` | *(literal)* | `#FFFFFF09` |
+| `bg` | `{color.palette.backdrop}` | `#FFFFFF` |
+| `bgRaised` | `{color.palette.raised}` | `#F1F1EF` |
+| `surface` | `{color.palette.sheet}` | `#16161A` |
+| `surfaceSunk` | `{color.palette.sheetSunk}` | `#33333A` |
+| `surfaceSecret` | `{color.palette.private}` | `#2A2A33` |
+| `text.onSurface` | `{color.palette.ink}` | `#F6F6F4` |
+| `text.onBg` | `{color.palette.inkInverse}` | `#16161A` |
+| `text.secondary` | `{color.palette.quietText}` | `#5A5A62` |
+| `text.secondaryOnSurface` | `{color.palette.quietOnSurface}` | `#A8A8B0` |
+| `border` | `{color.palette.ink}` | `#F6F6F4` |
+| `hairline` | `{color.palette.line}` | `#D9D9D5` |
+| `accent.truth` | `{color.palette.confirmed}` | `#000000` |
+| `accent.bluff` | `{color.palette.alert}` | `#6E6E76` |
+| `accent.gm` | `{color.palette.private}` | `#2A2A33` |
+| `accent.turn` | `{color.palette.action}` | `#16161A` |
+| `status.success` | `{color.palette.confirmed}` | `#000000` |
+| `status.warning` | `{color.palette.quietText}` | `#5A5A62` |
+| `status.error` | `{color.palette.alert}` | `#6E6E76` |
+| `status.info` | `{color.palette.private}` | `#2A2A33` |
+| `status.pending` | `{color.palette.quiet}` | `#8C8C94` |
+| `board.path` | `{color.palette.line}` | `#D9D9D5` |
+| `board.goal` | `{color.palette.confirmed}` | `#000000` |
+| `timer.calm` | `{color.palette.quiet}` | `#8C8C94` |
+| `timer.warn` | `{color.palette.quietText}` | `#5A5A62` |
+| `timer.urgent` | `{color.palette.confirmed}` | `#000000` |
+| `bgLayers.glowPrimary` | *(literal)* | `#0000000A` |
+| `bgLayers.glowSecondary` | *(literal)* | `#00000006` |
+| `bgLayers.dotGrid` | *(literal)* | `#0000000D` |
 
 ## Contrast (WCAG 2.1, AA text threshold 4.5:1)
 
@@ -75,16 +87,16 @@ Text-role tokens against their background tokens. Ratios to two decimals; < 4.50
 
 | Foreground | Background | Ratio | AA |
 |---|---|---|---|
-| `text.onSurface (inkText)` `#23233B` | `surface (paper)` `#FFF6E8` | 14.25 | ✓ |
-| `text.onBg (paperText)` `#F4EFE4` | `bg (inkNight)` `#1B1B2E` | 14.74 | ✓ |
-| `text.secondary (mutedViolet)` `#A6A2D4` | `bg (inkNight)` `#1B1B2E` | 7.03 | ✓ |
-| `accent.truth (truthGreen)` `#3BD489` | `bg (inkNight)` `#1B1B2E` | 8.82 | ✓ |
-| `accent.bluff (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
-| `accent.gm (gmViolet)` `#9B6DFF` | `bg (inkNight)` `#1B1B2E` | 4.85 | ✓ |
-| `accent.turn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
-| `timer.calm (mutedViolet)` `#8A87B8` | `bg (inkNight)` `#1B1B2E` | 5.02 | ✓ |
-| `timer.warn (turnYellow)` `#FFC53D` | `bg (inkNight)` `#1B1B2E` | 10.71 | ✓ |
-| `timer.urgent (bluffPink)` `#FF5C97` | `bg (inkNight)` `#1B1B2E` | 5.82 | ✓ |
+| `text.onSurface (inkText)` `#F6F6F4` | `surface (paper)` `#16161A` | 16.68 | ✓ |
+| `text.onBg (paperText)` `#16161A` | `bg (inkNight)` `#FFFFFF` | 18.04 | ✓ |
+| `text.secondary (mutedViolet)` `#5A5A62` | `bg (inkNight)` `#FFFFFF` | 6.83 | ✓ |
+| `accent.truth (truthGreen)` `#000000` | `bg (inkNight)` `#FFFFFF` | 21.00 | ✓ |
+| `accent.bluff (bluffPink)` `#6E6E76` | `bg (inkNight)` `#FFFFFF` | 5.05 | ✓ |
+| `accent.gm (gmViolet)` `#2A2A33` | `bg (inkNight)` `#FFFFFF` | 14.21 | ✓ |
+| `accent.turn (turnYellow)` `#16161A` | `bg (inkNight)` `#FFFFFF` | 18.04 | ✓ |
+| `timer.calm (mutedViolet)` `#8C8C94` | `bg (inkNight)` `#FFFFFF` | 3.34 | ⚠ |
+| `timer.warn (turnYellow)` `#5A5A62` | `bg (inkNight)` `#FFFFFF` | 6.83 | ✓ |
+| `timer.urgent (bluffPink)` `#000000` | `bg (inkNight)` `#FFFFFF` | 21.00 | ✓ |
 
 DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapshot-test all three.
 
@@ -92,20 +104,20 @@ DESIGN.md §9 floor: contrast ≥ 4.5:1 on **every theme background** — snapsh
 
 | Theme | Layer | Value |
 |---|---|---|
-| salongen | `boardBase` | `#6B4A2F` |
-| salongen | `boardAlt` | `#7A5636` |
-| salongen | `rail` | `#3C2817` |
-| fjellet | `sky` | `#39507A` |
-| fjellet | `skyLow` | `#4C6A8F` |
-| fjellet | `forest` | `#5E7F74` |
-| fjellet | `forestLow` | `#6F8F6F` |
-| fjellet | `snow` | `#E8EDF2` |
-| fjellet | `snowPeak` | `#FFFFFF` |
-| fjellet | `rail` | `#6B6558` |
-| verdensrommet | `space` | `#0D0D1F` |
-| verdensrommet | `starBright` | `#FFFFFF66` |
-| verdensrommet | `starDim` | `#FFFFFF33` |
-| verdensrommet | `rail` | `#241A4A` |
+| salongen | `boardBase` | `#f9f9ff` |
+| salongen | `boardAlt` | `#f8f8fe` |
+| salongen | `rail` | `#fcfcff` |
+| fjellet | `sky` | `#f9f9ff` |
+| fjellet | `skyLow` | `#f7f7fd` |
+| fjellet | `forest` | `#f5f5fb` |
+| fjellet | `forestLow` | `#f3f3f9` |
+| fjellet | `snow` | `#d7d7dd` |
+| fjellet | `snowPeak` | `#ceced4` |
+| fjellet | `rail` | `#f7f7fd` |
+| verdensrommet | `space` | `#fdfdff` |
+| verdensrommet | `starBright` | `#ceced466` |
+| verdensrommet | `starDim` | `#ceced433` |
+| verdensrommet | `rail` | `#fcfcff` |
 
 Identical space geometry and pawn physics across themes; only layers, sprites, particles, and sounds differ.
 
@@ -156,7 +168,7 @@ Unit: ms. Reduced Motion (DESIGN.md §9): hops → slides, pops/bobs → crossfa
 | `armedPulse` | 1400 |
 | `thinkPulse` | 1200 |
 | `timerTick` | 250 |
-| `timerRingSweep` | 1000 |
+| `timerBarGlide` | 1000 |
 | `timerUrgentPulse` | 700 |
 | `bobLoop` | 2400 |
 | `goalPulse` | 2000 |

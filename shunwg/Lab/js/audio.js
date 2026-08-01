@@ -130,6 +130,14 @@ const VOICES = {
   // beat, and a tone every 660 ms for five seconds would be unbearable.
   urgent:   () => { tone([620, 470], { type: "sine", dur: 0.34, gain: 0.045 }); tone([466, 350], { type: "sine", dur: 0.42, gain: 0.032, when: 0.16 }); },
 
+  // Entering the closing window at 15 s — the first of the two clock beats, and
+  // deliberately the smaller one. A single soft falling sine: "the clock is
+  // moving", not "you are out of time", which is what `urgent` says ten seconds
+  // later. Quieter and shorter than urgent so the pair reads as an escalation
+  // rather than as the same alarm twice. One shot on entry; the pulse that
+  // follows is a state, and a tone per cycle for fifteen seconds is torture.
+  closing:  () => { tone([540, 430], { type: "sine", dur: 0.26, gain: 0.030 }); },
+
   // — round —
   cardDraw: () => { whoosh({ from: 1600, to: 500, dur: 0.16, gain: 0.045 }); tone(440, { type: "triangle", dur: 0.1, gain: 0.04, when: 0.12 }); tone(587, { type: "triangle", dur: 0.12, gain: 0.04, when: 0.18 }); },
   tickIn:   () => { tone(880, { type: "triangle", dur: 0.05, gain: 0.05 }); tone(1180, { type: "sine", dur: 0.06, gain: 0.035, when: 0.03 }); },

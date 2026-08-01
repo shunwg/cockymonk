@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import {
   TIMERS, defaultTimers, clockDeadline, clockLeft, clockSeconds, clockLevel,
   clockFraction, clockExpired, clockSkew, clockArm, clockClear, clockArmed,
+  clockPulseHz,
 } from "./clock.js";
 import {
   RATING, ratingDeltas, ratingExpected, ratingApply, ratingFresh, ratingLoad,
@@ -19,6 +20,7 @@ import {
 import {
   NET, NET_CONFIG, netProject, netLoopback, netRoomCode, netShareLink,
   netRoomFromUrl, netTally, netVotesIn, netJoinOpen, netSeatKind, netStartScore,
+  netReclaimDelay,
 } from "./net.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -119,9 +121,9 @@ test("room codes avoid characters people mishear", () => {
 });
 
 test("share links round-trip, and file:// honestly has none", () => {
-  const loc = { protocol: "https:", origin: "https://example.test", pathname: "/cockymonk/", search: "" };
+  const loc = { protocol: "https:", origin: "https://example.test", pathname: "/snifferoo/", search: "" };
   const link = netShareLink("ABC234", loc);
-  assert.equal(link, "https://example.test/cockymonk/?room=ABC234");
+  assert.equal(link, "https://example.test/snifferoo/?room=ABC234");
   assert.equal(netRoomFromUrl({ search: "?room=abc234" }), "ABC234", "case-insensitive, normalised");
   assert.equal(netRoomFromUrl({ search: "" }), null);
   assert.equal(netRoomFromUrl({ search: "?room=<script>" }), null, "rejects junk");
@@ -193,6 +195,67 @@ test("clockLevel thresholds", () => {
   assert.equal(clockLevel(5001), "warn");
   assert.equal(clockLevel(5000), "urgent");
   assert.equal(clockLevel(0), "urgent");
+});
+
+// The closing pulse is a RATE, not a level: the ask is a heart rate that climbs
+// as the deadline approaches, and clockLevel only knows three values.
+// The open room has no code to share, so its id is a constant every client asks
+// for. That only works if a generated room code can never accidentally BE it.
+test("the open room's id can never collide with a generated room code", () => {
+  const code = NET_CONFIG.OPEN_CODE;
+  const excluded = [...code].filter((ch) => !NET_CONFIG.CODE_ALPHABET.includes(ch));
+  assert.ok(
+    excluded.length > 0 || code.length !== NET_CONFIG.CODE_LEN,
+    `"${code}" must be unreachable from CODE_ALPHABET — it contains only ${JSON.stringify(excluded)} outside it`,
+  );
+  // "O" is excluded from the alphabet because it is unreadable aloud next to 0.
+  // That accident of legibility is what makes the namespace safe, so assert it
+  // rather than trusting it to survive an edit to the alphabet.
+  assert.ok(!NET_CONFIG.CODE_ALPHABET.includes("O"), "O must stay out of the alphabet");
+
+  // And prove it empirically over a lot of draws.
+  let i = 0;
+  const rng = () => ((i = (i * 1103515245 + 12345) % 2147483648) / 2147483648);
+  for (let n = 0; n < 4000; n++) assert.notEqual(netRoomCode(rng), code);
+});
+
+test("the reclaim wait is randomised, so orphaned clients don't collide", () => {
+  assert.equal(netReclaimDelay(() => 0), NET_CONFIG.RECLAIM_MIN_MS, "floor");
+  assert.equal(
+    netReclaimDelay(() => 0.999999),
+    NET_CONFIG.RECLAIM_MIN_MS + NET_CONFIG.RECLAIM_SPREAD_MS - 1,
+    "ceiling stays inside the spread",
+  );
+  // A fixed delay would make every orphan race at the same instant and all but
+  // one destroy their peer for nothing. Spread is the whole point.
+  const seen = new Set();
+  for (let n = 0; n < 200; n++) seen.add(netReclaimDelay(() => n / 200));
+  assert.ok(seen.size > 50, `expected a real spread, got ${seen.size} distinct delays`);
+});
+
+test("clockPulseHz climbs over the closing window, and is capped for safety", () => {
+  assert.equal(clockPulseHz(null), 0, "no deadline, no pulse");
+  assert.equal(clockPulseHz(TIMERS.PULSE_MS + 1), 0, "silent outside the window");
+  assert.equal(clockPulseHz(TIMERS.PULSE_MS), 0.8, "starts at a slow beat, not a jolt");
+  assert.equal(clockPulseHz(0), 2.5, "fastest exactly at zero");
+
+  // Monotonic all the way in — a rate that dipped would read as the deadline
+  // receding, which is the one thing it must never say.
+  let prev = -1;
+  for (let left = TIMERS.PULSE_MS; left >= 0; left -= 250) {
+    const hz = clockPulseHz(left);
+    assert.ok(hz >= prev, `hz must never fall (at ${left}ms: ${hz} < ${prev})`);
+    prev = hz;
+  }
+
+  // WCAG 2.3.1 puts the photosensitive-seizure threshold at three flashes per
+  // second. A full-screen pulse is exactly that stimulus, so the ceiling is a
+  // safety limit rather than taste. Overshoot must be impossible, including
+  // past zero when a late tick arrives with a negative remainder.
+  for (const left of [0, -1, -5000, -60000]) {
+    assert.ok(clockPulseHz(left) <= 2.5, `never above 2.5 Hz (at ${left}ms)`);
+  }
+  assert.ok(clockPulseHz(0) < 3, "strictly under the WCAG three-per-second line");
 });
 
 test("clockFraction drives the ring 1 → 0", () => {
@@ -376,6 +439,43 @@ test("a corrupt or absent profile reseeds instead of throwing", () => {
   } finally { globalThis.localStorage = orig; }
 });
 
+// The rename from Snifferoo to Snifferoo moved the storage key. A player who
+// had a rating, a career nose and 40 games behind them must not open the app to
+// a blank slate — that is the app throwing away the only thing it ever asked to
+// keep, and it would look exactly like a bug nobody could reproduce.
+test("a pre-rename profile survives the rename, and only travels one way", () => {
+  const store = {};
+  const orig = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => store[k] ?? null,
+    setItem: (k, v) => { store[k] = v; },
+    removeItem: (k) => { delete store[k]; },
+  };
+  try {
+    const old = { ...ratingFresh("Ingrid"), rating: 1337, games: 42, v: RATING.VERSION };
+    store[RATING.LEGACY_KEY] = JSON.stringify(old);
+
+    const adopted = ratingLoad();
+    assert.equal(adopted.rating, 1337, "the old rating is adopted, not reseeded");
+    assert.equal(adopted.games, 42, "and so is the career");
+    assert.equal(adopted.name, "Ingrid");
+
+    // A CURRENT profile always wins. Otherwise someone who reset their profile
+    // would find the old one resurrected on their next visit.
+    store[RATING.KEY] = JSON.stringify({ ...ratingFresh("Ny"), rating: 900, v: RATING.VERSION });
+    assert.equal(ratingLoad().rating, 900, "current key beats legacy");
+
+    // Saving never writes the legacy key back.
+    ratingSave(ratingApply(ratingFresh("Bo"), 5));
+    assert.equal(JSON.parse(store[RATING.LEGACY_KEY]).rating, 1337, "legacy is read-only");
+
+    // "Slett profilen" has to clear BOTH, or the deleted profile comes back.
+    ratingReset();
+    assert.equal(store[RATING.LEGACY_KEY], undefined, "reset clears the legacy key too");
+    assert.equal(ratingLoad().games, 0, "and nothing is left to adopt");
+  } finally { globalThis.localStorage = orig; }
+});
+
 test("storage that throws is survivable — never break the boot", () => {
   const orig = globalThis.localStorage;
   globalThis.localStorage = {
@@ -388,6 +488,46 @@ test("storage that throws is survivable — never break the boot", () => {
     assert.equal(ratingSave(ratingFresh()), false, "reports failure, doesn't throw");
     assert.equal(ratingReset().games, 0);
   } finally { globalThis.localStorage = orig; }
+});
+
+/* -- the own-screen predicate ------------------------------------------------
+   ui.js needs the DOM, so it cannot be imported here — but this invariant is
+   worth a source check, because breaking it produced a bug that no unit test
+   could ever have caught and that looks, on the screen, like the wrong game.
+
+   "Does each player have their own device?" is a question about the TRANSPORT.
+   It used to be answered by a mode string (`U.mode === "party"`), which meant
+   four separate net entry points had to remember to assign that string. The
+   open room forgot, so its host was handed the pass-the-phone flow — a
+   handover screen and a "send telefonen videre" button, in a game where every
+   player is on a different phone.
+
+   Deriving it from online() makes the omission impossible. This test exists so
+   nobody quietly reintroduces the string form. */
+test("own-screen is derived from the transport, never from a mode string", async () => {
+  const raw = await readFile(new URL("./ui.js", import.meta.url), "utf8");
+
+  const decl = raw.match(/^const ownScreen = .*$/m)?.[0];
+  assert.ok(decl, "ui.js must define ownScreen()");
+  assert.match(decl, /online\(\)/, "ownScreen() must consult online(), not just U.mode");
+  assert.match(decl, /U\.mode === "party"/, "…with the practice-mode string as its other arm");
+
+  // Comments discuss the old predicate at length, on purpose — the history is
+  // the reason the rule exists. Strip them, or this test polices prose.
+  const code = raw
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+
+  assert.ok(!/\bconst party = /.test(code), "the old party() predicate must not come back");
+  assert.ok(!/\bparty\(\)/.test(code), "no call site may still call party()");
+
+  // Assignments (U.mode = "party") are fine and still happen. READING the mode
+  // string as the own-screen answer is what broke the open room.
+  const reads = [...code.matchAll(/U\.mode\s*===\s*"party"/g)];
+  assert.equal(
+    reads.length, 1,
+    `U.mode === "party" should be read once, inside ownScreen — found ${reads.length}`,
+  );
 });
 
 // -- bundle safety ------------------------------------------------------------

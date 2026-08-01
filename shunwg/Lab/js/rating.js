@@ -28,7 +28,14 @@ export const RATING = Object.freeze({
   K_SET: 16,           // settled
   PROVISIONAL_GAMES: 10,
   SETTLED_GAMES: 30,
-  KEY: "cockymonk.profile.v1",
+  KEY: "snifferoo.profile.v1",
+  // The pre-rename key. Anyone who played before 2026-07-28 has their rating,
+  // career nose and game count under this name, and a rename that silently
+  // reset them would be the app quietly throwing away the only thing it ever
+  // asked to keep. Read-only and one-way: ratingLoad adopts it, ratingSave
+  // never writes it, and ratingReset clears it so "delete my profile" still
+  // means delete.
+  LEGACY_KEY: "cockymonk.profile.v1",
   VERSION: 1,
   HISTORY_MAX: 20,
 });
@@ -142,6 +149,12 @@ export function ratingFresh(name = "") {
 export function ratingLoad() {
   let raw = null;
   try { raw = globalThis.localStorage?.getItem(RATING.KEY) ?? null; } catch { /* blocked */ }
+  // Adopt a pre-rename profile if we have no current one. Only ever in this
+  // direction, and only when the new key is genuinely absent — a player who has
+  // since reset their profile must not have the old one resurrected on top.
+  if (!raw) {
+    try { raw = globalThis.localStorage?.getItem(RATING.LEGACY_KEY) ?? null; } catch { /* blocked */ }
+  }
   if (!raw) return ratingFresh();
   try {
     const p = JSON.parse(raw);
@@ -162,6 +175,10 @@ export function ratingSave(profile) {
 
 export function ratingReset(name = "") {
   try { globalThis.localStorage?.removeItem(RATING.KEY); } catch { /* nothing to undo */ }
+  // Clear the legacy key too, or "slett profilen" leaves a copy behind that
+  // ratingLoad would happily adopt on the next visit. The profile screen
+  // promises the data is gone; it has to actually be gone.
+  try { globalThis.localStorage?.removeItem(RATING.LEGACY_KEY); } catch { /* nothing to undo */ }
   const fresh = ratingFresh(name);
   ratingSave(fresh);
   return fresh;

@@ -3,53 +3,108 @@
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin: 26px 0 18px; }
 
 /* ---------- board frame: a real routed box, lit from above ---------- */
+/* THE MAZE BLOCK. The board is one solid mass and the route is cut out of it —
+   that is the whole idea, and it only works if the corridor is LIGHTER than the
+   material around it. The bevels, vignette and routed frame are gone: they were
+   describing a wooden tray, which is a different object from a maze. */
 .boardwrap {
-  border-radius: var(--radius-card); border: 3px solid #0a0a18; padding: 18px; position: relative;
+  border-radius: var(--radius-card); border: 0; padding: 18px; position: relative;
   overflow: hidden; min-height: 300px;
-  box-shadow:
-    var(--shadow-hard),
-    inset 0 1px 0 rgba(255,255,255,.10),   /* top bevel highlight */
-    inset 0 0 0 2px rgba(0,0,0,.35),        /* routed inner frame line */
-    inset 0 0 64px rgba(0,0,0,.42);         /* vignette → focus the track */
+  background: var(--color-surface);
 }
 .boardwrap::after {                          /* themed material rail; never intercepts taps */
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: inset 0 0 0 6px var(--board-rail, transparent);
 }
+/* THE WALLS. A maze needs something for the corridor to be carved out of, and
+   a background grid is the cheapest honest way to say "walls" without drawing
+   an actual labyrinth nobody can solve. Kept faint: DESIGN-DIRECTION.md §6 wants
+   maze lines thin, low contrast, and away from the text that matters. */
+.boardwrap::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--color-bg) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-bg) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: .16;
+  z-index: 0;
+}
+
 .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; position: relative; z-index: 1; }
 .track-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
-.track-path polyline { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; opacity: .7; }
-
-.space {
-  aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
-  box-shadow: inset 0 2px 2px rgba(255,255,255,.30), inset 0 -3px 4px rgba(0,0,0,.28), 0 2px 0 rgba(0,0,0,.35);
+/* THE CORRIDOR. Was a dotted line between stones; now one continuous solid
+   route, wide enough to read as a passage cut through the wall grid behind it.
+   Square joins and caps, not round: a maze is orthogonal, and rounded corners
+   read as a garden path. */
+.track-path polyline {
+  fill: none; stroke-width: 30; stroke-linecap: square; stroke-linejoin: miter;
+  stroke: var(--color-bg); opacity: 1;
 }
-.space .mark { position: absolute; top: -9px; right: -5px; font-size: 16px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
+
+/* Corridor tiles, not stones. A circle floats; a rounded square belongs to a
+   grid, which is what a maze is. Small radius so the orthogonal geometry wins. */
+.space {
+  aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; position: relative; font-family: var(--type-display-family);
+  background: var(--color-bg); color: var(--color-text-on-bg);
+  box-shadow: none;
+}
+/* Milestone marks. Now typographic (⅓, ⅔) rather than emoji, so they inherit
+   the tile's ink instead of importing colour, and they say the same thing more
+   plainly: how far along the board you are. */
+.space .mark {
+  position: absolute; top: -7px; right: -4px; font-size: 12px; font-weight: 700;
+  color: var(--color-text-on-surface); background: var(--color-bg);
+  border-radius: 999px; padding: 0 3px; line-height: 1.25;
+}
 
 /* Mål — a gold medallion that pulses "claim me" (all themes inherit; DESIGN §5) */
+/* Mål. The destination is where DESIGN-DIRECTION.md §4 allows cheese — a
+   goal, a milestone, an end-of-game payoff — and nowhere near a button or a
+   background. It is a small drawn wedge behind the number, never instead of it:
+   §4 requires the numeral to stay visible alongside any cheese. */
 .board .space.goal {
-  background: radial-gradient(circle at 50% 34%, #fff2c0 0%, var(--color-accent-turn) 46%, #d99a1a 100%);
-  border: 2.5px solid #8a5a12; color: #5a3d08;
+  background: var(--color-board-goal); color: var(--color-text-on-surface);
+  border: 0; border-radius: 5px; box-shadow: 0 0 0 3px var(--color-bg);
   animation: goalglow var(--motion-dur-goal-pulse) ease-in-out infinite;
 }
+.board .space.goal::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--color-text-on-surface); opacity: .16;
+  -webkit-mask: var(--mark-cheese) center / 62% no-repeat;
+          mask: var(--mark-cheese) center / 62% no-repeat;
+}
 @keyframes goalglow {
-  0%, 100% { box-shadow: 0 0 0 0 #ffc53d00, inset 0 0 0 2px #ffe38a99; }
-  50%      { box-shadow: 0 0 0 9px #ffc53d33, 0 0 20px 5px #ffc53d66, inset 0 0 0 2px #ffffff; }
+  0%, 100% { box-shadow: 0 0 0 0 #FFFFFF00, inset 0 0 0 2px #FFFFFF55; }
+  50%      { box-shadow: 0 0 0 9px #FFFFFF26, 0 0 20px 5px #FFFFFF44, inset 0 0 0 2px #ffffff; }
 }
 
 /* ---------- pawns: domed physical pieces ---------- */
 .pawn {
   position: absolute; width: 31px; height: 31px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
-  border: 2.5px solid #0a0a18; z-index: 5;
-  background-image: radial-gradient(circle at 38% 28%, #ffffff55, transparent 55%);
+  display: flex; align-items: center; justify-content: center;
+  /* The initial, INK. It inherited the page's light-on-dark text colour, and
+     every player value is a light grey — so the letter was white on white and
+     the pawns rendered blank. The one thing identifying the pawn, invisible. */
+  color: var(--color-text-on-surface); font-size: 13px; font-weight: 700;
+  font-family: var(--type-display-family);
+  border: 0; z-index: 5;
   transition: left var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease),
               top var(--spring-pawn-hop-duration) var(--spring-pawn-hop-ease);
-  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 -3px 4px rgba(0,0,0,.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,.30);
 }
+/* THE LEADER WEARS THE RAT. This is the one place on the board the animal
+   appears, which is exactly the dose DESIGN-DIRECTION.md §3 asks for: a rat
+   where social comparison benefits from one, and nowhere else. It replaces a 👑
+   emoji — full-colour, and therefore the loudest thing on a greyscale board.
+   Drawn, not typed: DESIGN.md §2 keeps emoji functional and everything
+   decorative drawn. currentColor, so it inherits the pawn's own value. */
 .pawn.leader::after {
-  content: "👑"; position: absolute; top: -16px; font-size: 12px;
+  content: ""; position: absolute; top: -15px; width: 20px; height: 12px;
+  color: var(--color-text-on-bg);
+  background: currentColor;
+  -webkit-mask: var(--mark-rat) center / contain no-repeat;
+          mask: var(--mark-rat) center / contain no-repeat;
   animation: crownDrop var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease) both;
 }
 @keyframes crownDrop { 0% { transform: translateY(-6px) scale(.6); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -59,23 +114,31 @@
 /* ---------- scoreboard ---------- */
 .scoreline {
   display: flex; justify-content: space-between; font-weight: 600; padding: 7px 2px;
-  border-bottom: 1.5px dashed #ffffff26; align-items: center; font-variant-numeric: tabular-nums;
+  border-bottom: 1.5px dashed #00000018; align-items: center; font-variant-numeric: tabular-nums;
 }
 .scoreline b {                               /* the +delta — a turnYellow chip you win */
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
   border: 2px solid var(--color-border); border-radius: var(--radius-chip);
-  padding: 1px 9px; box-shadow: 0 2px 0 #b8860bcc;
+  padding: 1px 9px; 
 }
 
 /* ---------- Home (front of house) ---------- */
 .home-lang { max-width: 230px; margin: 2px auto 0; }
+/* The app icon, on screen. The mark inherits currentColor, so the badge has to
+   SET a colour — inheriting the page's light-on-dark text into a near-white
+   plate rendered the logo invisible, which is exactly the failure a
+   currentColor mark trades for its flexibility. Stated here so the trade is
+   visible at the one place that has to honour it. */
 .home-badge {
-  width: 128px; height: 128px; display: flex; align-items: center; justify-content: center;
-  background: var(--color-accent-turn); border: 3px solid var(--color-border);
-  border-radius: 28px; box-shadow: var(--shadow-hard);
-  background-image: repeating-linear-gradient(0deg, transparent 0 3px, #00000008 3px 4px);   /* paper grain */
+  width: 120px; height: 120px; display: flex; align-items: center; justify-content: center;
+  background: var(--color-accent-turn); color: var(--color-text-on-surface);
+  border: 0; border-radius: 30px;
 }
-.home-badge .logo { width: 92px; height: auto; }   /* shadow is drawn inside LOGO() */
+.home-badge .logo { width: 84px; height: auto; }
+/* The hero is now vertically centred between two flexible gaps rather than
+   pinned to the top with ~300 px of nothing beneath it. Dead vertical space is
+   a composition decision, and it was not one anybody had made on purpose. */
+.hero { margin: 0; }
 .linkbtn {
   display: block; width: 100%; background: none; border: none; cursor: pointer; min-height: 44px;
   color: var(--color-text-secondary); font: inherit; font-weight: 600; font-size: 15px;
@@ -85,12 +148,12 @@
 .linkbtn:focus-visible { outline: 3px solid var(--color-accent-turn); outline-offset: 2px; }
 
 /* ---------- Regler (how-to) ---------- */
-.step { display: flex; gap: 14px; align-items: flex-start; padding: 13px 2px; border-bottom: 1.5px dashed #ffffff26; }
+.step { display: flex; gap: 14px; align-items: flex-start; padding: 13px 2px; border-bottom: 1.5px dashed #00000018; }
 .step:last-of-type { border-bottom: none; }
 .step-n {
   flex: none; width: 36px; height: 36px; border-radius: 50%;
   background: var(--color-accent-turn); color: var(--color-text-on-surface);
-  border: 2.5px solid var(--color-border); box-shadow: 0 3px 0 #b8860bcc;
+  border: 2.5px solid var(--color-border); 
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 17px; font-family: var(--type-display-family);
 }
@@ -104,9 +167,9 @@
   border: 2.5px solid var(--color-border); font-family: var(--type-display-family); font-weight: 800;
   color: var(--color-text-on-surface);
 }
-.pt.green  { background: var(--color-accent-truth); }
-.pt.pink   { background: var(--color-accent-bluff); }
-.pt.violet { background: var(--color-accent-gm); color: #fff; }
+.pt.truth  { background: var(--color-accent-truth); }
+.pt.bluff  { background: var(--color-accent-bluff); }
+.pt.gm { background: var(--color-accent-gm); color: var(--color-text-on-surface); }
 .pt.gold   { background: var(--color-accent-turn); }
 
 /* DESIGN §3's ⅓ and ⅔ landmarks, fired once per game by animateBoard(). The
@@ -119,7 +182,7 @@
 @keyframes landmarkFlare {
   0%   { box-shadow: 0 0 0 0 var(--color-accent-turn), inset 0 0 0 rgba(0,0,0,0); }
   45%  { box-shadow: 0 0 16px 5px var(--color-accent-turn), inset 0 0 12px rgba(255,197,61,.55); }
-  100% { box-shadow: 0 0 0 0 rgba(255,197,61,0), inset 0 0 0 rgba(0,0,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0), inset 0 0 0 rgba(0,0,0,0); }
 }
 @keyframes landmarkMark {
   0%   { transform: scale(1) rotate(0deg); }
