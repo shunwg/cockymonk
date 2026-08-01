@@ -526,8 +526,31 @@ function renderSignInGate() {
 function installSectionHtml(lang) {
   if (isRunningStandalone() || appInstalledEvent) return `<p class="empty-note">${t(lang, "installedNote")}</p>`;
   if (deferredInstallPrompt) return `<button class="btn secondary full" id="install-app-btn">${t(lang, "installButton")}</button>`;
-  if (isIOSDevice()) return `<p class="empty-note">${t(lang, "installIOSInstructions")}</p>`;
+  if (isIOSDevice()) return `<button class="btn-text" id="install-ios-instructions-btn">${t(lang, "installIOSLinkLabel")}</button>`;
   return `<p class="empty-note">${t(lang, "installGenericInstructions")}</p>`;
+}
+
+/** Step-by-step "Add to Home Screen" walkthrough for iOS Safari — Apple
+ * exposes no beforeinstallprompt-equivalent event there, so the Share sheet
+ * is the only way to install at all, and it has enough steps to want its own
+ * screen rather than a cramped inline paragraph (see installSectionHtml).
+ * Swaps the modal's content in place, same pattern as openResetConfirm/
+ * openSignOutConfirm below — but unlike those, this isn't a confirmation, so
+ * its one button goes BACK to the real settings screen (`onBack`, i.e.
+ * openSettingsPanel's renderMain) rather than closing the whole modal. */
+function renderInstallInstructions(overlay, lang, onBack) {
+  overlay.querySelector(".modal-card").replaceChildren(el(`
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <button class="btn-text" id="install-instructions-back-btn">← ${t(lang, "back")}</button>
+      <h2>${t(lang, "installInstructionsHeading")}</h2>
+      <ol class="install-steps">
+        <li>${t(lang, "installInstructionsStep1")}</li>
+        <li>${t(lang, "installInstructionsStep2")}</li>
+        <li>${t(lang, "installInstructionsStep3")}</li>
+      </ol>
+    </div>
+  `));
+  document.getElementById("install-instructions-back-btn").addEventListener("click", onBack);
 }
 
 // Fetches enabledLangs fresh rather than trusting lastKnownEnabledLangs —
@@ -551,16 +574,38 @@ async function openSettingsPanel() {
   const lang = currentScreenLang;
   const enabledLangsAtOpen = (await store.getToday(identity.userId)).enabledLangs;
   lastKnownEnabledLangs = enabledLangsAtOpen;
-  const languageRows = LANGS.map((l) => `
-    <label class="settings-lang-row">
-      <input type="checkbox" data-lang-toggle="${l}" ${enabledLangsAtOpen.includes(l) ? "checked" : ""} />
-      <span>${LANG_LABELS[l]}</span>
-    </label>
-  `).join("");
 
-  const overlay = el(`
-    <div class="modal-overlay" id="settings-overlay">
-      <div class="modal-card">
+  const overlay = el(`<div class="modal-overlay" id="settings-overlay"><div class="modal-card"></div></div>`);
+  document.body.appendChild(overlay);
+
+  // Toggling a language during this settings session only matters to the
+  // rest of the app once the modal closes — re-routing while it's still
+  // open would be pointless churn behind the overlay. Comparing against
+  // enabledLangsAtOpen (rather than always re-routing) is what keeps this
+  // from kicking a user out of an in-progress timed guess/write screen just
+  // because they opened settings to toggle the theme and closed it again.
+  const closeAndMaybeReroute = async () => {
+    overlay.remove();
+    const changed = lastKnownEnabledLangs.length !== enabledLangsAtOpen.length
+      || lastKnownEnabledLangs.some((l, i) => l !== enabledLangsAtOpen[i]);
+    if (changed) await routeToCurrentScreen();
+  };
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAndMaybeReroute(); });
+
+  // Pulled out into its own function (rather than the inline build this used
+  // to be) so the iOS install-instructions sub-screen (renderInstallInstructions)
+  // has something to hand its own "back" button — swap the modal's content
+  // out to the walkthrough, then back to this, without closing the overlay.
+  function renderMain() {
+    const languageRows = LANGS.map((l) => `
+      <label class="settings-lang-row">
+        <input type="checkbox" data-lang-toggle="${l}" ${enabledLangsAtOpen.includes(l) ? "checked" : ""} />
+        <span>${LANG_LABELS[l]}</span>
+      </label>
+    `).join("");
+
+    overlay.querySelector(".modal-card").replaceChildren(el(`
+      <div style="display:flex; flex-direction:column; gap:12px">
         <h2>${t(lang, "settingsTitle")}</h2>
 
         <section class="settings-section">
@@ -588,55 +633,44 @@ async function openSettingsPanel() {
 
         <button class="btn secondary full" id="close-settings-btn">${t(lang, "close")}</button>
       </div>
-    </div>
-  `);
-  document.body.appendChild(overlay);
+    `));
 
-  // Toggling a language during this settings session only matters to the
-  // rest of the app once the modal closes — re-routing while it's still
-  // open would be pointless churn behind the overlay. Comparing against
-  // enabledLangsAtOpen (rather than always re-routing) is what keeps this
-  // from kicking a user out of an in-progress timed guess/write screen just
-  // because they opened settings to toggle the theme and closed it again.
-  const closeAndMaybeReroute = async () => {
-    overlay.remove();
-    const changed = lastKnownEnabledLangs.length !== enabledLangsAtOpen.length
-      || lastKnownEnabledLangs.some((l, i) => l !== enabledLangsAtOpen[i]);
-    if (changed) await routeToCurrentScreen();
-  };
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAndMaybeReroute(); });
-  document.getElementById("close-settings-btn").addEventListener("click", closeAndMaybeReroute);
-  document.getElementById("reset-btn").addEventListener("click", () => openResetConfirm(overlay, lang));
-  document.getElementById("theme-toggle-btn").addEventListener("click", (e) => {
-    const next = loadTheme() === "light" ? "dark" : "light";
-    saveTheme(next);
-    applyTheme(next);
-    e.target.textContent = themeToggleLabel(lang);
-  });
-  document.querySelectorAll("[data-lang-toggle]").forEach((cb) => {
-    cb.addEventListener("change", async () => {
-      const checked = [...document.querySelectorAll("[data-lang-toggle]")].filter((c) => c.checked).map((c) => c.dataset.langToggle);
-      const warning = document.getElementById("language-min-warning");
-      if (checked.length === 0) {
-        cb.checked = true; // at least one language must stay enabled
-        if (warning) warning.hidden = false;
-        return;
-      }
-      if (warning) warning.hidden = true;
-      const result = await store.setEnabledLangs(identity.userId, checked);
-      if (result.ok) lastKnownEnabledLangs = result.enabledLangs;
+    document.getElementById("close-settings-btn").addEventListener("click", closeAndMaybeReroute);
+    document.getElementById("reset-btn").addEventListener("click", () => openResetConfirm(overlay, lang));
+    document.getElementById("theme-toggle-btn").addEventListener("click", (e) => {
+      const next = loadTheme() === "light" ? "dark" : "light";
+      saveTheme(next);
+      applyTheme(next);
+      e.target.textContent = themeToggleLabel(lang);
     });
-  });
-  document.getElementById("install-app-btn")?.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice; // "accepted" or "dismissed" — either way this prompt instance is now spent
-    deferredInstallPrompt = null;
-    const body = document.getElementById("install-section-body");
-    if (body) body.innerHTML = installSectionHtml(lang);
-  });
-  if (googleClientId && !identity.googleLinked) renderGoogleButton("google-signin-btn", 50, "medium");
-  document.getElementById("google-signout-btn")?.addEventListener("click", () => openSignOutConfirm(overlay, lang));
+    document.querySelectorAll("[data-lang-toggle]").forEach((cb) => {
+      cb.addEventListener("change", async () => {
+        const checked = [...document.querySelectorAll("[data-lang-toggle]")].filter((c) => c.checked).map((c) => c.dataset.langToggle);
+        const warning = document.getElementById("language-min-warning");
+        if (checked.length === 0) {
+          cb.checked = true; // at least one language must stay enabled
+          if (warning) warning.hidden = false;
+          return;
+        }
+        if (warning) warning.hidden = true;
+        const result = await store.setEnabledLangs(identity.userId, checked);
+        if (result.ok) lastKnownEnabledLangs = result.enabledLangs;
+      });
+    });
+    document.getElementById("install-app-btn")?.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice; // "accepted" or "dismissed" — either way this prompt instance is now spent
+      deferredInstallPrompt = null;
+      const body = document.getElementById("install-section-body");
+      if (body) body.innerHTML = installSectionHtml(lang);
+    });
+    document.getElementById("install-ios-instructions-btn")?.addEventListener("click", () => renderInstallInstructions(overlay, lang, renderMain));
+    if (googleClientId && !identity.googleLinked) renderGoogleButton("google-signin-btn", 50, "medium");
+    document.getElementById("google-signout-btn")?.addEventListener("click", () => openSignOutConfirm(overlay, lang));
+  }
+
+  renderMain();
 }
 
 function openResetConfirm(overlay, lang) {

@@ -554,3 +554,7 @@ textarea, input[type="text"] {
 }
 .btn-text:active { opacity: 0.6; }
 .btn-text.danger { color: var(--color-accent-bluff); }
+
+/* iOS "Add to Home Screen" walkthrough (see ui.js renderInstallInstructions)
+ * — a plain numbered list read top to bottom, no other chrome needed. */
+.install-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
