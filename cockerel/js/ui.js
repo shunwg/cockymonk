@@ -1095,7 +1095,16 @@ async function renderWriteWordStep(langState, lang, skippedIds = new Set()) {
       ${renderWriteWordMarkup(word, lang)}
     </div>
   `));
-  document.getElementById(`submit-${word.wordId}`)?.addEventListener("click", async (e) => {
+  const textEl = document.getElementById(`text-${word.wordId}`);
+  const submitBtn = document.getElementById(`submit-${word.wordId}`);
+  // Starts disabled (see renderWriteWordMarkup) — nothing to send yet, and an
+  // all-whitespace "submission" is just as empty. Toggled live on every
+  // keystroke rather than only checked at click time, so the button's state
+  // always matches what's actually in the box.
+  textEl.addEventListener("input", () => {
+    submitBtn.disabled = textEl.value.trim().length === 0;
+  });
+  submitBtn.addEventListener("click", async (e) => {
     // Guards against a double-click/double-tap sending a second submission
     // while the first is still in flight — without this, the second
     // request comes back "already_submitted" and (previously) did nothing
@@ -1146,7 +1155,7 @@ function renderWriteWordMarkup(w, lang) {
     <div class="word-block">
       <div class="word-title">${w.word}</div>
       <textarea id="text-${w.wordId}" rows="2" placeholder="${t(lang, "writePlaceholder")}" maxlength="140"></textarea>
-      <button class="btn full btn-cta" id="submit-${w.wordId}">${t(lang, "submit")}</button>
+      <button class="btn full btn-cta" id="submit-${w.wordId}" disabled>${t(lang, "submit")}</button>
     </div>`;
 }
 
