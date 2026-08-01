@@ -11,15 +11,20 @@
 <script>
 // Stamp the saved theme before first paint so there's no flash of the
 // wrong theme — must stay a plain synchronous script (not the module in
-// js/ui.js, which loads too late to beat the first frame).
+// js/ui.js, which loads too late to beat the first frame). Light is the
+// default (see js/storage.js loadTheme()) — only an explicit "dark" (saved
+// by the settings toggle) leaves this attribute unset, since tokens.css's
+// bare :root already IS the dark palette; light is the data-theme override.
 try {
   // cockerel.theme.v1 is the current key; thedailycock.theme.v1 is the
   // pre-rename key still sitting in returning players' browsers — see
   // js/storage.js's loadTheme() for the one-time migration.
-  if ((localStorage.getItem("cockerel.theme.v1") ?? localStorage.getItem("thedailycock.theme.v1")) === "light") {
+  if ((localStorage.getItem("cockerel.theme.v1") ?? localStorage.getItem("thedailycock.theme.v1")) !== "dark") {
     document.documentElement.dataset.theme = "light";
   }
-} catch (e) {}
+} catch (e) {
+  document.documentElement.dataset.theme = "light"; // localStorage inaccessible (e.g. Safari private mode) — still default light
+}
 </script>
 </head>
 <body>

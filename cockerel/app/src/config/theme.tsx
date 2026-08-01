@@ -73,7 +73,11 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeName, setThemeName] = useState<Theme>("dark");
+  // "light" matches loadStoredTheme()'s own default (app/src/lib/theme.ts) —
+  // this is just the value shown for the one tick before that async
+  // AsyncStorage read resolves, so it must agree or a "dark"-preferring
+  // returning player would see a flash of light on every cold start.
+  const [themeName, setThemeName] = useState<Theme>("light");
 
   useEffect(() => {
     loadStoredTheme().then(setThemeName);
@@ -82,7 +86,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeContextValue>(
     () => ({
       themeName,
-      tokens: themeName === "light" ? lightTheme : darkTheme,
+      tokens: themeName === "dark" ? darkTheme : lightTheme,
       toggleTheme: () => {
         const next: Theme = themeName === "light" ? "dark" : "light";
         setThemeName(next);

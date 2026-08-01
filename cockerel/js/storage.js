@@ -84,14 +84,17 @@ export function saveIdentity(identity) {
 const THEME_KEY = "cockerel.theme.v1";
 const LEGACY_THEME_KEY = "thedailycock.theme.v1";
 
-/** "dark" (default, the original game palette) or "light" (Wordle-style
- * black-on-white). Device-local display preference, unrelated to identity —
- * same one-key localStorage micro-pattern as above. */
+/** "light" (default, Wordle-style black-on-white) or "dark" (the original
+ * game palette, opt-in via the settings toggle). Device-local display
+ * preference, unrelated to identity — same one-key localStorage micro-pattern
+ * as above. Only an explicit "dark" ever overrides the default — a returning
+ * player who never touched the toggle stays on light even as this default
+ * itself changes. */
 export function loadTheme() {
   try {
     const value = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
-    return value === "light" ? "light" : "dark";
-  } catch { return "dark"; }
+    return value === "dark" ? "dark" : "light";
+  } catch { return "light"; }
 }
 
 export function saveTheme(theme) {

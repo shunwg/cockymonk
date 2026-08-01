@@ -17,7 +17,7 @@ function iframeSrc(screen, theme) {
 }
 
 for (const screen of GALLERY_SCREENS) {
-  const state = { theme: "dark" };
+  const state = { theme: "light" }; // matches the app's actual default (js/storage.js loadTheme())
 
   const card = document.createElement("div");
   card.className = "gallery-card";

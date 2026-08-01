@@ -63,9 +63,10 @@ function animateCount(elNode, to, ms = 900, from = 0, onComplete) {
   requestAnimationFrame(tick);
 }
 
-// -- theme: "dark" (original) or "light" (Wordle-style), toggled from the
-// settings panel. index.html has a tiny inline script that stamps this same
-// attribute before first paint, to avoid a flash of the wrong theme.
+// -- theme: "light" (default, Wordle-style) or "dark" (the original game
+// palette, opt-in via the settings panel). index.html has a tiny inline
+// script that stamps this same attribute before first paint, to avoid a
+// flash of the wrong theme — see loadTheme() in storage.js for the default.
 function applyTheme(theme) {
   if (theme === "light") document.documentElement.dataset.theme = "light";
   else delete document.documentElement.dataset.theme;
@@ -909,7 +910,7 @@ const GALLERY_PREVIEW_SCREENS = {
 };
 
 async function runGalleryPreview(screenId, theme) {
-  applyTheme(theme === "light" ? "light" : "dark");
+  applyTheme(theme === "dark" ? "dark" : "light");
   identity = FIXTURE_IDENTITY;
   store = createFixtureStore();
   renderSettingsButton();
