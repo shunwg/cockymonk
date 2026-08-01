@@ -12,7 +12,10 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const FILE = path.join(here, "data", "gallery-feedback.json");
+// Same COCKEREL_DATA_DIR override as server/db.mjs, kept consistent so a
+// test run against an isolated scratch dir never touches this file's real
+// counterpart either — see db.mjs's DATA_DIR comment.
+const FILE = path.join(process.env.COCKEREL_DATA_DIR || path.join(here, "data"), "gallery-feedback.json");
 
 let queue = Promise.resolve();
 

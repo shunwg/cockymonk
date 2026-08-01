@@ -62,12 +62,15 @@ export function storageLocal(base = "") {
   };
 }
 
-const IDENTITY_KEY = "cockerel.identity.v1";
+// Exported so js/ui.js (which also reads/clears identity directly, for
+// sign-out/reset/first-time-visitor checks) uses the exact same keys rather
+// than a second hand-copied pair that could drift.
+export const IDENTITY_KEY = "cockerel.identity.v1";
 // Pre-rename key (app was "The Daily Cock") — real players' profiles/streaks
 // already live under this key in their browsers. loadOrCreateIdentity falls
 // back to it once and migrates the value forward, so the rename itself never
 // looks like a data wipe to anyone who already has a profile.
-const LEGACY_IDENTITY_KEY = "thedailycock.identity.v1";
+export const LEGACY_IDENTITY_KEY = "thedailycock.identity.v1";
 
 /** One-key localStorage identity, same micro-pattern as shunwg/Lab/js/rating.js. */
 export function loadOrCreateIdentity(suggestedName) {

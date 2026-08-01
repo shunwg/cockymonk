@@ -26,6 +26,7 @@ export const GALLERY_SCREENS = [
   { id: "score", label: "Din poengsum" },
   { id: "write", label: "Skriv dagens ord" },
   { id: "timeout-write", label: "Du rakk ikke å skrive" },
+  { id: "timeout-write-saved", label: "Tiden løp ut, men bløffen ble lagret automatisk" },
   { id: "done", label: "Ferdig for dagen / streak" },
   { id: "done-with-other-lang", label: "Ferdig — tilbud om å spille engelsk også" },
 ];

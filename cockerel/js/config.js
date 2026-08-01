@@ -104,3 +104,11 @@ export const TIMERS = {
   guessSeconds: 30,
   writeSeconds: 60,
 };
+
+// If the write timer runs out but the user had already typed at least this
+// many (trimmed) characters, js/ui.js auto-submits it instead of discarding
+// it — better to keep a genuine (if rushed) bluff than lose real work just
+// because the clock beat them to the button. Below this threshold there's
+// likely nothing worth keeping (a stray character or two), so the normal
+// "you ran out of time, nothing was submitted" path still applies.
+export const WRITE_AUTOSUBMIT_MIN_CHARS = 4;

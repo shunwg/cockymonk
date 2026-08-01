@@ -37,7 +37,14 @@ html, body {
  * if that button's own size changes. Generous on purpose: button height
  * (~52px) + its 40px bottom offset + a buffer so scrolled content never
  * looks jammed right up against it, all before the safe-area inset. */
-:root { --cta-clearance: calc(120px + env(safe-area-inset-bottom)); }
+:root {
+  --cta-clearance: calc(120px + env(safe-area-inset-bottom));
+  /* How much of the bottom is currently covered by the iOS on-screen
+   * keyboard — kept at 0px by default, driven by js/ui.js's
+   * trackKeyboardInset() via the VisualViewport API. See .btn-cta below for
+   * why this needs to exist at all. */
+  --keyboard-inset: 0px;
+}
 
 #app {
   max-width: 480px;
@@ -97,6 +104,10 @@ html, body {
 .header-name { font-family: var(--type-display-family); font-weight: 600; font-size: 15px; }
 .header-stats { margin-left: auto; text-align: right; font-size: var(--type-sub-size); }
 .header-points { font-weight: 700; }
+/* Today's write/guess progress (see ui.js progressText) — deliberately
+ * smaller/lighter than the points and streak lines below it, since it's
+ * supplementary info, not one of the two headline stats. */
+.header-progress { font-size: 11px; opacity: 0.65; margin-bottom: 2px; }
 
 /* Big-number reveals (score/welcome/done steps) pulse once their count-up
  * finishes; the header only updates to match AFTER this plays (see ui.js). */
@@ -201,6 +212,12 @@ p { margin: 0; line-height: 1.4; }
 
 .mascot { width: 96px; height: 96px; display: block; margin: 0 auto; }
 .mascot.small { width: 48px; height: 48px; margin: 0; }
+/* A few screens (how-to-play, welcome) put the mascot directly above a
+ * heading or card with no other element between them to create natural
+ * spacing — this opts those specific screens in without affecting every
+ * other mascot usage, most of which already have their own eyebrow/heading
+ * spacing in between. */
+.mascot-spaced { margin-bottom: 16px; }
 
 .card {
   background: var(--color-surface);
@@ -210,6 +227,10 @@ p { margin: 0; line-height: 1.4; }
   box-shadow: var(--shadow-hard);
   padding: 20px;
 }
+/* Stacked paragraphs inside a card (e.g. how-to-play's body, split into two
+ * for readability) need a visible break between them — plain <p> margin is
+ * 0 by default (see the base `p` rule above). */
+.card p + p { margin-top: 12px; }
 
 .btn {
   font-family: var(--type-display-family);
@@ -237,11 +258,16 @@ p { margin: 0; line-height: 1.4; }
  * same way #app itself is (viewport-center == #app-center at every width,
  * since #app is itself centered with the same max-width). Content that
  * would otherwise sit behind it gets scroll clearance via
- * #app:has(.btn-cta) above, not by shrinking this button. */
+ * #app:has(.btn-cta) above, not by shrinking this button.
+ * `position: fixed` pins to the LAYOUT viewport, not the visual one — on iOS
+ * Safari the on-screen keyboard only shrinks the visual viewport, so without
+ * --keyboard-inset this button ends up sitting behind the keyboard instead
+ * of above it (a real bug on the name/write screens' text input + this
+ * button — see js/ui.js's trackKeyboardInset). */
 .btn-cta {
   position: fixed;
   left: 50%;
-  bottom: calc(40px + env(safe-area-inset-bottom));
+  bottom: calc(40px + env(safe-area-inset-bottom) + var(--keyboard-inset));
   transform: translateX(-50%);
   width: calc(100% - 40px);
   max-width: 440px;
@@ -415,6 +441,11 @@ textarea, input[type="text"] {
   animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
 }
 .timeout-box h2 { margin-bottom: 8px; }
+/* The "we auto-saved it" variant (see ui.js renderTimeoutStep / a write
+ * timeout with >= WRITE_AUTOSUBMIT_MIN_CHARS typed) is good news, not a
+ * miss — same accent color the rest of the app uses for a correct/true
+ * outcome, so it reads that way at a glance. */
+.timeout-box.saved { border-color: var(--color-accent-truth); }
 
 /* -- expandable per-word review (score step) ------------------------------- */
 .review-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
@@ -477,3 +508,49 @@ textarea, input[type="text"] {
   flex-direction: column;
   gap: 12px;
 }
+/* Settings modal sections (see ui.js openSettingsPanel) — .modal-card's own
+ * flex `gap: 12px` already spaces one section from the next, so
+ * .settings-section only needs its own tighter INTERNAL spacing. */
+.settings-section { display: flex; flex-direction: column; gap: 6px; }
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+.settings-lang-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.settings-google-btn-wrap { display: flex; justify-content: center; margin-top: 4px; }
+.settings-warning { color: var(--color-accent-bluff); }
+/* The account/danger cluster (Google sign-out, full account reset) — set
+ * apart with a divider so it reads as visually separate from the
+ * constructive settings above it, matching its small text-button styling
+ * (.btn-text) rather than the full-width colored buttons used elsewhere in
+ * this modal. */
+.settings-danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+/* Small, low-emphasis text buttons for account-level actions (sign out,
+ * reset my game) — deliberately NOT styled like .btn (no background/
+ * border), so they read as secondary to the real settings above them. Each
+ * is gated behind its own confirmation step before doing anything (see
+ * openSignOutConfirm/openResetConfirm in ui.js). */
+.btn-text {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  font-family: inherit;
+  font-size: var(--type-sub-size);
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-text-on-surface);
+}
+.btn-text:active { opacity: 0.6; }
+.btn-text.danger { color: var(--color-accent-bluff); }

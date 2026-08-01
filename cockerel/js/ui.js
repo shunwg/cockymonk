@@ -10,10 +10,10 @@
 // comment for the exact decision tree. No navigation to Cocky Monk or
 // Ordkrig. The #devbar (date/player switchers) is a TESTING TOOL, not part
 // of the shipped UX — see CLAUDE.md.
-import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme } from "./storage.js";
-import { TIMERS } from "./config.js";
+import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme, IDENTITY_KEY, LEGACY_IDENTITY_KEY } from "./storage.js";
+import { TIMERS, WRITE_AUTOSUBMIT_MIN_CHARS } from "./config.js";
 import { GALLERY_SCREENS } from "./gallery-screens.js";
-import { LANGS, LANG_LABELS, t, LANGUAGE_PICKER } from "./i18n.js";
+import { LANGS, LANG_LABELS, LANG_NAMES, t, LANGUAGE_PICKER } from "./i18n.js";
 
 // `let`, not `const` — the dev-only screen gallery (see runGalleryPreview
 // below) swaps this for an in-memory fixture store when previewing a screen,
@@ -22,11 +22,9 @@ let store = storageLocal();
 const app = document.getElementById("screen-root");
 const header = document.getElementById("header");
 const devbar = document.getElementById("devbar");
-const IDENTITY_KEY = "cockerel.identity.v1";
-// Pre-rename key (see js/storage.js's LEGACY_IDENTITY_KEY) — only used here
+// IDENTITY_KEY/LEGACY_IDENTITY_KEY imported from storage.js — used here only
 // to decide "is this truly a first-time visitor" and to fully wipe identity
 // on reset; storage.js's loadOrCreateIdentity is what actually migrates it.
-const LEGACY_IDENTITY_KEY = "thedailycock.identity.v1";
 
 let identity = null;
 
@@ -92,6 +90,35 @@ function animateCount(elNode, to, ms = 900, from = 0, onComplete) {
 function applyTheme(theme) {
   if (theme === "light") document.documentElement.dataset.theme = "light";
   else delete document.documentElement.dataset.theme;
+  // Keeps the browser chrome (status bar / toolbar tint on an installed PWA)
+  // matching the actual page background — same values as index.html's
+  // pre-paint inline script, so there's no mismatch between first paint and
+  // a later in-session toggle.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#FFFFFF" : "#1B1B2E");
+}
+
+// -- iOS Safari keyboard workaround ------------------------------------
+// .btn-cta (css/app.css) is `position: fixed`, which pins to the LAYOUT
+// viewport — on iOS Safari the on-screen keyboard only shrinks the VISUAL
+// viewport, so a fixed bottom-pinned button ends up positioned behind the
+// keyboard instead of above it. This was a real bug on the name screen's
+// "Fortsett" and the write screen's "Send inn" buttons: both sit right next
+// to a text input, so opening the keyboard to type made the button
+// unreachable. window.visualViewport reports the actually-visible area;
+// this tracks how much of the bottom edge is currently covered and feeds it
+// back in as --keyboard-inset (see .btn-cta's `bottom` calc), so the button
+// rises to stay above the keyboard. No-ops (stays at the CSS default 0px)
+// wherever visualViewport isn't supported — desktop browsers, older WebKit.
+function trackKeyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const update = () => {
+    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty("--keyboard-inset", `${inset}px`);
+  };
+  vv.addEventListener("resize", update);
+  vv.addEventListener("scroll", update); // iOS also fires this as the keyboard opens/closes
+  update();
 }
 
 function el(html) {
@@ -102,6 +129,18 @@ function el(html) {
 
 function pctLabel(pct) {
   return pct ? `<span class="streak-pct">+${pct}%</span>` : "";
+}
+
+// The full-size mascot image markup, identical across most screens (the
+// header's own small variant — `renderHeaderImmediate`'s `mascot small` — is
+// deliberately separate and untouched by this).
+const MASCOT_HTML = `<img class="mascot" src="assets/nesen.svg" alt="" />`;
+
+// Every screen's primary CTA renders as `<button id="continue-btn">` and is
+// wired the exact same way — this just avoids repeating the id string and
+// getElementById call at each of those call sites.
+function wireContinueButton(handler) {
+  document.getElementById("continue-btn").addEventListener("click", handler);
 }
 
 // "N dager (+X% poengbonus)" / "N days (+X% points bonus)" — the one
@@ -127,23 +166,59 @@ function pointsText(profile, lang) {
   return t(lang, "pointsRank", { rating: profile.rating, rank: profile.rank });
 }
 
-function renderHeaderImmediate(profile, lang) {
+/** "2/3 gjettet + 3/3 skrevet" — today's write/guess progress for one
+ * language, given any object with `writeWords`/`guessWords` arrays shaped
+ * like a langState (real or fixture). The guessed half is omitted entirely
+ * when there's nothing to guess yet (guessWords.length === 0) — same
+ * trivial-satisfaction convention as langIsDoneToday/langUntouchedToday. */
+function progressText(langState, lang) {
+  const guessTotal = langState.guessWords.length;
+  const guessDone = langState.guessWords.filter((w) => w.alreadyGuessed).length;
+  const writeTotal = langState.writeWords.length;
+  const writeDone = langState.writeWords.filter((w) => w.alreadySubmitted).length;
+  const parts = [];
+  if (guessTotal) parts.push(t(lang, "headerProgressGuessed", { done: guessDone, total: guessTotal }));
+  parts.push(t(lang, "headerProgressWritten", { done: writeDone, total: writeTotal }));
+  return parts.join(t(lang, "headerProgressJoiner"));
+}
+
+/** `progress` is an optional precomputed string (see progressText) — omitted
+ * on screens with no langState to compute it from yet (onboarding). */
+function renderHeaderImmediate(profile, lang, progress) {
   document.getElementById("header-profile").innerHTML = `
     <img class="mascot small" src="assets/nesen.svg" alt="" />
     <div class="header-name">${profile.displayName}</div>
     <div class="header-stats">
+      ${progress ? `<div class="header-progress" id="header-progress">${progress}</div>` : ""}
       <div class="header-points" id="header-points">${pointsText(profile, lang)}</div>
       <div id="header-streak">${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}</div>
     </div>
   `;
 }
 
-function updateHeader(profile, lang) {
+function updateHeader(profile, lang, progress) {
   const pointsEl = document.getElementById("header-points");
   const streakEl = document.getElementById("header-streak");
-  if (!pointsEl || !streakEl) { renderHeaderImmediate(profile, lang); return; }
+  if (!pointsEl || !streakEl) { renderHeaderImmediate(profile, lang, progress); return; }
   pointsEl.textContent = pointsText(profile, lang);
   streakEl.textContent = `${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}`;
+  const progressEl = document.getElementById("header-progress");
+  if (progress && progressEl) progressEl.textContent = progress;
+}
+
+/** Fire-and-forget: refetches this language's current state and fills in
+ * the header's progress line once it resolves. Used only from renderScoreStep,
+ * which doesn't have a langState on hand (just the guessResult) — everywhere
+ * else that renders the header already has one synchronously. Guarded by
+ * sessionToken, same risk revealThenSyncHeader itself guards against (see its
+ * comment): a stale response must never clobber a LATER session's header. */
+function refreshHeaderProgressSoon(lang) {
+  const token = sessionToken;
+  refetchLangState(lang).then((fresh) => {
+    if (token !== sessionToken) return;
+    const el = document.getElementById("header-progress");
+    if (el) el.textContent = progressText(fresh, lang);
+  });
 }
 
 /** Animate `elNode` 0 -> `to`, then flash it, then (only THEN) sync the
@@ -188,6 +263,42 @@ let googleClientId = null;
 // themselves, bypassing this gate entirely), so devbar testing stays exactly
 // as before.
 let requireGoogleAuth = false;
+
+// -- PWA install state --------------------------------------------------
+// Populated here (module load, so nothing is missed regardless of when the
+// browser decides to fire these) and read by the settings panel's "Install
+// app" section — this file only tracks WHETHER/HOW installing is currently
+// possible, no install UI lives here, same separation as
+// devToolsEnabled/googleClientId above.
+let deferredInstallPrompt = null; // the captured beforeinstallprompt event, if any (Chrome/Android/desktop)
+let appInstalledEvent = false; // set by the `appinstalled` event; isRunningStandalone() below covers the rest
+
+function isRunningStandalone() {
+  return Boolean(window.matchMedia?.("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+}
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+// Chrome/Android/desktop only — iOS Safari has no equivalent event; "Add to
+// Home Screen" there is a manual Share-sheet action we can only describe,
+// never trigger (see installSectionHtml in the settings panel).
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); // suppress the browser's own mini-infobar; Settings shows our own control instead
+  deferredInstallPrompt = e;
+});
+window.addEventListener("appinstalled", () => {
+  appInstalledEvent = true;
+  deferredInstallPrompt = null;
+});
+
+/** Best-effort: a failed registration (unsupported browser, blocked, served
+ * over plain HTTP in local dev from a non-localhost host, etc.) just means
+ * no install prompt ever fires — never a fatal error for the app itself. */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 async function renderDevToolbar() {
   if (!devToolsEnabled) { devbar.replaceChildren(); return; }
@@ -239,7 +350,7 @@ async function renderDevToolbar() {
 // flex `gap` still applies against #screen-root either way.
 function renderSettingsButton() {
   const menuBtn = el(`
-    <button class="header-menu-btn" id="settings-fab" aria-label="Innstillinger">
+    <button class="header-menu-btn" id="settings-fab" aria-label="${t(currentScreenLang, "settingsAriaLabel")}">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>
     </button>
   `);
@@ -255,19 +366,20 @@ function themeToggleLabel(lang) {
 // Shown only when the server has a GOOGLE_CLIENT_ID configured (see
 // googleClientId above) — otherwise this whole section is absent, not just
 // hidden. `identity.googleLinked` (set the moment handleGoogleCredential
-// succeeds, see below) swaps the button out for a plain confirmation line so
-// a signed-in user is never shown the button again on this device.
-function googleSectionHtml(lang) {
+// succeeds, see below) swaps the button out for a plain confirmation line
+// plus a small "Sign out" text link (see openSignOutConfirm) so a signed-in
+// user is never shown the sign-in button again on this device.
+function accountSectionHtml(lang) {
   if (!googleClientId) return "";
   if (identity.googleLinked) {
     return `
       <p class="empty-note">${t(lang, "googleLinkedNote")}</p>
-      <button class="btn secondary full" id="google-signout-btn">${t(lang, "signOut")}</button>
+      <button class="btn-text" id="google-signout-btn">${t(lang, "signOut")}</button>
     `;
   }
   return `
     <p class="empty-note">${t(lang, "googleSignInNote")}</p>
-    <div id="google-signin-btn" style="display:flex; justify-content:center; margin-bottom:8px"></div>
+    <div class="settings-google-btn-wrap" id="google-signin-btn"></div>
   `;
 }
 
@@ -286,6 +398,24 @@ function signOut() {
   location.reload();
 }
 
+/** Confirmation step for the settings panel's small "Sign out" text button —
+ * same shape as openResetConfirm below, replacing the modal's content in
+ * place rather than stacking a second overlay. Less severe than reset (no
+ * data is lost — see signOut's own comment), so its confirm button stays
+ * `secondary`, not `danger`. */
+function openSignOutConfirm(overlay, lang) {
+  overlay.querySelector(".modal-card").replaceChildren(el(`
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <h2>${t(lang, "signOutConfirmHeading")}</h2>
+      <p class="empty-note">${t(lang, "signOutConfirmBody")}</p>
+      <button class="btn secondary full" id="confirm-signout-btn">${t(lang, "signOutConfirmYes")}</button>
+      <button class="btn secondary full" id="cancel-signout-btn">${t(lang, "cancel")}</button>
+    </div>
+  `));
+  document.getElementById("cancel-signout-btn").addEventListener("click", () => overlay.remove());
+  document.getElementById("confirm-signout-btn").addEventListener("click", signOut);
+}
+
 /** Renders the actual Google button into the given container id — must run
  * AFTER that container is in the DOM, since renderButton needs the node to
  * already exist. Shared by the settings panel's optional link and the
@@ -297,16 +427,20 @@ function signOut() {
  * gate could render with no button at all on a fresh page load, which
  * defeats the entire point of requiring sign-in. Stops retrying once the
  * container itself is gone (e.g. the settings panel got closed first). */
-function renderGoogleButton(containerId, attemptsLeft = 50) {
+// `size` defaults to Google's larger button for the full-screen, blocking
+// sign-in gate (see renderSignInGate) — the settings panel's optional link
+// passes "medium" instead, matching the smaller/de-emphasized presentation
+// the rest of that modal's account/danger cluster uses.
+function renderGoogleButton(containerId, attemptsLeft = 50, size = "large") {
   const container = document.getElementById(containerId);
   if (!container) return;
   if (typeof google === "undefined" || !google.accounts?.id) {
     if (attemptsLeft <= 0) return; // script likely blocked (ad blocker, offline) — give up quietly
-    setTimeout(() => renderGoogleButton(containerId, attemptsLeft - 1), 100);
+    setTimeout(() => renderGoogleButton(containerId, attemptsLeft - 1, size), 100);
     return;
   }
   google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCredential });
-  google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: 260 });
+  google.accounts.id.renderButton(container, { theme: "outline", size, width: size === "large" ? 260 : 220 });
 }
 
 /** Google's callback hands us a signed ID token, not an identity — the
@@ -341,7 +475,7 @@ async function handleGoogleCredential(response) {
       await store.setEnabledLangs(identity.userId, [lang]);
       currentScreenLang = lang;
       renderHowToPlay(lang, async () => {
-        const langState = (await store.getToday(identity.userId)).byLang[lang];
+        const langState = await refetchLangState(lang);
         renderWelcomeStep(lang, identity.displayName, langState.profile, () => resumeFlowFromState(langState, lang));
       });
     });
@@ -364,8 +498,7 @@ function renderSignInGate() {
   const lang = "no";
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
-      <p class="eyebrow" style="text-align:center">${t(lang, "eyebrowBrand")}</p>
+      ${MASCOT_HTML}
       <h1 style="text-align:center">${t(lang, "appName")}</h1>
       <div class="card">
         <h2>${t(lang, "signInHeading")}</h2>
@@ -377,6 +510,26 @@ function renderSignInGate() {
   renderGoogleButton("google-signin-gate-btn");
 }
 
+/** "Install app" section body — mutually exclusive states, always showing
+ * SOMETHING actionable/informative rather than nothing:
+ *  - already installed (running standalone, or the `appinstalled` event
+ *    already fired this session): just says so, no CTA.
+ *  - a native install prompt is available (Chrome/Android/desktop — see the
+ *    beforeinstallprompt listener near devToolsEnabled above): a real
+ *    button that triggers it.
+ *  - iOS Safari: no such event exists there at all (Apple doesn't expose
+ *    one) — the only way to install is the manual Share -> "Add to Home
+ *    Screen" flow, so this is instructions, not a button.
+ *  - anything else (Firefox, other browsers with no install support
+ *    detected): generic manual instructions, so this section is never
+ *    empty regardless of browser. */
+function installSectionHtml(lang) {
+  if (isRunningStandalone() || appInstalledEvent) return `<p class="empty-note">${t(lang, "installedNote")}</p>`;
+  if (deferredInstallPrompt) return `<button class="btn secondary full" id="install-app-btn">${t(lang, "installButton")}</button>`;
+  if (isIOSDevice()) return `<p class="empty-note">${t(lang, "installIOSInstructions")}</p>`;
+  return `<p class="empty-note">${t(lang, "installGenericInstructions")}</p>`;
+}
+
 // Fetches enabledLangs fresh rather than trusting lastKnownEnabledLangs —
 // that cache is only ever WRITTEN by routeToCurrentScreen(), which a
 // brand-new player never passes through before their first-ever settings
@@ -384,12 +537,22 @@ function renderSignInGate() {
 // without routing through it) — this was a real bug: the very first time a
 // new player opened settings, the language they'd just onboarded with
 // showed as unchecked, because the cache was still its initial empty [].
+//
+// Sections, top to bottom by priority: Appearance and Language are the
+// everyday, constructive settings, so they come first as full-width
+// buttons/controls; Install app is a one-time, opt-in nudge; Account
+// (Google sign-out) and Reset are the least-visited, most consequential
+// actions, so they're pushed to a visually separated cluster at the very
+// end as small text links (see .btn-text/.settings-danger-zone in
+// css/app.css) rather than full buttons — each still requires its own
+// confirmation step before doing anything (openSignOutConfirm/
+// openResetConfirm), same as before for reset, now also true for sign-out.
 async function openSettingsPanel() {
   const lang = currentScreenLang;
   const enabledLangsAtOpen = (await store.getToday(identity.userId)).enabledLangs;
   lastKnownEnabledLangs = enabledLangsAtOpen;
   const languageRows = LANGS.map((l) => `
-    <label style="display:flex; align-items:center; gap:8px; padding:6px 0">
+    <label class="settings-lang-row">
       <input type="checkbox" data-lang-toggle="${l}" ${enabledLangsAtOpen.includes(l) ? "checked" : ""} />
       <span>${LANG_LABELS[l]}</span>
     </label>
@@ -399,15 +562,30 @@ async function openSettingsPanel() {
     <div class="modal-overlay" id="settings-overlay">
       <div class="modal-card">
         <h2>${t(lang, "settingsTitle")}</h2>
-        <button class="btn secondary full" id="theme-toggle-btn">${themeToggleLabel(lang)}</button>
-        <div>
-          <p style="font-weight:700; margin:12px 0 4px">${t(lang, "languageSectionTitle")}</p>
+
+        <section class="settings-section">
+          <p class="settings-section-title">${t(lang, "appearanceSectionTitle")}</p>
+          <button class="btn secondary full" id="theme-toggle-btn">${themeToggleLabel(lang)}</button>
+        </section>
+
+        <section class="settings-section">
+          <p class="settings-section-title">${t(lang, "languageSectionTitle")}</p>
           <p class="empty-note">${t(lang, "languageSectionNote")}</p>
           ${languageRows}
+          <p class="empty-note settings-warning" id="language-min-warning" hidden>${t(lang, "languageLastOneNote")}</p>
+        </section>
+
+        <section class="settings-section">
+          <p class="settings-section-title">${t(lang, "installSectionTitle")}</p>
+          <div id="install-section-body">${installSectionHtml(lang)}</div>
+        </section>
+
+        <div class="settings-danger-zone">
+          <p class="settings-section-title">${t(lang, "accountSectionTitle")}</p>
+          ${accountSectionHtml(lang)}
+          <button class="btn-text danger" id="reset-btn">${t(lang, "resetButton")}</button>
         </div>
-        ${googleSectionHtml(lang)}
-        <p class="empty-note">${t(lang, "resetNote")}</p>
-        <button class="btn danger full" id="reset-btn">${t(lang, "resetButton")}</button>
+
         <button class="btn secondary full" id="close-settings-btn">${t(lang, "close")}</button>
       </div>
     </div>
@@ -438,13 +616,27 @@ async function openSettingsPanel() {
   document.querySelectorAll("[data-lang-toggle]").forEach((cb) => {
     cb.addEventListener("change", async () => {
       const checked = [...document.querySelectorAll("[data-lang-toggle]")].filter((c) => c.checked).map((c) => c.dataset.langToggle);
-      if (checked.length === 0) { cb.checked = true; return; } // at least one language must stay enabled
+      const warning = document.getElementById("language-min-warning");
+      if (checked.length === 0) {
+        cb.checked = true; // at least one language must stay enabled
+        if (warning) warning.hidden = false;
+        return;
+      }
+      if (warning) warning.hidden = true;
       const result = await store.setEnabledLangs(identity.userId, checked);
       if (result.ok) lastKnownEnabledLangs = result.enabledLangs;
     });
   });
-  if (googleClientId && !identity.googleLinked) renderGoogleButton("google-signin-btn");
-  document.getElementById("google-signout-btn")?.addEventListener("click", signOut);
+  document.getElementById("install-app-btn")?.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice; // "accepted" or "dismissed" — either way this prompt instance is now spent
+    deferredInstallPrompt = null;
+    const body = document.getElementById("install-section-body");
+    if (body) body.innerHTML = installSectionHtml(lang);
+  });
+  if (googleClientId && !identity.googleLinked) renderGoogleButton("google-signin-btn", 50, "medium");
+  document.getElementById("google-signout-btn")?.addEventListener("click", () => openSignOutConfirm(overlay, lang));
 }
 
 function openResetConfirm(overlay, lang) {
@@ -479,9 +671,8 @@ function renderLanguagePicker(onChoose) {
   ).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      ${MASCOT_HTML}
       <h1 style="text-align:center">${LANGUAGE_PICKER.heading}</h1>
-      <p class="empty-note" style="text-align:center; margin-top:8px">${LANGUAGE_PICKER.note}</p>
       <div class="card" style="margin-top:16px">${buttons}</div>
     </div>
   `));
@@ -504,8 +695,9 @@ function renderChooseTodayLangStep(primaryLang, enabledLangs, byLang) {
   ).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
-      <h1 style="text-align:center">${t(primaryLang, "chooseTodayLangHeading")}</h1>
+      ${MASCOT_HTML}
+      <h1 style="text-align:center">${t(primaryLang, "chooseTodayLangGreeting")}</h1>
+      <h2 style="text-align:center; margin-top:12px">${t(primaryLang, "chooseTodayLangHeading")}</h2>
       <p class="empty-note" style="text-align:center; margin-top:8px">${t(primaryLang, "chooseTodayLangNote")}</p>
       <div class="card" style="margin-top:16px">${buttons}</div>
     </div>
@@ -522,18 +714,16 @@ function renderNameScreen(lang, startingName, onDone) {
   clearActiveTimer();
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
-      <p class="eyebrow" style="text-align:center">${t(lang, "eyebrowBrand")}</p>
+      ${MASCOT_HTML}
       <h1 style="text-align:center">${t(lang, "appName")}</h1>
       <div class="card">
         <h2>${t(lang, "chooseNameHeading")}</h2>
         <input type="text" id="name-input" value="${startingName}" />
-        <p class="empty-note" style="margin-top:8px">${t(lang, "chooseNameNote")}</p>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
     </div>
   `));
-  document.getElementById("continue-btn").addEventListener("click", () => {
+  wireContinueButton(() => {
     const displayName = document.getElementById("name-input").value.trim() || startingName;
     onDone(displayName);
   });
@@ -542,17 +732,18 @@ function renderNameScreen(lang, startingName, onDone) {
 function renderHowToPlay(lang, onDone) {
   currentScreenLang = lang;
   clearActiveTimer();
+  const bodyParagraphs = t(lang, "howToPlayBody").split("\n\n").map((p) => `<p>${p}</p>`).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      <img class="mascot mascot-spaced" src="assets/nesen.svg" alt="" />
       <div class="card">
         <h2>${t(lang, "howToPlayHeading")}</h2>
-        <p>${t(lang, "howToPlayBody")}</p>
+        ${bodyParagraphs}
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "howToPlayContinue")}</button>
     </div>
   `));
-  document.getElementById("continue-btn").addEventListener("click", onDone);
+  wireContinueButton(onDone);
 }
 
 // First-time-only: a personal welcome before the very first guess round —
@@ -564,10 +755,10 @@ function renderWelcomeStep(lang, displayName, profile, onStart) {
   clearActiveTimer();
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      <img class="mascot mascot-spaced" src="assets/nesen.svg" alt="" />
       <h1 style="text-align:center">${t(lang, "welcomeHeading", { name: displayName })}</h1>
       <div class="card">
-        <div class="stat-row"><span>${t(lang, "points")}</span><span id="start-points" style="font-weight:700">0</span></div>
+        <div class="stat-row"><span>${t(lang, "welcomeStartPoints")}</span><span id="start-points" style="font-weight:700">0</span></div>
         <div class="stat-row" style="margin-top:8px"><span>${t(lang, "streak")}</span><span id="start-streak" style="font-weight:700">0</span></div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "welcomeContinue")}</button>
@@ -575,7 +766,7 @@ function renderWelcomeStep(lang, displayName, profile, onStart) {
   `));
   animateCount(document.getElementById("start-points"), profile.rating, 900);
   animateCount(document.getElementById("start-streak"), 0, 900, 5);
-  document.getElementById("continue-btn").addEventListener("click", onStart);
+  wireContinueButton(onStart);
 }
 
 // Shown every time a RETURNING player enters a language's flow and there's
@@ -587,7 +778,7 @@ function renderReadyStep(langState, lang, onStart) {
   const { profile } = langState;
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      ${MASCOT_HTML}
       <h1 style="text-align:center">${t(lang, "readyHeading", { name: profile.displayName })}</h1>
       <div class="card">
         <div class="stat-row"><span>${t(lang, "points")}</span><span style="font-weight:700">${profile.rating}</span></div>
@@ -596,7 +787,7 @@ function renderReadyStep(langState, lang, onStart) {
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "readyContinue")}</button>
     </div>
   `));
-  document.getElementById("continue-btn").addEventListener("click", onStart);
+  wireContinueButton(onStart);
 }
 
 // The async "last time you wrote" recap — write-only now (see db.mjs / the
@@ -615,7 +806,7 @@ function renderWriteRecap(result, profile, lang, onContinue) {
   if (fooledWordCount === 0) {
     app.replaceChildren(el(`
       <div class="screen">
-        <img class="mascot" src="assets/nesen.svg" alt="" />
+        ${MASCOT_HTML}
         <p class="eyebrow" style="text-align:center">${t(lang, "writeRecapEyebrow")}</p>
         <div class="card">
           <p style="text-align:center">${t(lang, "writeRecapNoneFooled")}</p>
@@ -625,13 +816,13 @@ function renderWriteRecap(result, profile, lang, onContinue) {
         <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
       </div>
     `));
-    document.getElementById("continue-btn").addEventListener("click", onContinue);
+    wireContinueButton(onContinue);
     return;
   }
 
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      ${MASCOT_HTML}
       <p class="eyebrow" style="text-align:center">${t(lang, "writeRecapEyebrow")}</p>
       <p style="text-align:center; font-weight:700; font-size:18px">${t(lang, "writeRecapFooled", { count: fooledWordCount })}</p>
       <p class="eyebrow" style="text-align:center; margin-top:8px">${t(lang, "writeRecapYouGet")}</p>
@@ -646,7 +837,7 @@ function renderWriteRecap(result, profile, lang, onContinue) {
     </div>
   `));
   animateCount(document.getElementById("points"), result.writeBasePoints ?? result.writePoints ?? 0, 900);
-  document.getElementById("continue-btn").addEventListener("click", onContinue);
+  wireContinueButton(onContinue);
 }
 
 // -- shared: countdown bar + timeout screen ----------------------------------
@@ -673,20 +864,28 @@ function startCountdownSeconds(seconds) {
   }, 1000);
 }
 
+// `kind` is "guess" (timed out, nothing recorded), "write" (timed out,
+// nothing recorded), or "write-saved" — a write timeout where the user had
+// already typed WRITE_AUTOSUBMIT_MIN_CHARS+ (config.js), so ui.js
+// auto-submitted it before showing this screen; the copy here must say so,
+// or "you ran out of time" would wrongly imply nothing was saved.
 function renderTimeoutStep(kind, lang, onNext) {
   currentScreenLang = lang;
   clearActiveTimer();
-  const heading = kind === "guess" ? t(lang, "timeoutGuessHeading") : t(lang, "timeoutWriteHeading");
+  const heading = kind === "guess" ? t(lang, "timeoutGuessHeading")
+    : kind === "write-saved" ? t(lang, "timeoutWriteSavedHeading")
+    : t(lang, "timeoutWriteHeading");
+  const body = kind === "write-saved" ? t(lang, "timeoutWriteSavedBody") : t(lang, "timeoutBody");
   app.replaceChildren(el(`
     <div class="screen">
-      <div class="timeout-box">
+      <div class="timeout-box ${kind === "write-saved" ? "saved" : ""}">
         <h2>${heading}</h2>
-        <p class="empty-note">${t(lang, "timeoutBody")}</p>
+        <p class="empty-note">${body}</p>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "next")}</button>
     </div>
   `));
-  document.getElementById("continue-btn").addEventListener("click", onNext);
+  wireContinueButton(onNext);
 }
 
 // -- the guided step flow: Guess (one at a time) -> Score -> Write (one at a
@@ -696,12 +895,19 @@ function renderTimeoutStep(kind, lang, onNext) {
 // store.getToday(...).byLang[lang], entirely independent of the other
 // enabled language's own in-flight session, if any.
 
+/** Re-fetches just this user's current state for ONE language — the common
+ * "an action just landed server-side, get this language's fresh view" step
+ * used throughout the guided flow below. */
+async function refetchLangState(lang) {
+  return (await store.getToday(identity.userId)).byLang[lang];
+}
+
 async function renderGuessWordStep(langState, lang) {
   currentScreenLang = lang;
   clearActiveTimer();
   const remaining = langState.guessWords.filter((w) => !w.alreadyGuessed);
   if (!remaining.length) {
-    const fresh = (await store.getToday(identity.userId)).byLang[lang];
+    const fresh = await refetchLangState(lang);
     renderWriteWordStep(fresh, lang);
     return;
   }
@@ -717,9 +923,22 @@ async function renderGuessWordStep(langState, lang) {
   `));
   for (const opt of word.options) {
     document.getElementById(`opt-${word.wordId}-${opt.id}`)?.addEventListener("click", async () => {
+      // Guards against a double-click/double-tap sending a second guess
+      // request while the first is still in flight — without this, the
+      // second request comes back "already_guessed" and (previously) did
+      // nothing visible, which is exactly what made the click feel like it
+      // "didn't work" and needed several more taps.
+      const buttons = document.querySelectorAll(`#option-list-${word.wordId} .option-btn`);
+      if ([...buttons].some((b) => b.disabled)) return;
+      buttons.forEach((b) => { b.disabled = true; });
       clearActiveTimer();
       const res = await store.submitGuess(identity.userId, word.wordId, opt.id, lang);
-      if (!res.ok) return;
+      if (!res.ok && res.error !== "already_guessed") {
+        buttons.forEach((b) => { b.disabled = false; }); // genuine failure — let them try again
+        return;
+      }
+      // "already_guessed" means a duplicate of an already-successful guess —
+      // treat it the same as success (refetch + advance) rather than a dead end.
       await afterGuessAction(res, lang);
     });
   }
@@ -748,11 +967,11 @@ async function renderGuessWordStep(langState, lang) {
 async function afterGuessAction(res, lang) {
   if (res.guessResult) {
     renderScoreStep(res.guessResult, lang, async () => {
-      const fresh = (await store.getToday(identity.userId)).byLang[lang];
+      const fresh = await refetchLangState(lang);
       renderWriteWordStep(fresh, lang);
     });
   } else {
-    const fresh = (await store.getToday(identity.userId)).byLang[lang];
+    const fresh = await refetchLangState(lang);
     renderGuessWordStep(fresh, lang);
   }
 }
@@ -763,7 +982,7 @@ function renderGuessWordMarkup(w, lang) {
     <div class="word-block">
       <div class="word-title">${w.word}</div>
       <button class="hint-btn" id="hint-${w.wordId}">${t(lang, "hint")}</button>
-      <div class="option-list">${options}</div>
+      <div class="option-list" id="option-list-${w.wordId}">${options}</div>
     </div>`;
 }
 
@@ -773,7 +992,7 @@ function renderScoreStep(result, lang, onContinue) {
   const rows = result.words.map((w, i) => renderReviewRow(w, i, lang)).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      ${MASCOT_HTML}
       <p class="eyebrow" style="text-align:center">${t(lang, "scoreEyebrow")}</p>
       <div class="recap-points" id="points">0</div>
       <div class="card">
@@ -785,7 +1004,10 @@ function renderScoreStep(result, lang, onContinue) {
   `));
   wireReviewToggles();
   revealThenSyncHeader(document.getElementById("points"), result.points, result.profile, lang);
-  document.getElementById("continue-btn").addEventListener("click", onContinue);
+  // No langState on hand here (only the guessResult) — refetch just for the
+  // progress line, now that guessing is fully done for today.
+  refreshHeaderProgressSoon(lang);
+  wireContinueButton(onContinue);
 }
 
 function renderReviewRow(w, i, lang) {
@@ -824,7 +1046,7 @@ async function renderWriteWordStep(langState, lang, skippedIds = new Set()) {
   clearActiveTimer();
   const remaining = langState.writeWords.filter((w) => !w.alreadySubmitted && !skippedIds.has(w.wordId));
   if (!remaining.length) {
-    const fresh = (await store.getToday(identity.userId)).byLang[lang];
+    const fresh = await refetchLangState(lang);
     const otherPending = await otherLangStillPending(lang);
     renderDoneStep(fresh, lang, otherPending);
     return;
@@ -839,16 +1061,45 @@ async function renderWriteWordStep(langState, lang, skippedIds = new Set()) {
       ${renderWriteWordMarkup(word, lang)}
     </div>
   `));
-  document.getElementById(`submit-${word.wordId}`)?.addEventListener("click", async () => {
+  document.getElementById(`submit-${word.wordId}`)?.addEventListener("click", async (e) => {
+    // Guards against a double-click/double-tap sending a second submission
+    // while the first is still in flight — without this, the second
+    // request comes back "already_submitted" and (previously) did nothing
+    // visible, which is exactly what made the click feel like it "didn't
+    // work" and needed several more taps.
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     clearActiveTimer();
     const text = document.getElementById(`text-${word.wordId}`).value;
     const res = await store.submitDefinition(identity.userId, word.wordId, text, lang);
-    if (!res.ok) return;
-    const fresh = (await store.getToday(identity.userId)).byLang[lang];
+    if (!res.ok && res.error !== "already_submitted") {
+      btn.disabled = false; // genuine failure (e.g. empty text) — let them fix and retry
+      return;
+    }
+    // "already_submitted" means a duplicate of an already-successful submit —
+    // treat it the same as success (advance) rather than a dead end.
+    const fresh = await refetchLangState(lang);
     renderWriteWordStep(fresh, lang, skippedIds);
   });
-  activeTimer = setTimeout(() => {
+  activeTimer = setTimeout(async () => {
     clearActiveTimer();
+    // A rushed-but-real bluff shouldn't be thrown away just because the
+    // clock beat the click — auto-submit whatever's typed if it's long
+    // enough to plausibly be a real attempt (see config.js
+    // WRITE_AUTOSUBMIT_MIN_CHARS), and say so on the timeout screen rather
+    // than implying nothing was saved.
+    const typed = document.getElementById(`text-${word.wordId}`)?.value ?? "";
+    if (typed.trim().length >= WRITE_AUTOSUBMIT_MIN_CHARS) {
+      const res = await store.submitDefinition(identity.userId, word.wordId, typed, lang);
+      if (res.ok || res.error === "already_submitted") {
+        renderTimeoutStep("write-saved", lang, async () => {
+          const fresh = await refetchLangState(lang);
+          renderWriteWordStep(fresh, lang, skippedIds);
+        });
+        return;
+      }
+    }
     renderTimeoutStep("write", lang, () => {
       renderWriteWordStep(langState, lang, new Set([...skippedIds, word.wordId]));
     });
@@ -874,11 +1125,11 @@ function renderDoneStep(langState, lang, otherPending) {
   currentScreenLang = lang;
   clearActiveTimer();
   const extraBtn = otherPending
-    ? `<button class="btn secondary full btn-cta" id="play-other-lang-btn">${t(lang, "playOtherLangToo", { lang: LANG_LABELS[otherPending.lang] })}</button>`
+    ? `<button class="btn secondary full btn-cta" id="play-other-lang-btn">${t(lang, "playOtherLangToo", { lang: LANG_NAMES[lang][otherPending.lang] })}</button>`
     : "";
   app.replaceChildren(el(`
     <div class="screen-success">
-      <img class="mascot" src="assets/nesen.svg" alt="" />
+      ${MASCOT_HTML}
       <p class="eyebrow" style="text-align:center; color:inherit">${t(lang, "doneStreakLabel")}</p>
       <div class="recap-points" id="streak-num" style="color:inherit">0</div>
       <p style="text-align:center">${t(lang, "doneDays")}</p>
@@ -887,11 +1138,16 @@ function renderDoneStep(langState, lang, otherPending) {
     </div>
   `));
   revealThenSyncHeader(document.getElementById("streak-num"), langState.profile.streakDays, langState.profile, lang);
+  // Unlike the streak-number reveal above, today's progress isn't a "spoiler"
+  // (it's not the number being dramatically counted up) — update it right
+  // away rather than waiting for the reveal-then-sync delay.
+  const progressEl = document.getElementById("header-progress");
+  if (progressEl) progressEl.textContent = progressText(langState, lang);
   document.getElementById("play-other-lang-btn")?.addEventListener("click", () => enterLanguageFlow(otherPending.lang, otherPending.state));
 }
 
 async function resumeFlowFromState(langState, lang) {
-  updateHeader(langState.profile, lang);
+  updateHeader(langState.profile, lang, progressText(langState, lang));
   const allGuessed = langState.guessWords.length > 0 && langState.guessWords.every((w) => w.alreadyGuessed);
   const allWritten = langState.writeWords.every((w) => w.alreadySubmitted);
   if (langState.guessWords.length > 0 && !allGuessed) { renderGuessWordStep(langState, lang); return; }
@@ -907,12 +1163,12 @@ async function resumeFlowFromState(langState, lang) {
  * "play the other language too" button — one code path regardless of how
  * the user got here. */
 async function enterLanguageFlow(lang, langState) {
-  renderHeaderImmediate(langState.profile, lang);
+  renderHeaderImmediate(langState.profile, lang, progressText(langState, lang));
   if (langState.recap) {
     renderWriteRecap(langState.recap, langState.profile, lang, async () => {
       await store.ackRecap(identity.userId, lang);
-      const fresh = (await store.getToday(identity.userId)).byLang[lang];
-      renderHeaderImmediate(fresh.profile, lang);
+      const fresh = await refetchLangState(lang);
+      renderHeaderImmediate(fresh.profile, lang, progressText(fresh, lang));
       renderReadyStep(fresh, lang, () => resumeFlowFromState(fresh, lang));
     });
     return;
@@ -1009,7 +1265,7 @@ async function routeToCurrentScreen() {
   if (untouchedButNotDone) { await enterLanguageFlow(untouchedButNotDone, byLang[untouchedButNotDone]); return; }
 
   // Everything's done today.
-  renderHeaderImmediate(byLang[primaryLang].profile, primaryLang);
+  renderHeaderImmediate(byLang[primaryLang].profile, primaryLang, progressText(byLang[primaryLang], primaryLang));
   const otherPending = await otherLangStillPending(primaryLang);
   renderDoneStep(byLang[primaryLang], primaryLang, otherPending);
 }
@@ -1078,6 +1334,17 @@ function fixtureProfile(overrides = {}) {
   return { displayName: "Ferdigfigur", rating: 940, rank: 42, streakDays: 4, streakBonusPct: 40, ...overrides };
 }
 
+/** A minimal langState-shaped stand-in — just enough (`writeWords`/
+ * `guessWords`) for progressText()/renderDoneStep to read counts off of —
+ * for the many gallery cards that only ever had a bare fixtureProfile()
+ * before the header's daily-progress line existed. */
+function fixtureProgressState(guessDone, writeDone, total = 3) {
+  return {
+    guessWords: Array.from({ length: total }, (_, i) => ({ alreadyGuessed: i < guessDone })),
+    writeWords: Array.from({ length: total }, (_, i) => ({ alreadySubmitted: i < writeDone })),
+  };
+}
+
 function fixtureWordOptions(w) {
   return [
     { id: "a", text: w.bluffs[0], kind: "bot" },
@@ -1115,12 +1382,15 @@ function createFixtureStore(lang) {
   ];
 
   function today() {
-    return {
-      // enabledLangs is here purely so openSettingsPanel's fresh-fetch
-      // (see its own comment) doesn't crash when a gallery preview card's
-      // settings button gets clicked — the fixture screens themselves never
-      // read this field, since they're always called with an explicit
-      // fixture-built state, not through the real getToday()/byLang shape.
+    // Flat shape (enabledLangs/writeWords/guessWords/profile all top-level)
+    // so gallery preview cards that destructure store.getToday() directly
+    // (the "guess"/"write" cases in GALLERY_PREVIEW_SCREENS) keep working
+    // unmodified — but ALSO wrapped under byLang[lang], since
+    // refetchLangState() (used by the real render*Step flow this store
+    // backs, e.g. after a guess/submit) expects the real API's
+    // { enabledLangs, todayKey, byLang } consolidated shape. Both views
+    // point at the same live data, not a snapshot copy.
+    const langState = {
       enabledLangs: [lang],
       writeWords: words.map((w) => ({ wordId: w.wordId, word: w.word, alreadySubmitted: submitted.has(w.wordId) })),
       guessWords: words.map((w) => {
@@ -1133,6 +1403,7 @@ function createFixtureStore(lang) {
       }),
       profile,
     };
+    return { ...langState, byLang: { [lang]: langState } };
   }
 
   function finalizeGuessingIfDone() {
@@ -1198,7 +1469,7 @@ const GALLERY_PREVIEW_SCREENS = {
   "welcome": (lang) => renderWelcomeStep(lang, FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
   "ready": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, lang);
+    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
     renderReadyStep({ profile }, lang, () => {});
   },
   "choose-today-lang": (lang) => {
@@ -1208,13 +1479,13 @@ const GALLERY_PREVIEW_SCREENS = {
   },
   "write-recap-none": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, lang);
+    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
     renderWriteRecap({ fooledByWord: [] }, profile, lang, () => {});
   },
   "write-recap-fooled": (lang) => {
     const profile = fixtureProfile();
     const words = FIXTURE_WORDS[lang];
-    renderHeaderImmediate(profile, lang);
+    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
     renderWriteRecap({
       fooledByWord: [{ wordId: words[0].wordId, count: 7 }, { wordId: words[1].wordId, count: 3 }],
       writeStreakPct: profile.streakBonusPct, writeBasePoints: 112, writePoints: 123,
@@ -1222,32 +1493,45 @@ const GALLERY_PREVIEW_SCREENS = {
   },
   "guess": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang);
+    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
     renderGuessWordStep(state, lang);
   },
   "guess-hint": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang);
+    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
     renderGuessWordStep(state, lang);
     document.getElementById(`hint-${state.guessWords[0].wordId}`)?.click();
   },
-  "timeout-guess": (lang) => { renderHeaderImmediate(fixtureProfile(), lang); renderTimeoutStep("guess", lang, () => {}); },
-  "score": (lang) => { renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang); renderScoreStep(fixtureScoreResult(lang), lang, () => {}); },
+  "timeout-guess": (lang) => {
+    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(0, 0), lang));
+    renderTimeoutStep("guess", lang, () => {});
+  },
+  "score": (lang) => {
+    renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang, progressText(fixtureProgressState(3, 0), lang));
+    renderScoreStep(fixtureScoreResult(lang), lang, () => {});
+  },
   "write": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang);
+    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
     renderWriteWordStep(state, lang);
   },
-  "timeout-write": (lang) => { renderHeaderImmediate(fixtureProfile(), lang); renderTimeoutStep("write", lang, () => {}); },
+  "timeout-write": (lang) => {
+    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(3, 1), lang));
+    renderTimeoutStep("write", lang, () => {});
+  },
+  "timeout-write-saved": (lang) => {
+    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(3, 1), lang));
+    renderTimeoutStep("write-saved", lang, () => {});
+  },
   "done": (lang) => {
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
-    renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, lang, null);
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang, progressText(fixtureProgressState(3, 3), lang));
+    renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }), ...fixtureProgressState(3, 3) }, lang, null);
   },
   "done-with-other-lang": (lang) => {
     const otherLang = lang === "no" ? "en" : "no";
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang, progressText(fixtureProgressState(3, 3), lang));
     renderDoneStep(
-      { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) }, lang,
+      { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }), ...fixtureProgressState(3, 3) }, lang,
       { lang: otherLang, state: { profile: fixtureProfile({ rating: 700 }) } },
     );
   },
@@ -1272,6 +1556,8 @@ async function runGalleryPreview(screenId, theme, lang) {
 
 async function main() {
   applyTheme(loadTheme()); // index.html's inline script already did this pre-paint; keep state in sync
+  trackKeyboardInset();
+  registerServiceWorker();
 
   try {
     const config = await store.getConfig();
@@ -1315,7 +1601,7 @@ async function registerFlow(lang, displayName) {
   await store.setEnabledLangs(identity.userId, [lang]);
   await renderDevToolbar(); // pick up the brand-new player in the dev switcher
   renderHowToPlay(lang, async () => {
-    const langState = (await store.getToday(identity.userId)).byLang[lang];
+    const langState = await refetchLangState(lang);
     renderWelcomeStep(lang, displayName, langState.profile, () => resumeFlowFromState(langState, lang));
   });
 }

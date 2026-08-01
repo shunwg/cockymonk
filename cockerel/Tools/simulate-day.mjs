@@ -12,14 +12,10 @@
 // click-through can't reach.
 import assert from "node:assert/strict";
 import {
-  ensureToday, getTodayState, submitDefinition, submitGuess, ensureProfileFor, setEnabledLangs, ackRecap,
+  ensureToday, getTodayState, submitDefinition, submitGuess, ensureProfileFor, setEnabledLangs, ackRecap, freshDb,
 } from "../server/db.mjs";
 import { hasUnseenResult, currentStreak } from "../js/rating.js";
 import { LANGS } from "../js/config.js";
-
-function freshDb() {
-  return { batches: [], submissions: [], guesses: [], profiles: {}, dayResults: {} };
-}
 
 const USERS = Array.from({ length: 12 }, (_, i) => `user-${i + 1}`);
 const DAYS = 6;

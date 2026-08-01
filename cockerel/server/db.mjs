@@ -72,11 +72,18 @@ import { loadWords, loadFakeDefs, wordById } from "../js/words.js";
 import { OPTIONS, SCORING, BATCH, LEADERBOARD, HINT, LANGS } from "../js/config.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(here, "data");
+// Overridable so server/dev-server.test.mjs can point a spawned server at an
+// isolated scratch directory instead of the real server/data/ — unset in
+// every real deployment (fly.toml/fly.staging.toml don't set it), so this
+// changes nothing about where a live instance actually stores data.
+const DATA_DIR = process.env.COCKEREL_DATA_DIR || path.join(here, "data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 const SEED_FILE = path.join(DATA_DIR, "seed.json");
 
-function freshDb() {
+// Exported so Tools/simulate-day.mjs's standalone in-memory db starts from
+// the exact same shape instead of a hand-duplicated copy that can silently
+// drift out of sync (it once did — missing devClock/identities).
+export function freshDb() {
   return { batches: [], submissions: [], guesses: [], profiles: {}, dayResults: {}, devClock: null, identities: {} };
 }
 

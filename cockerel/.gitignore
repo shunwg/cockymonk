@@ -1,6 +1,7 @@
 server/data/*.json
 !server/data/seed.json
 node_modules/
+.DS_Store
 
 # app/ — Expo project (see app/AGENTS.md)
 app/.expo/

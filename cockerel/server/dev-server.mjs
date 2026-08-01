@@ -55,6 +55,9 @@ const MIME = {
   ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml",
   ".woff2": "font/woff2", ".png": "image/png",
+  // manifest.webmanifest — the spec-recommended content-type; served without
+  // it, most browsers still tolerate it, but this is the correct one.
+  ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
 // Serializes every read-modify-write cycle through db.json. Without this,
@@ -103,6 +106,180 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+// -- API routes -----------------------------------------------------------
+// One entry per (method, path) — a direct, structural translation of what
+// used to be a chain of `if (p === "..." && req.method === "...")` blocks;
+// each handler's body is unchanged from that block. `url` is passed through
+// for the handful of GET routes that read query params. Kept a plain array
+// + linear find rather than reaching for any routing pattern (path params,
+// wildcards, middleware) this app doesn't need — every path here is still an
+// exact string. See server/dev-server.test.mjs for the HTTP-level coverage
+// that pins down every route's behavior independent of this dispatch shape.
+const routes = [
+  {
+    method: "POST", path: "/api/profile",
+    handler: async (req, res) => {
+      const { userId, displayName, device } = await readBody(req);
+      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName, device));
+      sendJson(res, 200, { ok: true, profile });
+    },
+  },
+  {
+    method: "GET", path: "/api/admin/stats",
+    handler: async (req, res, url) => {
+      if (!isAdminAuthed(req, url)) { sendJson(res, 401, { ok: false, error: "unauthorized" }); return; }
+      const stats = await withDb((db) => computeAdminStats(db));
+      sendJson(res, 200, { ok: true, ...stats });
+    },
+  },
+  {
+    // One-time cutover tool (see wipeAllUsers in db.mjs) — irreversible, so
+    // it requires the exact body {"confirm":"WIPE"} in addition to
+    // ADMIN_TOKEN, as a guard against a fat-fingered request wiping real
+    // player data.
+    method: "POST", path: "/api/admin/wipe-all",
+    handler: async (req, res, url) => {
+      if (!isAdminAuthed(req, url)) { sendJson(res, 401, { ok: false, error: "unauthorized" }); return; }
+      const { confirm } = await readBody(req);
+      if (confirm !== "WIPE") { sendJson(res, 400, { ok: false, error: "confirmation_required" }); return; }
+      const result = await withDb((db) => wipeAllUsers(db));
+      sendJson(res, 200, result);
+    },
+  },
+  {
+    method: "GET", path: "/api/today",
+    handler: async (req, res, url) => {
+      const userId = url.searchParams.get("userId");
+      const state = await withDb((db) => getTodayState(db, userId));
+      sendJson(res, 200, state);
+    },
+  },
+  {
+    method: "POST", path: "/api/submit-definition",
+    handler: async (req, res) => {
+      const { userId, wordId, text, lang } = await readBody(req);
+      const result = await withDb((db) => submitDefinition(db, { userId, wordId, text, lang }));
+      sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    method: "POST", path: "/api/submit-guess",
+    handler: async (req, res) => {
+      const { userId, wordId, choiceId, lang } = await readBody(req);
+      const result = await withDb((db) => submitGuess(db, { userId, wordId, choiceId, lang }));
+      sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    method: "POST", path: "/api/skip-guess",
+    handler: async (req, res) => {
+      const { userId, wordId, lang } = await readBody(req);
+      const result = await withDb((db) => skipGuess(db, { userId, wordId, lang }));
+      sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    method: "POST", path: "/api/ack-recap",
+    handler: async (req, res) => {
+      const { userId, lang } = await readBody(req);
+      await withDb((db) => ackRecap(db, userId, lang));
+      sendJson(res, 200, { ok: true });
+    },
+  },
+  {
+    method: "GET", path: "/api/vote-distribution",
+    handler: async (req, res, url) => {
+      const userId = url.searchParams.get("userId");
+      const wordId = url.searchParams.get("wordId");
+      const lang = url.searchParams.get("lang");
+      const result = await withDb((db) => getVoteDistribution(db, userId, wordId, lang));
+      sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    // Settings-panel language toggle (see cockerel/CLAUDE.md "Dual-language
+    // gameplay") — also doubles as onboarding's initial language choice, one
+    // call either way. The client re-fetches /api/today right after to pick
+    // up the newly (dis)enabled language's state.
+    method: "POST", path: "/api/set-languages",
+    handler: async (req, res) => {
+      const { userId, enabledLangs } = await readBody(req);
+      const result = await withDb((db) => setEnabledLangs(db, userId, enabledLangs));
+      sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    method: "POST", path: "/api/reset-player",
+    handler: async (req, res) => {
+      const { userId } = await readBody(req);
+      if (!userId) { sendJson(res, 400, { ok: false, error: "missing_userId" }); return; }
+      const result = await withDb((db) => resetPlayer(db, userId));
+      sendJson(res, 200, result);
+    },
+  },
+  {
+    method: "GET", path: "/api/config",
+    handler: async (req, res) => {
+      sendJson(res, 200, {
+        ok: true, devTools: DEV_TOOLS, googleClientId: GOOGLE_CLIENT_ID, requireGoogleAuth: REQUIRE_GOOGLE_AUTH,
+      });
+    },
+  },
+  {
+    method: "POST", path: "/api/auth/google",
+    handler: async (req, res) => {
+      if (!GOOGLE_CLIENT_ID) { sendJson(res, 404, { ok: false, error: "not_configured" }); return; }
+      const { idToken, userId, device } = await readBody(req);
+      if (!idToken || !userId) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
+      const claims = await verifyGoogleIdToken(idToken, GOOGLE_CLIENT_ID);
+      if (!claims) { sendJson(res, 401, { ok: false, error: "invalid_token" }); return; }
+      const result = await withDb((db) =>
+        linkGoogleIdentity(db, { sub: claims.sub, userId, displayName: claims.name ?? userId, device })
+      );
+      sendJson(res, 200, { ok: true, ...result });
+    },
+  },
+  // -- dev-only test tools (see cockerel/CLAUDE.md) --------------------
+  {
+    method: "GET", path: "/api/dev/days",
+    handler: async (req, res) => {
+      const state = await withDb((db) => listDays(db));
+      sendJson(res, 200, { ok: true, ...state });
+    },
+  },
+  {
+    method: "GET", path: "/api/dev/players",
+    handler: async (req, res) => {
+      const players = await withDb((db) => listPlayers(db));
+      sendJson(res, 200, { ok: true, players });
+    },
+  },
+  {
+    method: "POST", path: "/api/dev/advance-day",
+    handler: async (req, res) => {
+      const result = await withDb((db) => advanceDay(db));
+      sendJson(res, 200, { ok: true, ...result });
+    },
+  },
+  {
+    // Feedback logged from gallery.html's per-card form (see js/gallery.js) —
+    // appended to server/data/gallery-feedback.json, a separate file from
+    // db.json (see server/gallery-feedback.mjs). Not tied to withDb's queue
+    // since it never touches db.json.
+    method: "POST", path: "/api/dev/gallery-feedback",
+    handler: async (req, res) => {
+      const { screenId, screenLabel, theme, lang, note } = await readBody(req);
+      if (!screenId || !String(note ?? "").trim()) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
+      const entry = {
+        ts: new Date().toISOString(), screenId, screenLabel: screenLabel ?? null,
+        theme: theme ?? null, lang: lang ?? null, note: String(note).trim(),
+      };
+      await appendGalleryFeedback(entry);
+      sendJson(res, 200, { ok: true, entry });
+    },
+  },
+];
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = decodeURIComponent(url.pathname);
@@ -124,140 +301,15 @@ createServer(async (req, res) => {
   if (!p.startsWith("/api/")) return serveStatic(req, res, p);
 
   try {
-    if (p === "/api/profile" && req.method === "POST") {
-      const { userId, displayName, device } = await readBody(req);
-      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName, device));
-      sendJson(res, 200, { ok: true, profile });
-      return;
-    }
-    if (p === "/api/admin/stats" && req.method === "GET") {
-      if (!isAdminAuthed(req, url)) { sendJson(res, 401, { ok: false, error: "unauthorized" }); return; }
-      const stats = await withDb((db) => computeAdminStats(db));
-      sendJson(res, 200, { ok: true, ...stats });
-      return;
-    }
-    // One-time cutover tool (see wipeAllUsers in db.mjs) — irreversible, so it
-    // requires the exact body {"confirm":"WIPE"} in addition to ADMIN_TOKEN,
-    // as a guard against a fat-fingered request wiping real player data.
-    if (p === "/api/admin/wipe-all" && req.method === "POST") {
-      if (!isAdminAuthed(req, url)) { sendJson(res, 401, { ok: false, error: "unauthorized" }); return; }
-      const { confirm } = await readBody(req);
-      if (confirm !== "WIPE") { sendJson(res, 400, { ok: false, error: "confirmation_required" }); return; }
-      const result = await withDb((db) => wipeAllUsers(db));
-      sendJson(res, 200, result);
-      return;
-    }
-    if (p === "/api/today" && req.method === "GET") {
-      const userId = url.searchParams.get("userId");
-      const state = await withDb((db) => getTodayState(db, userId));
-      sendJson(res, 200, state);
-      return;
-    }
-    if (p === "/api/submit-definition" && req.method === "POST") {
-      const { userId, wordId, text, lang } = await readBody(req);
-      const result = await withDb((db) => submitDefinition(db, { userId, wordId, text, lang }));
-      sendJson(res, result.ok ? 200 : 400, result);
-      return;
-    }
-    if (p === "/api/submit-guess" && req.method === "POST") {
-      const { userId, wordId, choiceId, lang } = await readBody(req);
-      const result = await withDb((db) => submitGuess(db, { userId, wordId, choiceId, lang }));
-      sendJson(res, result.ok ? 200 : 400, result);
-      return;
-    }
-    if (p === "/api/skip-guess" && req.method === "POST") {
-      const { userId, wordId, lang } = await readBody(req);
-      const result = await withDb((db) => skipGuess(db, { userId, wordId, lang }));
-      sendJson(res, result.ok ? 200 : 400, result);
-      return;
-    }
-    if (p === "/api/ack-recap" && req.method === "POST") {
-      const { userId, lang } = await readBody(req);
-      await withDb((db) => ackRecap(db, userId, lang));
-      sendJson(res, 200, { ok: true });
-      return;
-    }
-    if (p === "/api/vote-distribution" && req.method === "GET") {
-      const userId = url.searchParams.get("userId");
-      const wordId = url.searchParams.get("wordId");
-      const lang = url.searchParams.get("lang");
-      const result = await withDb((db) => getVoteDistribution(db, userId, wordId, lang));
-      sendJson(res, result.ok ? 200 : 400, result);
-      return;
-    }
-    // Settings-panel language toggle (see cockerel/CLAUDE.md "Dual-language
-    // gameplay") — also doubles as onboarding's initial language choice, one
-    // call either way. The client re-fetches /api/today right after to pick
-    // up the newly (dis)enabled language's state.
-    if (p === "/api/set-languages" && req.method === "POST") {
-      const { userId, enabledLangs } = await readBody(req);
-      const result = await withDb((db) => setEnabledLangs(db, userId, enabledLangs));
-      sendJson(res, result.ok ? 200 : 400, result);
-      return;
-    }
-    if (p === "/api/reset-player" && req.method === "POST") {
-      const { userId } = await readBody(req);
-      if (!userId) { sendJson(res, 400, { ok: false, error: "missing_userId" }); return; }
-      const result = await withDb((db) => resetPlayer(db, userId));
-      sendJson(res, 200, result);
-      return;
-    }
-    if (p === "/api/config" && req.method === "GET") {
-      sendJson(res, 200, {
-        ok: true, devTools: DEV_TOOLS, googleClientId: GOOGLE_CLIENT_ID, requireGoogleAuth: REQUIRE_GOOGLE_AUTH,
-      });
-      return;
-    }
-    if (p === "/api/auth/google" && req.method === "POST") {
-      if (!GOOGLE_CLIENT_ID) { sendJson(res, 404, { ok: false, error: "not_configured" }); return; }
-      const { idToken, userId, device } = await readBody(req);
-      if (!idToken || !userId) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
-      const claims = await verifyGoogleIdToken(idToken, GOOGLE_CLIENT_ID);
-      if (!claims) { sendJson(res, 401, { ok: false, error: "invalid_token" }); return; }
-      const result = await withDb((db) =>
-        linkGoogleIdentity(db, { sub: claims.sub, userId, displayName: claims.name ?? userId, device })
-      );
-      sendJson(res, 200, { ok: true, ...result });
-      return;
-    }
-    // -- dev-only test tools (see cockerel/CLAUDE.md) ------------------
-    // 404 (not just client-side hiding) when DEV_TOOLS=0, so a deployed
-    // instance can't be poked into the toolbar's day-advance/player-switch
+    // 404 (not just client-side hiding) when DEV_TOOLS=0, checked before the
+    // route table so a deployed instance can't be poked into any /api/dev/*
     // behavior by anyone hitting the endpoints directly.
     if (p.startsWith("/api/dev/") && !DEV_TOOLS) {
       sendJson(res, 404, { ok: false, error: "not_found" });
       return;
     }
-    if (p === "/api/dev/days" && req.method === "GET") {
-      const state = await withDb((db) => listDays(db));
-      sendJson(res, 200, { ok: true, ...state });
-      return;
-    }
-    if (p === "/api/dev/players" && req.method === "GET") {
-      const players = await withDb((db) => listPlayers(db));
-      sendJson(res, 200, { ok: true, players });
-      return;
-    }
-    if (p === "/api/dev/advance-day" && req.method === "POST") {
-      const result = await withDb((db) => advanceDay(db));
-      sendJson(res, 200, { ok: true, ...result });
-      return;
-    }
-    // Feedback logged from gallery.html's per-card form (see js/gallery.js) —
-    // appended to server/data/gallery-feedback.json, a separate file from
-    // db.json (see server/gallery-feedback.mjs). Not tied to withDb's queue
-    // since it never touches db.json.
-    if (p === "/api/dev/gallery-feedback" && req.method === "POST") {
-      const { screenId, screenLabel, theme, lang, note } = await readBody(req);
-      if (!screenId || !String(note ?? "").trim()) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
-      const entry = {
-        ts: new Date().toISOString(), screenId, screenLabel: screenLabel ?? null,
-        theme: theme ?? null, lang: lang ?? null, note: String(note).trim(),
-      };
-      await appendGalleryFeedback(entry);
-      sendJson(res, 200, { ok: true, entry });
-      return;
-    }
+    const route = routes.find((r) => r.method === req.method && r.path === p);
+    if (route) { await route.handler(req, res, url); return; }
     sendJson(res, 404, { ok: false, error: "not_found" });
   } catch (err) {
     sendJson(res, 500, { ok: false, error: String(err?.message ?? err) });

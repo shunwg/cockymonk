@@ -22,6 +22,12 @@ const copies = [
   [path.join(shunwgLab, "css", "tokens.css"), path.join(outCss, "tokens.css")],
   [path.join(shunwgLab, "vendor", "fredoka.css"), path.join(outAssets, "fredoka.css")],
   [path.join(shunwgLab, "icon.svg"), path.join(outAssets, "nesen.svg")],
+  // Raster sizes for manifest.webmanifest / apple-touch-icon — PWA install
+  // needs real PNGs (iOS in particular won't reliably rasterize an SVG home
+  // screen icon), and shunwg/Lab already has these generated from the same
+  // source art as icon.svg above.
+  [path.join(shunwgLab, "icon-180.png"), path.join(outAssets, "nesen-180.png")],
+  [path.join(shunwgLab, "icon-512.png"), path.join(outAssets, "nesen-512.png")],
 ];
 
 for (const [from, to] of copies) {

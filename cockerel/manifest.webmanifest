@@ -1,0 +1,20 @@
+{
+  "name": "Cockerel",
+  "short_name": "Cockerel",
+  "description": "Skriv falske definisjoner på dagens ord, og gjett de ekte definisjonene blant gårsdagens bløffer.",
+  "lang": "nb",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "categories": ["games", "entertainment", "word"],
+  "icons": [
+    { "src": "assets/nesen.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/nesen-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "assets/nesen-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/nesen-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

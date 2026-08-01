@@ -8,6 +8,18 @@
 <link rel="stylesheet" href="assets/fredoka.css" />
 <link rel="stylesheet" href="css/tokens.css" />
 <link rel="stylesheet" href="css/app.css" />
+<!-- PWA installability — see manifest.webmanifest, sw.js, ASSETS.md, and
+     js/ui.js's install-state tracking (used by the settings panel's
+     "Install app" section). theme-color's content is kept in sync with the
+     light/dark toggle by both the inline script below (pre-paint) and
+     js/ui.js's applyTheme() (post-toggle) — same "no flash of the wrong
+     value" discipline as data-theme itself. -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="assets/nesen-180.png" />
+<meta name="theme-color" content="#FFFFFF" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Cockerel" />
 <script>
 // Stamp the saved theme before first paint so there's no flash of the
 // wrong theme — must stay a plain synchronous script (not the module in
@@ -19,9 +31,9 @@ try {
   // cockerel.theme.v1 is the current key; thedailycock.theme.v1 is the
   // pre-rename key still sitting in returning players' browsers — see
   // js/storage.js's loadTheme() for the one-time migration.
-  if ((localStorage.getItem("cockerel.theme.v1") ?? localStorage.getItem("thedailycock.theme.v1")) !== "dark") {
-    document.documentElement.dataset.theme = "light";
-  }
+  var isDark = (localStorage.getItem("cockerel.theme.v1") ?? localStorage.getItem("thedailycock.theme.v1")) === "dark";
+  if (!isDark) document.documentElement.dataset.theme = "light";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#1B1B2E" : "#FFFFFF");
 } catch (e) {
   document.documentElement.dataset.theme = "light"; // localStorage inaccessible (e.g. Safari private mode) — still default light
 }
