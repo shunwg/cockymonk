@@ -4,6 +4,7 @@
 // Add a screen here first, then a matching case in ui.js, to keep both in
 // sync — see gallery.html's CLAUDE.md note for the full picture.
 export const GALLERY_SCREENS = [
+  { id: "sign-in-gate", label: "Logg inn (Google, krevd)" },
   { id: "name", label: "Velg brukernavn (første besøk)" },
   { id: "how-to-play", label: "Slik spiller du" },
   { id: "welcome", label: "Heisann! (første gang, startpoeng)" },
@@ -17,5 +18,4 @@ export const GALLERY_SCREENS = [
   { id: "write", label: "Skriv dagens ord" },
   { id: "timeout-write", label: "Du rakk ikke å skrive" },
   { id: "done", label: "Ferdig for dagen / streak" },
-  { id: "sign-in-gate", label: "Logg inn (Google, krevd)" },
 ];
