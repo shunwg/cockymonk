@@ -56,6 +56,24 @@ Gated exactly like `#devbar`/`/api/dev/*`: `gallery.html` itself 404s server-sid
 from `/api/config` before honoring `?preview=`, so this is unreachable on either deployed instance
 regardless of anyone guessing the URL.
 
+**Keeping it current — do this every time `js/ui.js`'s screens change, not just when asked:**
+Because every card reuses the real `render*Step` functions unmodified, a purely visual/behavioral
+change to an *existing* screen (new copy, restyled card, different animation) needs **zero** gallery
+changes — the card picks it up automatically the next time it's refreshed. Gallery-specific upkeep is
+only needed in two cases, and either one means the gallery has silently gone stale until fixed:
+1. **A new screen/step is added to the real flow** (a new `render*Step` function in `js/ui.js`) — add
+   an entry to `js/gallery-screens.js` (id + label) AND a matching case in `js/ui.js`'s
+   `GALLERY_PREVIEW_SCREENS`, built from a fixture object shaped like whatever that function expects
+   (see the existing cases for the pattern — most screens take a plain argument and need no `store` at
+   all; only wire `store.*` if the new screen's own handlers call it directly, the way "guess"/"write" do).
+2. **The shape of data a render function expects changes** (e.g. a new/renamed field on `profile`,
+   `guessWords[]`, `writeWords[]`, a guess/write result object, etc.) — update `FIXTURE_WORDS`/
+   `fixtureProfile`/`fixtureScoreResult`/`createFixtureStore()` in `js/ui.js` to match, or the affected
+   card will render with stale/missing data (or throw) without necessarily failing anything else.
+A screen removed from the real flow should have its entry deleted from both files, not just left
+pointing at dead code. When in doubt, actually open `gallery.html` after a UI change and eyeball it —
+the whole point of this tool is that it's cheap to check.
+
 ## Native app (`app/`)
 An Expo/React Native port of the same game, targeting iOS (TestFlight) first, then Android and web from one codebase — modeled on `../ordkrig/`'s proven Expo setup. The whole project — repo directory, web app, and this native client — is branded **Cockerel** (`app.json`'s `name`/`slug`). The one thing that did NOT change: the bundle identifier (`app.json`'s `bundleIdentifier`/`package`, still `com.edword92.dailycock` — registered on Edvard's Apple team, which owns the App Store Connect record). That's an App Store Connect action, out of scope for an agent regardless of the rest of the rename — see the guardrail below. Read `app/AGENTS.md` in full before working there; it's the authority for that tree (setup, running locally, and the full manual TestFlight-shipping walkthrough), same relationship this file has to the repo root's `CLAUDE.md`.
 - `app/src/engine/*.js` is a **generated**, verbatim one-way copy of `js/{engine,config,decoys,rating}.js` (via `app/Tools/sync-engine.mjs`) — same Provenance philosophy as the copies listed above. Re-run the sync script after changing those files upstream; never hand-edit the copies.
@@ -105,6 +123,10 @@ Both deployed instances (`fly.toml` and `fly.staging.toml`) set `REQUIRE_GOOGLE_
 Set the token on each deploy: `fly secrets set ADMIN_TOKEN=... -a cockerel` and `-a cockerel-staging` (can be the same or different values; rotate anytime by re-running the command, no redeploy needed since Fly secrets update the running machine's env directly).
 
 ## Guardrails
+- Any change to `js/ui.js`'s screens (new screen, removed screen, or a changed data shape a `render*Step`
+  function expects) must be reflected in the screen gallery in the same change — see "Keeping it
+  current" under Screen gallery above. Don't treat this as optional cleanup; a stale gallery defeats
+  the entire point of the tool (reviewing every real screen state) without failing any test or build.
 - Never add a nav path to Cocky Monk or Ordkrig from inside this app.
 - Never add a quit/absence penalty to scoring (see Provenance above).
 - Never point `storage.js` at Ordkrig's live Supabase project — if/when this needs real hosted persistence, that's a new decision to make explicitly, not a quiet reuse of someone else's production database.
