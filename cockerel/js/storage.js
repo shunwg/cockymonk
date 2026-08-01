@@ -38,15 +38,23 @@ export function storageLocal(base = "") {
   return {
     getConfig: () => get("/api/config"),
     ensureProfile: (userId, displayName) => post("/api/profile", { userId, displayName, device: detectDevice() }),
+    // getToday's response is now consolidated across every enabled language
+    // (see server/db.mjs getTodayState) — { enabledLangs, todayKey, byLang:
+    // { no: {...}, en: {...} } } — not itself lang-scoped; the individual
+    // actions below are.
     getToday: (userId) => get(`/api/today?userId=${encodeURIComponent(userId)}`),
-    submitDefinition: (userId, wordId, text) => post("/api/submit-definition", { userId, wordId, text }),
-    submitGuess: (userId, wordId, choiceId) => post("/api/submit-guess", { userId, wordId, choiceId }),
-    skipGuess: (userId, wordId) => post("/api/skip-guess", { userId, wordId }),
-    ackRecap: (userId) => post("/api/ack-recap", { userId }),
-    getVoteDistribution: (userId, wordId) =>
-      get(`/api/vote-distribution?userId=${encodeURIComponent(userId)}&wordId=${encodeURIComponent(wordId)}`),
+    submitDefinition: (userId, wordId, text, lang) => post("/api/submit-definition", { userId, wordId, text, lang }),
+    submitGuess: (userId, wordId, choiceId, lang) => post("/api/submit-guess", { userId, wordId, choiceId, lang }),
+    skipGuess: (userId, wordId, lang) => post("/api/skip-guess", { userId, wordId, lang }),
+    ackRecap: (userId, lang) => post("/api/ack-recap", { userId, lang }),
+    getVoteDistribution: (userId, wordId, lang) =>
+      get(`/api/vote-distribution?userId=${encodeURIComponent(userId)}&wordId=${encodeURIComponent(wordId)}&lang=${encodeURIComponent(lang)}`),
     resetPlayer: (userId) => post("/api/reset-player", { userId }),
     signInWithGoogle: (idToken, userId) => post("/api/auth/google", { idToken, userId, device: detectDevice() }),
+    // Settings-panel toggle / onboarding's initial choice — see
+    // cockerel/CLAUDE.md "Dual-language gameplay". Callers re-fetch getToday
+    // afterward to pick up the newly (dis)enabled language's state.
+    setEnabledLangs: (userId, enabledLangs) => post("/api/set-languages", { userId, enabledLangs }),
     // dev-only test tools (see CLAUDE.md) — a real backend need not implement these.
     listDays: () => get("/api/dev/days"),
     listPlayers: () => get("/api/dev/players"),

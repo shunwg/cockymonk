@@ -6,6 +6,15 @@
  * Starting numbers are illustrative defaults, not measured — retune freely.
  */
 
+// Supported gameplay languages — see cockerel/CLAUDE.md's "Dual-language
+// gameplay" section for the full architecture. "no" (Norwegian) is the
+// original, production-content language; "en" (English) is a small
+// hand-written PLACEHOLDER corpus (js/words.en.json / js/fakeDefs.en.json),
+// not production-scale content. Every batch/submission/guess/profile-track
+// is keyed by one of these codes — never hardcode "no" as "the" language
+// anywhere new, even though it's still the only one with real content today.
+export const LANGS = ["no", "en"];
+
 export const BATCH = {
   wordsPerDay: 3,
   // How many days a word is excluded from being redrawn after use. The corpus

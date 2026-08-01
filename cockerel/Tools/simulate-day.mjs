@@ -4,11 +4,18 @@
 // controlled fake `now`s so the write/guess-offset pipeline can be verified
 // without waiting real days. Does not touch server/data/ — a single
 // self-contained smoke test. Usage: node Tools/simulate-day.mjs
+//
+// Exercises BOTH languages (see cockerel/CLAUDE.md "Dual-language
+// gameplay") — most simulated users enable only one language (matching the
+// expected real distribution), a few enable both, specifically to stress
+// the "independent per-language session" paths a single day's manual
+// click-through can't reach.
 import assert from "node:assert/strict";
 import {
-  ensureToday, getTodayState, submitDefinition, submitGuess, ensureProfileFor, ackRecap,
+  ensureToday, getTodayState, submitDefinition, submitGuess, ensureProfileFor, setEnabledLangs, ackRecap,
 } from "../server/db.mjs";
 import { hasUnseenResult, currentStreak } from "../js/rating.js";
+import { LANGS } from "../js/config.js";
 
 function freshDb() {
   return { batches: [], submissions: [], guesses: [], profiles: {}, dayResults: {} };
@@ -19,7 +26,17 @@ const DAYS = 6;
 const START = Date.UTC(2026, 0, 1, 12); // noon UTC, day 1
 
 const db = freshDb();
-for (const u of USERS) ensureProfileFor(db, u, u);
+// Fixed per-user language enrollment, decided once up front — a settings
+// toggle mid-run isn't the thing this smoke test is exercising.
+const userLangs = new Map();
+for (const u of USERS) {
+  ensureProfileFor(db, u, u);
+  const roll = Math.random();
+  const langs = roll < 0.1 ? [...LANGS] : roll < 0.55 ? ["no"] : ["en"];
+  setEnabledLangs(db, u, langs);
+  userLangs.set(u, langs);
+}
+console.log(`Language enrollment: ${[...userLangs].filter(([, l]) => l.length > 1).length} dual-language, ${[...userLangs].filter(([, l]) => l.length === 1).length} single-language`);
 
 for (let day = 0; day < DAYS; day++) {
   const now = new Date(START + day * 86_400_000);
@@ -33,30 +50,32 @@ for (let day = 0; day < DAYS; day++) {
   for (const userId of active) {
     const state = getTodayState(db, userId);
 
-    for (const w of state.writeWords) {
-      if (w.alreadySubmitted) continue;
-      // Real users rarely write for EVERY word every day — keep per-word
-      // coverage low so the bot-fill path actually gets exercised, same as
-      // the real early-adoption scenario this mode is designed for.
-      if (Math.random() < 0.7) continue;
-      submitDefinition(db, { userId, wordId: w.wordId, text: `${userId}s bløff om ${w.word}` });
-    }
+    for (const lang of state.enabledLangs) {
+      const langState = state.byLang[lang];
 
-    for (const w of state.guessWords) {
-      if (w.alreadyGuessed) continue;
-      // Guess right ~40% of the time, otherwise pick a random visible option —
-      // varied enough to exercise both correct and incorrect scoring paths.
-      const pick = Math.random() < 0.4
-        ? null // resolved below once we know which id is truth (we don't peek — guess randomly weighted instead)
-        : w.options[Math.floor(Math.random() * w.options.length)];
-      const choice = pick ?? w.options[Math.floor(Math.random() * w.options.length)];
-      submitGuess(db, { userId, wordId: w.wordId, choiceId: choice.id });
-    }
+      for (const w of langState.writeWords) {
+        if (w.alreadySubmitted) continue;
+        // Real users rarely write for EVERY word every day — keep per-word
+        // coverage low so the bot-fill path actually gets exercised, same as
+        // the real early-adoption scenario this mode is designed for.
+        if (Math.random() < 0.7) continue;
+        submitDefinition(db, { userId, wordId: w.wordId, text: `${userId}s bluff on ${w.word} (${lang})`, lang });
+      }
 
-    if (state.recap) {
-      assert.ok(hasUnseenResult(db.profiles[userId], db.dayResults[userId].asOfDayKey), "recap should be unseen before ack");
-      ackRecap(db, userId);
-      assert.ok(!hasUnseenResult(db.profiles[userId], db.dayResults[userId].asOfDayKey), "recap should be seen after ack");
+      for (const w of langState.guessWords) {
+        if (w.alreadyGuessed) continue;
+        // Random visible option — varied enough to exercise both correct and
+        // incorrect scoring paths without peeking at which one is truth.
+        const choice = w.options[Math.floor(Math.random() * w.options.length)];
+        submitGuess(db, { userId, wordId: w.wordId, choiceId: choice.id, lang });
+      }
+
+      if (langState.recap) {
+        const langProfile = db.profiles[userId].langs[lang];
+        assert.ok(hasUnseenResult(langProfile, db.dayResults[userId][lang].asOfDayKey), `${lang} recap should be unseen before ack`);
+        ackRecap(db, userId, lang);
+        assert.ok(!hasUnseenResult(db.profiles[userId].langs[lang], db.dayResults[userId][lang].asOfDayKey), `${lang} recap should be seen after ack`);
+      }
     }
   }
 }
@@ -65,35 +84,55 @@ for (let day = 0; day < DAYS; day++) {
 
 for (const batch of db.batches) {
   if (!batch.sealedAt) continue;
+  assert.ok(LANGS.includes(batch.lang), `batch has a valid lang: ${batch.lang}`);
   for (const wordId of batch.wordIds) {
     const options = batch.options[wordId];
     const truths = options.filter((o) => o.kind === "truth");
-    assert.equal(truths.length, 1, `exactly one truth option for word ${wordId}`);
+    assert.equal(truths.length, 1, `exactly one truth option for ${batch.lang}/${wordId}`);
     const texts = options.map((o) => o.text);
-    assert.equal(new Set(texts).size, texts.length, `no duplicate option text for word ${wordId} (no truth collision)`);
+    assert.equal(new Set(texts).size, texts.length, `no duplicate option text for ${batch.lang}/${wordId} (no truth collision)`);
   }
 }
 
-let anyBotFill = false;
-for (const batch of db.batches) {
-  if (!batch.options) continue;
-  for (const wordId of batch.wordIds) {
-    if (batch.options[wordId].some((o) => o.kind === "bot")) anyBotFill = true;
+for (const lang of LANGS) {
+  let anyBotFill = false;
+  for (const batch of db.batches) {
+    if (batch.lang !== lang || !batch.options) continue;
+    for (const wordId of batch.wordIds) {
+      if (batch.options[wordId].some((o) => o.kind === "bot")) anyBotFill = true;
+    }
   }
-}
-assert.ok(anyBotFill, "expected at least one word to need bot-fill decoys given partial participation");
+  assert.ok(anyBotFill, `expected at least one ${lang} word to need bot-fill decoys given partial participation`);
 
-let anyRatingProgress = false;
+  let anyRatingProgress = false;
+  for (const userId of USERS) {
+    const langProfile = db.profiles[userId].langs[lang];
+    if (langProfile?.countedDays.length > 0) anyRatingProgress = true;
+  }
+  assert.ok(anyRatingProgress, `expected at least one ${lang} profile to have accumulated day credit`);
+}
+
+// Cross-language independence: a user enrolled in only ONE language must
+// never accumulate a rating track for the other one — this is the one
+// invariant that would silently break if any per-lang scoping in db.mjs
+// leaked into the wrong language.
 for (const userId of USERS) {
-  const p = db.profiles[userId];
-  if (p.countedDays.length > 0) anyRatingProgress = true;
+  const langs = userLangs.get(userId);
+  for (const lang of LANGS) {
+    if (!langs.includes(lang)) {
+      assert.ok(!db.profiles[userId].langs[lang], `${userId} never enabled ${lang} — must have no ${lang} rating track`);
+    }
+  }
 }
-assert.ok(anyRatingProgress, "expected at least one profile to have accumulated day credit");
 
 console.log("\nFinal profiles:");
 for (const userId of USERS) {
   const p = db.profiles[userId];
-  console.log(`  ${userId}: ratingSum=${p.ratingSum} countedDays=${p.countedDays.length} streak=${currentStreak(p.participatedDays)}`);
+  const parts = (userLangs.get(userId)).map((lang) => {
+    const lp = p.langs[lang];
+    return `${lang}: ratingSum=${lp.ratingSum} countedDays=${lp.countedDays.length} streak=${currentStreak(lp.participatedDays)}`;
+  });
+  console.log(`  ${userId} [${userLangs.get(userId).join(",")}]: ${parts.join(" | ")}`);
 }
 
 console.log("\nAll simulate-day.mjs assertions passed.");

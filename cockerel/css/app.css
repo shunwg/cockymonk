@@ -126,6 +126,20 @@ html, body {
   gap: 12px;
   animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
 }
+/* The done-step's own bottom padding is normally a flat 48px (no CTA button
+ * lives here in the common single-language case) — but a dual-language
+ * player who still has the OTHER language pending today gets a second,
+ * secondary-style .btn-cta here (see js/ui.js renderDoneStep's
+ * "play the other language too" button). That's a FIXED element needing the
+ * same full --cta-clearance every other .btn-cta screen reserves, or it
+ * would overlap the streak number — the flat 48px above is nowhere near
+ * enough. #app:has(.btn-cta) already adds this on #app itself, but
+ * .screen-success cancels #app's own padding via its negative margin trick
+ * (see above) and must therefore reserve it again here, on itself. */
+.screen-success:has(.btn-cta) {
+  margin-bottom: calc(-1 * var(--cta-clearance));
+  padding-bottom: var(--cta-clearance);
+}
 
 /* -- dev toolbar: testing-only, see CLAUDE.md — not part of the shipped UX --
  * Deliberately monochrome and far from the game's palette (light gray, black

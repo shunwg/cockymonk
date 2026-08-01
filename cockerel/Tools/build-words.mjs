@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 // One-way import from Ordkrig's word corpus — see CLAUDE.md "Provenance".
 // Re-run after any Ordkrig wordlist change you want reflected here. Never
-// hand-edit js/words.json or js/fakeDefs.json; they are generated files.
+// hand-edit js/words.no.json or js/fakeDefs.no.json; they are generated
+// files. Norwegian ("no") only — Ordkrig has no English corpus to import
+// from, so js/words.en.json / js/fakeDefs.en.json are a separate,
+// hand-written placeholder (see CLAUDE.md "Dual-language gameplay") this
+// script never touches.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -24,8 +28,8 @@ const words = readJson(path.join(ordkrigData, "words.no.json"));
 // ported nearness-matching code needs no field renaming.
 const fakeDefs = readJson(path.join(ordkrigData, "fakeDefs.json"));
 
-writeFileSync(path.join(outDir, "words.json"), JSON.stringify(words, null, 2) + "\n");
-writeFileSync(path.join(outDir, "fakeDefs.json"), JSON.stringify(fakeDefs, null, 2) + "\n");
+writeFileSync(path.join(outDir, "words.no.json"), JSON.stringify(words, null, 2) + "\n");
+writeFileSync(path.join(outDir, "fakeDefs.no.json"), JSON.stringify(fakeDefs, null, 2) + "\n");
 
-console.log(`words.json: ${words.length} words`);
-console.log(`fakeDefs.json: ${fakeDefs.length} fake definitions`);
+console.log(`words.no.json: ${words.length} words`);
+console.log(`fakeDefs.no.json: ${fakeDefs.length} fake definitions`);

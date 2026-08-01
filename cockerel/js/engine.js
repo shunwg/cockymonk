@@ -6,7 +6,7 @@
 // The cutoff is UTC midnight (not local time) so every player writes/guesses
 // against the same global batch, wordle-style.
 
-import { getFakeExplanations } from "./decoys.js";
+import { getFakeExplanations, LANG_PROFILES } from "./decoys.js";
 import { OPTIONS } from "./config.js";
 
 // -- date helpers (pure given their string/Date input) -----------------------
@@ -90,11 +90,15 @@ export function mergeSubmissions({ truth, submissions }) {
 /**
  * Top a word's option pool up to `targetCount` (incl. truth) with bot decoys
  * drawn from the fake-definition pool (see decoys.js / CLAUDE.md Provenance).
+ * `langProfile` (one of decoys.js's LANG_PROFILES) must match the language
+ * `word`/`fakeDefsPool` belong to — defaults to Norwegian so existing callers
+ * (and engine.test.mjs's Norwegian fixtures) are unaffected; db.mjs always
+ * passes the matching one explicitly for the real multi-language flow.
  */
-export function fillWithBotDecoys({ word, humanOptions, fakeDefsPool, targetCount, rng }) {
+export function fillWithBotDecoys({ word, humanOptions, fakeDefsPool, targetCount, rng, langProfile = LANG_PROFILES.no }) {
   const needed = targetCount - humanOptions.length - 1; // -1 for the truth slot
   if (needed <= 0) return humanOptions;
-  const decoyTexts = getFakeExplanations(word, needed, fakeDefsPool, rng);
+  const decoyTexts = getFakeExplanations(word, needed, fakeDefsPool, rng, langProfile);
   const botOptions = decoyTexts.map((text, i) => ({
     kind: "bot",
     authors: [`bot:${word.id}:${i}`],
@@ -117,9 +121,9 @@ function shuffle(arr, rng) {
  * truth, shuffle, and letter the options (a, b, c...) — same shape as Cocky
  * Monk's buildOptions.
  */
-export function sealWord({ word, submissions, fakeDefsPool, rng, targetCount = OPTIONS.targetPoolSize }) {
+export function sealWord({ word, submissions, fakeDefsPool, rng, targetCount = OPTIONS.targetPoolSize, langProfile = LANG_PROFILES.no }) {
   const { options: humanOptions, closeMatches } = mergeSubmissions({ truth: word.definition, submissions });
-  const filled = fillWithBotDecoys({ word, humanOptions, fakeDefsPool, targetCount, rng });
+  const filled = fillWithBotDecoys({ word, humanOptions, fakeDefsPool, targetCount, rng, langProfile });
   const withTruth = [...filled, { kind: "truth", authors: [], text: word.definition }];
   const options = shuffle(withTruth, rng);
   options.forEach((o, i) => { o.id = String.fromCharCode(97 + i); });

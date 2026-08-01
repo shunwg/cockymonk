@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   loadDb, saveDb, ensureToday, currentNow, getTodayState, submitDefinition, submitGuess, skipGuess,
   ensureProfileFor, ackRecap, listDays, listPlayers, advanceDay, getVoteDistribution, resetPlayer,
-  computeAdminStats, linkGoogleIdentity, wipeAllUsers,
+  computeAdminStats, linkGoogleIdentity, wipeAllUsers, setEnabledLangs,
 } from "./db.mjs";
 import { verifyGoogleIdToken } from "./auth.mjs";
 import { appendGalleryFeedback } from "./gallery-feedback.mjs";
@@ -154,33 +154,44 @@ createServer(async (req, res) => {
       return;
     }
     if (p === "/api/submit-definition" && req.method === "POST") {
-      const { userId, wordId, text } = await readBody(req);
-      const result = await withDb((db) => submitDefinition(db, { userId, wordId, text }));
+      const { userId, wordId, text, lang } = await readBody(req);
+      const result = await withDb((db) => submitDefinition(db, { userId, wordId, text, lang }));
       sendJson(res, result.ok ? 200 : 400, result);
       return;
     }
     if (p === "/api/submit-guess" && req.method === "POST") {
-      const { userId, wordId, choiceId } = await readBody(req);
-      const result = await withDb((db) => submitGuess(db, { userId, wordId, choiceId }));
+      const { userId, wordId, choiceId, lang } = await readBody(req);
+      const result = await withDb((db) => submitGuess(db, { userId, wordId, choiceId, lang }));
       sendJson(res, result.ok ? 200 : 400, result);
       return;
     }
     if (p === "/api/skip-guess" && req.method === "POST") {
-      const { userId, wordId } = await readBody(req);
-      const result = await withDb((db) => skipGuess(db, { userId, wordId }));
+      const { userId, wordId, lang } = await readBody(req);
+      const result = await withDb((db) => skipGuess(db, { userId, wordId, lang }));
       sendJson(res, result.ok ? 200 : 400, result);
       return;
     }
     if (p === "/api/ack-recap" && req.method === "POST") {
-      const { userId } = await readBody(req);
-      await withDb((db) => ackRecap(db, userId));
+      const { userId, lang } = await readBody(req);
+      await withDb((db) => ackRecap(db, userId, lang));
       sendJson(res, 200, { ok: true });
       return;
     }
     if (p === "/api/vote-distribution" && req.method === "GET") {
       const userId = url.searchParams.get("userId");
       const wordId = url.searchParams.get("wordId");
-      const result = await withDb((db) => getVoteDistribution(db, userId, wordId));
+      const lang = url.searchParams.get("lang");
+      const result = await withDb((db) => getVoteDistribution(db, userId, wordId, lang));
+      sendJson(res, result.ok ? 200 : 400, result);
+      return;
+    }
+    // Settings-panel language toggle (see cockerel/CLAUDE.md "Dual-language
+    // gameplay") — also doubles as onboarding's initial language choice, one
+    // call either way. The client re-fetches /api/today right after to pick
+    // up the newly (dis)enabled language's state.
+    if (p === "/api/set-languages" && req.method === "POST") {
+      const { userId, enabledLangs } = await readBody(req);
+      const result = await withDb((db) => setEnabledLangs(db, userId, enabledLangs));
       sendJson(res, result.ok ? 200 : 400, result);
       return;
     }
