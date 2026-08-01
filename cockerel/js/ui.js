@@ -14,7 +14,6 @@ let store = storageLocal();
 const app = document.getElementById("screen-root");
 const header = document.getElementById("header");
 const devbar = document.getElementById("devbar");
-const settingsRoot = document.getElementById("settings-root");
 const IDENTITY_KEY = "cockerel.identity.v1";
 // Pre-rename key (see js/storage.js's LEGACY_IDENTITY_KEY) — only used here
 // to decide "is this truly a first-time visitor" and to fully wipe identity
@@ -91,7 +90,12 @@ function streakText(days, pct) {
 }
 
 // -- persistent header --------------------------------------------------
-// Deliberately NOT re-rendered on every screen — only ever touched by
+// #header itself holds the settings menu button (see renderSettingsButton)
+// plus a nested #header-profile wrapper — the profile info (mascot/name/
+// score) is deliberately scoped to that inner wrapper, not the whole header,
+// so renderHeaderImmediate/updateHeader below never touch (or need to
+// re-wire the click listener on) the menu button. #header-profile is
+// deliberately NOT re-rendered on every screen — only ever touched by
 // updateHeader(), so a point/streak reveal elsewhere in the screen can finish
 // its own big-number animation and flash BEFORE the header catches up.
 
@@ -100,7 +104,7 @@ function pointsText(profile) {
 }
 
 function renderHeaderImmediate(profile) {
-  header.innerHTML = `
+  document.getElementById("header-profile").innerHTML = `
     <img class="mascot small" src="assets/nesen.svg" alt="" />
     <div class="header-name">${profile.displayName}</div>
     <div class="header-stats">
@@ -194,24 +198,28 @@ async function renderDevToolbar() {
   });
 }
 
-// -- settings: persistent footer bar + reset-my-own-player flow -------------
+// -- settings: top-left menu button + reset-my-own-player flow --------------
 // Rendered once at boot, not re-rendered per navigation (unlike #devbar) —
 // its click handler reads `identity` fresh at click time, so it always acts
 // on whoever is currently active, including after a dev-toolbar switch.
-// A full-width fixed footer (see .app-footer in app.css), always visible on
-// every screen — not a floating corner button, which was reported invisible
-// on a real phone (mobile browser chrome / home-indicator safe area).
-
+// Lives INSIDE #header as its first child, ahead of the (separately-managed,
+// see renderHeaderImmediate) #header-profile wrapper — same physical
+// top-left spot on every screen, since #header itself always renders now
+// (see :empty guard in app.css, which only ever matters for the brief
+// instant before this function has run). On screens with no profile yet
+// (#header-profile empty — name/how-to-play/welcome/sign-in-gate) this is
+// the ONLY thing in the header row, which is exactly the "more space before
+// the next thing" look asked for — #header's own flex `gap` still applies
+// against #screen-root either way.
 function renderSettingsButton() {
-  settingsRoot.replaceChildren(el(`
-    <div class="app-footer" id="app-footer">
-      <button class="footer-settings-btn" id="settings-fab" aria-label="Innstillinger">
-        <span class="footer-settings-icon">⚙</span>
-        <span>Innstillinger</span>
-      </button>
-    </div>
-  `));
-  document.getElementById("settings-fab").addEventListener("click", openSettingsPanel);
+  const menuBtn = el(`
+    <button class="header-menu-btn" id="settings-fab" aria-label="Innstillinger">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </button>
+  `);
+  const profileWrap = el(`<div id="header-profile" class="header-profile"></div>`);
+  header.replaceChildren(menuBtn, profileWrap);
+  menuBtn.addEventListener("click", openSettingsPanel);
 }
 
 function themeToggleLabel() {
@@ -388,7 +396,7 @@ function renderNameScreen(startingName, onDone) {
         <input type="text" id="name-input" value="${startingName}" />
         <p class="empty-note" style="margin-top:8px">Du kan endre det senere.</p>
       </div>
-      <button class="btn full" id="continue-btn">Fortsett</button>
+      <button class="btn full btn-cta" id="continue-btn">Fortsett</button>
     </div>
   `));
   document.getElementById("continue-btn").addEventListener("click", () => {
@@ -406,7 +414,7 @@ function renderHowToPlay(onDone) {
         <h2>Slik spiller du</h2>
         <p>Hver dag skriver du falske definisjoner på 3 nye ord, og gjetter den ekte definisjonen blant andres bløffer på gårsdagens ord. Du får poeng for riktige gjett og for å lure andre — og en liten bonus for å være med flere dager på rad.</p>
       </div>
-      <button class="btn full" id="continue-btn">Skjønner, sett i gang</button>
+      <button class="btn full btn-cta" id="continue-btn">Skjønner, sett i gang</button>
     </div>
   `));
   document.getElementById("continue-btn").addEventListener("click", onDone);
@@ -426,7 +434,7 @@ function renderWelcomeStep(displayName, profile, onStart) {
         <div class="stat-row"><span>Poeng</span><span id="start-points" style="font-weight:700">0</span></div>
         <div class="stat-row" style="margin-top:8px"><span>Streak</span><span id="start-streak" style="font-weight:700">0</span></div>
       </div>
-      <button class="btn full" id="continue-btn">Gi meg dagens kuk!</button>
+      <button class="btn full btn-cta" id="continue-btn">Gi meg dagens kuk!</button>
     </div>
   `));
   animateCount(document.getElementById("start-points"), profile.rating, 900);
@@ -448,7 +456,7 @@ function renderReadyStep(state, onStart) {
         <div class="stat-row"><span>Poeng</span><span style="font-weight:700">${profile.rating}</span></div>
         <div class="stat-row" style="margin-top:8px"><span>Streak</span><span style="font-weight:700">${streakText(profile.streakDays, profile.streakBonusPct)}</span></div>
       </div>
-      <button class="btn full" id="continue-btn">Gjett gårsdagens ord</button>
+      <button class="btn full btn-cta" id="continue-btn">Gjett gårsdagens ord</button>
     </div>
   `));
   document.getElementById("continue-btn").addEventListener("click", onStart);
@@ -475,7 +483,7 @@ function renderWriteRecap(result, profile, onContinue) {
           <div class="stat-row" style="margin-top:12px"><span>Streak</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct)}</span></div>
           <div class="stat-row"><span>Rating</span><span>${profile.rating}</span></div>
         </div>
-        <button class="btn full" id="continue-btn">Fortsett</button>
+        <button class="btn full btn-cta" id="continue-btn">Fortsett</button>
       </div>
     `));
     document.getElementById("continue-btn").addEventListener("click", onContinue);
@@ -495,7 +503,7 @@ function renderWriteRecap(result, profile, onContinue) {
         <div class="stat-row" style="margin-top:8px"><span>Streak</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct)}</span></div>
         <div class="stat-row"><span>Rating</span><span>${profile.rating}</span></div>
       </div>
-      <button class="btn full" id="continue-btn">Fortsett</button>
+      <button class="btn full btn-cta" id="continue-btn">Fortsett</button>
     </div>
   `));
   animateCount(document.getElementById("points"), result.writeBasePoints ?? result.writePoints ?? 0, 900);
@@ -535,7 +543,7 @@ function renderTimeoutStep(kind, onNext) {
         <h2>${text}</h2>
         <p class="empty-note">Tiden løp ut for dette ordet.</p>
       </div>
-      <button class="btn full" id="continue-btn">Neste</button>
+      <button class="btn full btn-cta" id="continue-btn">Neste</button>
     </div>
   `));
   document.getElementById("continue-btn").addEventListener("click", onNext);
@@ -619,7 +627,7 @@ function renderScoreStep(result, onContinue) {
         <div class="stat-row"><span>Riktige gjett</span><span>${result.correctCount} / ${result.guessTotal}${pctLabel(result.pct)}</span></div>
         <div class="review-list">${rows}</div>
       </div>
-      <button class="btn full" id="continue-btn">Fortsett</button>
+      <button class="btn full btn-cta" id="continue-btn">Fortsett</button>
     </div>
   `));
   wireReviewToggles();
@@ -693,7 +701,7 @@ function renderWriteWordMarkup(w) {
     <div class="word-block">
       <div class="word-title">${w.word}</div>
       <textarea id="text-${w.wordId}" rows="2" placeholder="Skriv en troverdig (falsk) definisjon..." maxlength="140"></textarea>
-      <button class="btn" id="submit-${w.wordId}">Send inn</button>
+      <button class="btn full btn-cta" id="submit-${w.wordId}">Send inn</button>
     </div>`;
 }
 

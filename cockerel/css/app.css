@@ -32,37 +32,68 @@ html, body {
   font-size: var(--type-body-size);
 }
 
-/* Total height the fixed footer occupies, incl. the iPhone home-indicator
- * safe area — the ONE number to change if the footer's own size changes,
- * so #app and .screen-success (below) never need touching separately. */
-:root { --footer-clearance: calc(56px + env(safe-area-inset-bottom)); }
+/* Space reserved at the bottom of #app for the fixed primary CTA button
+ * (see .btn-cta below) on screens that have one — the ONE number to change
+ * if that button's own size changes. Generous on purpose: button height
+ * (~52px) + its 40px bottom offset + a buffer so scrolled content never
+ * looks jammed right up against it, all before the safe-area inset. */
+:root { --cta-clearance: calc(120px + env(safe-area-inset-bottom)); }
 
 #app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 24px 20px calc(48px + var(--footer-clearance));
+  padding: 24px 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
   background: var(--color-bg);
   color: var(--color-text-on-bg);
 }
+/* Only screens with a fixed CTA (see .btn-cta) need the reservation — this
+ * matches ANY descendant, any depth (e.g. the write screen's submit button,
+ * nested inside .word-block), not just a direct child of #app. */
+#app:has(.btn-cta) { padding-bottom: var(--cta-clearance); }
 
-/* -- persistent header: icon, name, points, streak — visible on every
- * gameplay screen (not onboarding, where there's nothing to show yet). Lives
- * outside #screen-root so it survives screen replacements; only ui.js's
- * updateHeader() ever touches its numbers, deliberately delayed after a
- * point-changing reveal (see the flash classes below). */
+/* -- persistent header: settings menu button (always) + icon/name/points/
+ * streak (only once a profile exists — onboarding screens show just the
+ * menu button). Lives outside #screen-root so it survives screen
+ * replacements; only ui.js's updateHeader() ever touches the score/streak
+ * numbers, deliberately delayed after a point-changing reveal (see the
+ * flash classes below). #header:empty only ever matters for the brief
+ * instant before js/ui.js's renderSettingsButton has run at boot — after
+ * that #header always has at least the menu button. */
 #header:empty { display: none; }
 #header {
   margin: -24px -20px 0;
   padding: 12px 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 14px;
 }
+/* The divider line only makes sense once there's a profile row to divide
+ * from the screen below it — bare menu-button screens (onboarding) skip it. */
+#header:has(.header-profile:not(:empty)) { border-bottom: 1px solid var(--color-border); }
+
+.header-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-chip);
+  color: inherit;
+  cursor: pointer;
+}
+.header-menu-btn:active { opacity: 0.6; }
+.header-menu-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+
+.header-profile { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header-profile:empty { display: none; }
 .header-name { font-family: var(--type-display-family); font-weight: 600; font-size: 15px; }
 .header-stats { margin-left: auto; text-align: right; font-size: var(--type-sub-size); }
 .header-points { font-weight: 700; }
@@ -78,10 +109,13 @@ html, body {
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* The final step of the day: full-bleed green, no card — "you're done,
- * everything is fine" should read at a glance, not from reading a box. */
+ * everything is fine" should read at a glance, not from reading a box. No
+ * CTA button on this screen, so no --cta-clearance needed — just the same
+ * extra 48px of bottom breathing room the design always had, independent of
+ * that. */
 .screen-success {
-  margin: -24px -20px calc(-48px - var(--footer-clearance));
-  padding: 24px 20px calc(48px + var(--footer-clearance));
+  margin: -24px -20px -48px;
+  padding: 24px 20px 48px;
   min-height: 100vh;
   background: var(--color-accent-truth);
   color: var(--color-ink-night, #1B1B2E);
@@ -181,6 +215,24 @@ p { margin: 0; line-height: 1.4; }
 .btn.secondary { background: var(--color-surface); color: var(--color-text-on-surface); }
 .btn.danger { background: var(--color-accent-bluff); }
 .btn.full { width: 100%; }
+
+/* -- the single primary CTA per screen (Fortsett/Send inn/etc, NOT the
+ * modal's secondary/danger buttons) — pinned to the very bottom of the
+ * viewport instead of sitting inline after the rest of the screen's content,
+ * so it reads as a persistent "next step" action. Horizontally centered the
+ * same way #app itself is (viewport-center == #app-center at every width,
+ * since #app is itself centered with the same max-width). Content that
+ * would otherwise sit behind it gets scroll clearance via
+ * #app:has(.btn-cta) above, not by shrinking this button. */
+.btn-cta {
+  position: fixed;
+  left: 50%;
+  bottom: calc(40px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: calc(100% - 40px);
+  max-width: 440px;
+  z-index: 15;
+}
 
 textarea, input[type="text"] {
   width: 100%;
@@ -385,46 +437,9 @@ textarea, input[type="text"] {
 .review-option-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; display: block; margin-bottom: 2px; }
 .review-option-pct { font-size: 11px; font-weight: 700; opacity: 0.7; flex-shrink: 0; }
 
-/* -- persistent footer: settings entry point + simple modal, see ui.js ------
- * A full-width fixed bar (same "always-there" pattern as #header/#devbar,
- * not a floating corner button) so it can't end up hidden behind a mobile
- * browser's own bottom chrome or the iPhone home-indicator safe area — a
- * floating bottom-right circle was the earlier design and was reported
- * invisible on a real phone. One flex row: more footer items can be added
- * later beside the settings button without restructuring. Rendered once at
- * boot (js/ui.js renderSettingsButton) and never hidden by any screen —
- * if a future screen genuinely needs it gone, hide #app-footer explicitly
- * there, don't stop rendering it here. */
-.app-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 8px 20px calc(8px + env(safe-area-inset-bottom));
-  background: var(--color-surface);
-  border-top: 2px solid var(--color-border);
-  box-shadow: 0 -3px 0 rgba(10,10,24,0.12);
-}
-.footer-settings-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: inherit;
-  font-weight: 600;
-  font-size: var(--type-sub-size);
-  border: none;
-  background: none;
-  color: var(--color-text-on-surface);
-  padding: 8px 4px;
-  cursor: pointer;
-}
-.footer-settings-icon { font-size: 20px; line-height: 1; }
-
+/* -- settings modal, see ui.js ---------------------------------------------
+ * Triggered by the top-left #header menu button now (see .header-menu-btn
+ * above), not a footer — the modal itself is unchanged. */
 .modal-overlay {
   position: fixed;
   inset: 0;
