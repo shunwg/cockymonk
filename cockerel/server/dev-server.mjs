@@ -12,6 +12,7 @@ import {
   computeAdminStats, linkGoogleIdentity, wipeAllUsers,
 } from "./db.mjs";
 import { verifyGoogleIdToken } from "./auth.mjs";
+import { appendGalleryFeedback } from "./gallery-feedback.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8788;
@@ -113,6 +114,12 @@ createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "content-type");
   if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
+
+  // The dev-only screen gallery's entry page — 404 it outright when
+  // DEV_TOOLS=0, same posture as /api/dev/* below, so a deployed instance
+  // never serves it regardless of anyone guessing the URL (see
+  // cockerel/CLAUDE.md's Guardrails: "purely a developer tool").
+  if (p === "/gallery.html" && !DEV_TOOLS) { res.writeHead(404, { "content-type": "text/plain" }).end("not found"); return; }
 
   if (!p.startsWith("/api/")) return serveStatic(req, res, p);
 
@@ -223,6 +230,21 @@ createServer(async (req, res) => {
     if (p === "/api/dev/advance-day" && req.method === "POST") {
       const result = await withDb((db) => advanceDay(db));
       sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+    // Feedback logged from gallery.html's per-card form (see js/gallery.js) —
+    // appended to server/data/gallery-feedback.json, a separate file from
+    // db.json (see server/gallery-feedback.mjs). Not tied to withDb's queue
+    // since it never touches db.json.
+    if (p === "/api/dev/gallery-feedback" && req.method === "POST") {
+      const { screenId, screenLabel, theme, note } = await readBody(req);
+      if (!screenId || !String(note ?? "").trim()) { sendJson(res, 400, { ok: false, error: "missing_fields" }); return; }
+      const entry = {
+        ts: new Date().toISOString(), screenId, screenLabel: screenLabel ?? null,
+        theme: theme ?? null, note: String(note).trim(),
+      };
+      await appendGalleryFeedback(entry);
+      sendJson(res, 200, { ok: true, entry });
       return;
     }
     sendJson(res, 404, { ok: false, error: "not_found" });

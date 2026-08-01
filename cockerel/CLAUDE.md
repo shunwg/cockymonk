@@ -27,6 +27,35 @@ A Wordle-style **async daily spinoff** of Cocky Monk (`../shunwg`): once a day, 
 - **Every returning session passes through a `Ready` step (or the write recap, which serves the same role) before the guess timer starts** — opening the app must never itself start a 30-second clock. Don't collapse this away "to save a click."
 - **`#devbar` (in `js/ui.js`, endpoints under `/api/dev/*`) is a testing tool, not shipped UX.** A date dropdown advances the server's simulated "now" one day at a time (`db.devClock`, append-only — there is deliberately no "go back" endpoint), and a player dropdown switches the active local identity or registers a new one, so the write-today/guess-tomorrow loop and multi-player interactions can be tested solo without waiting real days. Gated by the server's `DEV_TOOLS` env var (`server/dev-server.mjs`, default on): the client asks `GET /api/config` and skips rendering the toolbar entirely when it's off, and the server 404s `/api/dev/*` regardless of the client. Set `DEV_TOOLS=0` on any deployed instance.
 
+## Screen gallery (`gallery.html`, dev only)
+`node server/dev-server.mjs` then open `http://localhost:8788/gallery.html` — a horizontally-scrolling
+row of phone-sized cards, one per major screen state (name/how-to-play/welcome/ready, both write-recap
+variants, guess + guess-with-hint, both timeout screens, score, write, done, the Google sign-in gate).
+The canonical list of screens lives in `js/gallery-screens.js`; `js/gallery.js` (gallery.html's own
+script) builds the cards from it.
+
+Each card is a real, isolated iframe pointing at `index.html?preview=<id>&theme=dark|light` — the
+actual screen is rendered by the real code in `js/ui.js` (see `runGalleryPreview` there), reusing every
+`render*Step` function completely unmodified against hand-built fixture data (`FIXTURE_WORDS` /
+`fixtureProfile` in `js/ui.js`), so the gallery can never visually drift from the real screens. Only the
+two screens whose OWN click/timer handlers call `store.*` internally ("guess"/"write") get a working
+backing store — `createFixtureStore()`, an in-memory implementation of `js/storage.js`'s exact
+interface, no network, no filesystem, resets every reload. Every other card is fully static fixture
+data and never touches `store` at all.
+
+Per card: **Refresh** reloads the iframe (replays the entrance animation, restarts the guess/write
+timer from full duration); **Theme** cycles dark/light by reloading the iframe with a different `theme`
+query param; the feedback field POSTs `{screenId, screenLabel, theme, note}` to
+`/api/dev/gallery-feedback`, appended with a timestamp to `server/data/gallery-feedback.json` (gitignored,
+same as `db.json` — see `server/gallery-feedback.mjs`, its own tiny serialized-queue file separate from
+`db.json` on purpose, since this is dev-tool output, not game state). Ask Claude Code to "check the
+gallery feedback log and work through it" to act on submitted notes.
+
+Gated exactly like `#devbar`/`/api/dev/*`: `gallery.html` itself 404s server-side when `DEV_TOOLS=0`
+(see `dev-server.mjs`), and `js/ui.js`'s preview branch additionally re-checks the same `devTools` flag
+from `/api/config` before honoring `?preview=`, so this is unreachable on either deployed instance
+regardless of anyone guessing the URL.
+
 ## Native app (`app/`)
 An Expo/React Native port of the same game, targeting iOS (TestFlight) first, then Android and web from one codebase — modeled on `../ordkrig/`'s proven Expo setup. The whole project — repo directory, web app, and this native client — is branded **Cockerel** (`app.json`'s `name`/`slug`). The one thing that did NOT change: the bundle identifier (`app.json`'s `bundleIdentifier`/`package`, still `com.edword92.dailycock` — registered on Edvard's Apple team, which owns the App Store Connect record). That's an App Store Connect action, out of scope for an agent regardless of the rest of the rename — see the guardrail below. Read `app/AGENTS.md` in full before working there; it's the authority for that tree (setup, running locally, and the full manual TestFlight-shipping walkthrough), same relationship this file has to the repo root's `CLAUDE.md`.
 - `app/src/engine/*.js` is a **generated**, verbatim one-way copy of `js/{engine,config,decoys,rating}.js` (via `app/Tools/sync-engine.mjs`) — same Provenance philosophy as the copies listed above. Re-run the sync script after changing those files upstream; never hand-edit the copies.

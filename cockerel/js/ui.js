@@ -5,8 +5,12 @@
 // switchers) is a TESTING TOOL, not part of the shipped UX — see CLAUDE.md.
 import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme } from "./storage.js";
 import { TIMERS } from "./config.js";
+import { GALLERY_SCREENS } from "./gallery-screens.js";
 
-const store = storageLocal();
+// `let`, not `const` — the dev-only screen gallery (see runGalleryPreview
+// below) swaps this for an in-memory fixture store when previewing a screen,
+// so every render function above keeps working completely unmodified.
+let store = storageLocal();
 const app = document.getElementById("screen-root");
 const header = document.getElementById("header");
 const devbar = document.getElementById("devbar");
@@ -715,6 +719,208 @@ function resumeFlowFromState(state) {
   renderDoneStep(state);
 }
 
+// -- dev-only screen gallery preview (see gallery.html / js/gallery.js) -----
+// Reached only via an iframe pointing at index.html?preview=<id>&theme=..., a
+// URL gallery.html itself constructs — never a link a real player would
+// follow. Gated the same shape as the dev toolbar: the SERVER 404s
+// gallery.html entirely when DEV_TOOLS=0 (server/dev-server.mjs), and this
+// branch additionally re-checks devToolsEnabled (fetched in main(), just
+// above) before honoring the param, so a stray query string against a
+// deployed instance still does nothing.
+//
+// Renders exactly ONE screen from fixture data. Every render*Step function
+// above is reused completely unmodified — most screens take their data as a
+// plain argument and never touch `store`, so they need nothing fancier than
+// a hand-built fixture object. Only the "guess"/"write" screens' OWN
+// click/timer handlers call store.* internally (submitGuess, getVoteDistribution,
+// submitDefinition, skipGuess, getToday) — for those, `store` is swapped for
+// createFixtureStore()'s in-memory implementation of the exact same
+// storage.js interface, so their real logic runs untouched, no network, no
+// filesystem, resets every reload.
+const FIXTURE_IDENTITY = { userId: "gallery-preview-user", displayName: "Ferdigfigur" };
+
+const FIXTURE_WORDS = [
+  { wordId: "fx-1", word: "kneik", truth: "En brå bakke eller kneik i terrenget.", bluffs: [
+    "Et gammelt ord for en liten kniv brukt til fiskerensing.",
+    "Lyden en tømmerkjerre lager i en sving.",
+    "En person som alltid kommer for sent.",
+  ] },
+  { wordId: "fx-2", word: "myrsnipe", truth: "En liten vadefugl som holder til på myr.", bluffs: [
+    "En kjeltring som stjeler fra torvmyrer.",
+    "Et gammelt redskap for å måle myrdybde.",
+    "Kallenavn på en sær nabo på bygda.",
+  ] },
+  { wordId: "fx-3", word: "labbetuss", truth: "Et kjælent ord for noen som tusler stille rundt, ofte om barn eller dyr.", bluffs: [
+    "En type vott brukt av fiskere.",
+    "Et gammelt uttrykk for søvnig forvirring.",
+    "Lyden av tunge støvler i søle.",
+  ] },
+];
+
+function fixtureProfile(overrides = {}) {
+  return { displayName: "Ferdigfigur", rating: 940, rank: 42, streakDays: 4, streakBonusPct: 40, ...overrides };
+}
+
+function fixtureWordOptions(w) {
+  return [
+    { id: "a", text: w.bluffs[0], kind: "bot" },
+    { id: "b", text: w.bluffs[1], kind: "bot" },
+    { id: "c", text: w.truth, kind: "truth" },
+    { id: "d", text: w.bluffs[2], kind: "bot" },
+  ];
+}
+
+function fixtureScoreResult() {
+  return {
+    correctCount: 2, guessTotal: 3, points: 165, pct: 30,
+    profile: fixtureProfile({ rating: 985 }),
+    words: FIXTURE_WORDS.map((w, i) => ({
+      wordId: w.wordId, word: w.word, correct: i !== 1,
+      options: fixtureWordOptions(w).map((o) => ({
+        id: o.id, text: o.text, isTruth: o.kind === "truth",
+        isMine: i === 1 ? o.id === "a" : o.id === "c",
+        pct: o.kind === "truth" ? 55 : (i === 1 && o.id === "a" ? 40 : 15),
+      })),
+    })),
+  };
+}
+
+function createFixtureStore() {
+  let guesses = []; // { wordId, choiceId, correct }
+  const submitted = new Set();
+  let profile = fixtureProfile({ rating: 820, streakDays: 3, streakBonusPct: 30 });
+  // A couple of "other players'" guesses on the first word, seeded up front,
+  // so the hint has real data to show without requiring any prior action.
+  const otherGuesses = [
+    { wordId: "fx-1", choiceId: "a" }, { wordId: "fx-1", choiceId: "c" }, { wordId: "fx-1", choiceId: "c" },
+  ];
+
+  function today() {
+    return {
+      writeWords: FIXTURE_WORDS.map((w) => ({ wordId: w.wordId, word: w.word, alreadySubmitted: submitted.has(w.wordId) })),
+      guessWords: FIXTURE_WORDS.map((w) => {
+        const mine = guesses.find((g) => g.wordId === w.wordId);
+        return {
+          wordId: w.wordId, word: w.word,
+          alreadyGuessed: Boolean(mine), choiceId: mine?.choiceId ?? null, correct: mine?.correct ?? null,
+          options: fixtureWordOptions(w).map((o) => ({ id: o.id, text: o.text })),
+        };
+      }),
+      profile,
+    };
+  }
+
+  function finalizeGuessingIfDone() {
+    if (guesses.length < FIXTURE_WORDS.length) return null;
+    const table = [-50, 0, 120, 300];
+    const correctCount = guesses.filter((g) => g.correct).length;
+    const points = table[Math.min(correctCount, table.length - 1)];
+    profile = { ...profile, rating: profile.rating + points };
+    return {
+      correctCount, guessTotal: FIXTURE_WORDS.length, points, pct: 0, profile,
+      words: FIXTURE_WORDS.map((w) => {
+        const g = guesses.find((x) => x.wordId === w.wordId);
+        return {
+          wordId: w.wordId, word: w.word, correct: Boolean(g?.correct),
+          options: fixtureWordOptions(w).map((o) => ({
+            id: o.id, text: o.text, isTruth: o.kind === "truth", isMine: o.id === g?.choiceId, pct: o.kind === "truth" ? 55 : 15,
+          })),
+        };
+      }),
+    };
+  }
+
+  return {
+    getConfig: async () => ({ ok: true, devTools: true, googleClientId: null, requireGoogleAuth: false }),
+    getToday: async () => today(),
+    submitGuess: async (_userId, wordId, choiceId) => {
+      const correct = fixtureWordOptions(FIXTURE_WORDS.find((w) => w.wordId === wordId)).find((o) => o.id === choiceId)?.kind === "truth";
+      guesses.push({ wordId, choiceId, correct });
+      return { ok: true, correct, guessResult: finalizeGuessingIfDone(), profile };
+    },
+    skipGuess: async (_userId, wordId) => {
+      guesses.push({ wordId, choiceId: null, correct: false });
+      return { ok: true, guessResult: finalizeGuessingIfDone(), profile };
+    },
+    getVoteDistribution: async (_userId, wordId) => {
+      const relevant = otherGuesses.filter((g) => g.wordId === wordId);
+      if (!relevant.length) return { ok: true, distribution: [], noData: true };
+      const counts = new Map();
+      for (const g of relevant) counts.set(g.choiceId, (counts.get(g.choiceId) ?? 0) + 1);
+      const distribution = [...counts.entries()].map(([id, n]) => ({ id, pct: Math.round((100 * n) / relevant.length / 5) * 5 }));
+      return { ok: true, distribution };
+    },
+    submitDefinition: async (_userId, wordId) => { submitted.add(wordId); return { ok: true, profile }; },
+    ackRecap: async () => ({ ok: true }),
+    resetPlayer: async () => ({ ok: true }),
+    signInWithGoogle: async () => ({ ok: false }),
+    listDays: async () => ({ days: [], current: null }),
+    listPlayers: async () => ({ players: [] }),
+    advanceDay: async () => ({ todayKey: null }),
+  };
+}
+
+const GALLERY_PREVIEW_SCREENS = {
+  "name": () => renderNameScreen(FIXTURE_IDENTITY.displayName, () => {}),
+  "how-to-play": () => renderHowToPlay(() => {}),
+  "welcome": () => renderWelcomeStep(FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
+  "ready": () => {
+    const profile = fixtureProfile();
+    renderHeaderImmediate(profile);
+    renderReadyStep({ profile }, () => {});
+  },
+  "write-recap-none": () => {
+    const profile = fixtureProfile();
+    renderHeaderImmediate(profile);
+    renderWriteRecap({ fooledByWord: [] }, profile, () => {});
+  },
+  "write-recap-fooled": () => {
+    const profile = fixtureProfile();
+    renderHeaderImmediate(profile);
+    renderWriteRecap({
+      fooledByWord: [{ wordId: "fx-1", count: 7 }, { wordId: "fx-2", count: 3 }],
+      writeStreakPct: profile.streakBonusPct, writeBasePoints: 112, writePoints: 123,
+    }, profile, () => {});
+  },
+  "guess": async () => {
+    const state = await store.getToday();
+    renderHeaderImmediate(state.profile);
+    renderGuessWordStep(state);
+  },
+  "guess-hint": async () => {
+    const state = await store.getToday();
+    renderHeaderImmediate(state.profile);
+    renderGuessWordStep(state);
+    document.getElementById(`hint-${state.guessWords[0].wordId}`)?.click();
+  },
+  "timeout-guess": () => { renderHeaderImmediate(fixtureProfile()); renderTimeoutStep("guess", () => {}); },
+  "score": () => { renderHeaderImmediate(fixtureProfile({ rating: 820 })); renderScoreStep(fixtureScoreResult(), () => {}); },
+  "write": async () => {
+    const state = await store.getToday();
+    renderHeaderImmediate(state.profile);
+    renderWriteWordStep(state);
+  },
+  "timeout-write": () => { renderHeaderImmediate(fixtureProfile()); renderTimeoutStep("write", () => {}); },
+  "done": () => {
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }));
+    renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }) });
+  },
+  "sign-in-gate": () => renderSignInGate(),
+};
+
+async function runGalleryPreview(screenId, theme) {
+  applyTheme(theme === "light" ? "light" : "dark");
+  identity = FIXTURE_IDENTITY;
+  store = createFixtureStore();
+  renderSettingsButton();
+  const renderFn = GALLERY_SCREENS.some((s) => s.id === screenId) ? GALLERY_PREVIEW_SCREENS[screenId] : null;
+  if (!renderFn) {
+    app.replaceChildren(el(`<div class="screen"><div class="card"><h2>Unknown preview screen</h2><p>"${screenId}" isn't in gallery-screens.js.</p></div></div>`));
+    return;
+  }
+  await renderFn();
+}
+
 // -- boot / player flows ------------------------------------------------
 
 async function main() {
@@ -726,6 +932,12 @@ async function main() {
     googleClientId = config.googleClientId ?? null;
     requireGoogleAuth = !!config.requireGoogleAuth;
   } catch { devToolsEnabled = false; }
+
+  const previewId = new URLSearchParams(location.search).get("preview");
+  if (previewId && devToolsEnabled) {
+    await runGalleryPreview(previewId, new URLSearchParams(location.search).get("theme"));
+    return;
+  }
 
   const isFirstTime = !localStorage.getItem(IDENTITY_KEY) && !localStorage.getItem(LEGACY_IDENTITY_KEY);
   identity = loadOrCreateIdentity(suggestName());
