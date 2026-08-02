@@ -242,14 +242,19 @@ export function getLeaderboard(db, lang, userId) {
 /** Ensures the identity-level profile shell exists — displayName/device/
  * enabledLangs/langs — but does NOT enable or create any language's rating
  * track by itself; see ensureLangProfile for that. */
-function ensureProfile(db, userId, displayName, device) {
+function ensureProfile(db, userId, displayName, device, avatar) {
   if (!db.profiles[userId]) db.profiles[userId] = { displayName, enabledLangs: [], langs: {} };
-  // `device` is a bonus field bolted onto the stored profile, deliberately
-  // NOT part of freshProfile()'s shape in js/rating.js — that shape is
-  // vector-tested (js/engine.test.mjs / js/vectors.json) and has nothing to
-  // do with device tracking. Updated on every call, so it reflects the most
-  // recently seen device, not the first.
+  // `device` and `avatar` are bonus fields bolted onto the stored profile,
+  // deliberately NOT part of freshProfile()'s shape in js/rating.js — that
+  // shape is vector-tested (js/engine.test.mjs / js/vectors.json) and has
+  // nothing to do with either. `device` is updated on every call (most
+  // recently seen, not first); `avatar` is only ever sent once, from the
+  // name screen's avatar picker (js/ui.js renderNameScreen) — omitted on
+  // every later call (e.g. this same function re-running on a returning
+  // visit), so it's never overwritten back to the default by a call that
+  // simply didn't carry a choice.
   if (device) db.profiles[userId] = { ...db.profiles[userId], device };
+  if (avatar) db.profiles[userId] = { ...db.profiles[userId], avatar };
   return db.profiles[userId];
 }
 
@@ -375,6 +380,7 @@ function profileSnapshot(db, profile, lang) {
   const rating = currentRating(langProfile);
   return {
     displayName: profile.displayName,
+    avatar: profile.avatar ?? "nesen", // see js/ui.js AVATARS — "nesen" is also the default for a brand-new picker
     rating,
     rank: computeRank(db, rating, lang),
     streakDays,
@@ -663,8 +669,8 @@ export function wipeAllUsers(db) {
   return { ok: true };
 }
 
-export function ensureProfileFor(db, userId, displayName, device) {
-  ensureProfile(db, userId, displayName, device);
+export function ensureProfileFor(db, userId, displayName, device, avatar) {
+  ensureProfile(db, userId, displayName, device, avatar);
   return db.profiles[userId];
 }
 

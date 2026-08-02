@@ -119,8 +119,8 @@ const routes = [
   {
     method: "POST", path: "/api/profile",
     handler: async (req, res) => {
-      const { userId, displayName, device } = await readBody(req);
-      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName, device));
+      const { userId, displayName, device, avatar } = await readBody(req);
+      const profile = await withDb((db) => ensureProfileFor(db, userId, displayName, device, avatar));
       sendJson(res, 200, { ok: true, profile });
     },
   },

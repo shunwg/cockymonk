@@ -37,7 +37,10 @@ export function storageLocal(base = "") {
   }
   return {
     getConfig: () => get("/api/config"),
-    ensureProfile: (userId, displayName) => post("/api/profile", { userId, displayName, device: detectDevice() }),
+    // `avatar` (see js/ui.js AVATARS) is only ever sent from the name
+    // screen's onboarding call — every later call (e.g. a returning visit's
+    // main()) omits it, so it never overwrites an already-chosen avatar.
+    ensureProfile: (userId, displayName, avatar) => post("/api/profile", { userId, displayName, avatar, device: detectDevice() }),
     // getToday's response is now consolidated across every enabled language
     // (see server/db.mjs getTodayState) — { enabledLangs, todayKey, byLang:
     // { no: {...}, en: {...} } } — not itself lang-scoped; the individual

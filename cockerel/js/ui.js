@@ -13,7 +13,7 @@
 import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme, IDENTITY_KEY, LEGACY_IDENTITY_KEY } from "./storage.js";
 import { TIMERS, WRITE_AUTOSUBMIT_MIN_CHARS } from "./config.js";
 import { GALLERY_SCREENS } from "./gallery-screens.js";
-import { LANGS, LANG_LABELS, LANG_NAMES, t, LANGUAGE_PICKER } from "./i18n.js";
+import { LANGS, LANG_LABELS, LANG_NAMES, t } from "./i18n.js";
 
 // `let`, not `const` — the dev-only screen gallery (see runGalleryPreview
 // below) swaps this for an in-memory fixture store when previewing a screen,
@@ -83,6 +83,30 @@ function animateCount(elNode, to, ms = 900, from = 0, onComplete) {
   requestAnimationFrame(tick);
 }
 
+// Reuses the app's own accent tokens (no ad-hoc colors) for a plain colored-
+// rect confetti burst — score step (only when at least one guess was
+// correct) and done step (always). See .confetti-piece/@keyframes
+// confetti-fall in css/app.css for the actual fall animation; this just
+// spawns/cleans up the pieces. Fixed-positioned, so it overlays the
+// viewport regardless of #app's scroll position — appended to `document.body`
+// rather than `app`, so a screen transition mid-fall (replacing #app's
+// contents) can't orphan pieces mid-DOM-tree, though the cleanup timeout
+// removes them well before that's ever likely anyway.
+const CONFETTI_COLORS = ["var(--color-accent-truth)", "var(--color-accent-turn)", "var(--color-accent-bluff)", "var(--color-accent-gm)"];
+function launchConfetti(count = 28) {
+  const pieces = [];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    piece.style.left = `${Math.random() * 100}vw`;
+    piece.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    piece.style.animationDelay = `${Math.random() * 250}ms`;
+    document.body.appendChild(piece);
+    pieces.push(piece);
+  }
+  setTimeout(() => pieces.forEach((p) => p.remove()), 1800);
+}
+
 // -- theme: "light" (default, Wordle-style) or "dark" (the original game
 // palette, opt-in via the settings panel). index.html has a tiny inline
 // script that stamps this same attribute before first paint, to avoid a
@@ -142,8 +166,49 @@ function escapeHtml(str) {
 
 // The full-size mascot image markup, identical across most screens (the
 // header's own small variant — `renderHeaderImmediate`'s `mascot small` — is
-// deliberately separate and untouched by this).
+// deliberately separate and untouched by this). This is Cockerel/Cocky
+// Monk's brand mark, shown on every screen regardless of who's using the
+// app — NOT the same thing as a player's own chosen avatar (see AVATARS
+// below), even though both currently default to the same nesen.svg image.
 const MASCOT_HTML = `<img class="mascot" src="assets/nesen.svg" alt="" />`;
+
+// Cocky Monk/Cockerel's rooster art, shown instead of a chosen player avatar
+// (see AVATARS below) on the two screens that exist BEFORE any profile is
+// known at all — the language picker (very first-ever visit) and the
+// required sign-in gate. Showing a "profile picture" placeholder there would
+// be backwards (there IS no profile yet); this is the game's own mark
+// instead. Reuses the avatar picker's rounded-circle masking (avatar-rooster)
+// for the same reason it needs it there: a rectangular source photo, not
+// hand-drawn to already read as an icon the way nesen.svg is.
+const ROOSTER_LOGO_HTML = `<img class="mascot avatar-rooster" src="assets/game-rooster-image.png" alt="" />`;
+
+// A player's own profile picture — picked once on the name screen (see
+// renderNameScreen's avatar picker) and persisted server-side
+// (server/db.mjs's `avatar` bonus field, same bolt-on pattern as `device`).
+// Three options, cycled with chevrons: the original nesen mark (the
+// long-nosed default everyone had before this existed), the Cocky Monk
+// rooster art (a rectangular photo, so it needs the `--radius-chip` circular
+// mask below to read as an avatar rather than a photo), and a plain
+// emoji-on-a-brand-green-circle for anyone who wants neither character.
+// `AVATAR_ORDER[0]` ("nesen") is the default for both brand-new pickers and
+// any pre-existing profile with no `avatar` field yet.
+const AVATARS = {
+  nesen: { kind: "img", src: "assets/nesen.svg" },
+  rooster: { kind: "img", src: "assets/game-rooster-image.png", extraClass: "avatar-rooster" },
+  emoji: { kind: "emoji", emoji: "🦊" },
+};
+const AVATAR_ORDER = ["nesen", "rooster", "emoji"];
+
+/** `sizeClass` is "" for the full-size hero spot or "small" for the header's
+ * icon — both are drop-in replacements for what used to be a bare
+ * `<img class="mascot small?" .../>`, so every existing `.mascot`/
+ * `.mascot.small` CSS rule keeps applying unmodified. */
+function avatarHtml(avatarId, sizeClass = "") {
+  const a = AVATARS[avatarId] ?? AVATARS.nesen;
+  const classes = ["mascot", sizeClass, a.kind === "img" ? (a.extraClass ?? "") : "avatar-emoji"].filter(Boolean).join(" ");
+  if (a.kind === "emoji") return `<div class="${classes}">${a.emoji}</div>`;
+  return `<img class="${classes}" src="${a.src}" alt="" />`;
+}
 
 // Every screen's primary CTA renders as `<button id="continue-btn">` and is
 // wired the exact same way — this just avoids repeating the id string and
@@ -191,14 +256,16 @@ function progressText(langState, lang) {
   return parts.join(t(lang, "headerProgressJoiner"));
 }
 
-/** `progress` is an optional precomputed string (see progressText) — omitted
- * on screens with no langState to compute it from yet (onboarding). */
-function renderHeaderImmediate(profile, lang, progress) {
+// The persistent navbar (#header-profile) — deliberately does NOT show
+// today's write/guess progress ("3/3 gjettet + 1/3 skrevet") anymore; that
+// used to live here but read as clutter on every single screen. It now only
+// ever appears once, on the done step itself (see renderDoneStep and
+// progressText below), not in the navbar at all.
+function renderHeaderImmediate(profile, lang) {
   document.getElementById("header-profile").innerHTML = `
-    <img class="mascot small" src="assets/nesen.svg" alt="" />
+    ${avatarHtml(profile.avatar ?? "nesen", "small")}
     <div class="header-name">${profile.displayName}</div>
     <div class="header-stats">
-      ${progress ? `<div class="header-progress" id="header-progress">${progress}</div>` : ""}
       <button class="header-points" id="header-points" type="button">${pointsText(profile, lang)}</button>
       <div id="header-streak">${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}</div>
     </div>
@@ -215,14 +282,12 @@ function renderHeaderImmediate(profile, lang, progress) {
   document.getElementById("header-points").addEventListener("click", () => openRankingPanel(currentScreenLang));
 }
 
-function updateHeader(profile, lang, progress) {
+function updateHeader(profile, lang) {
   const pointsEl = document.getElementById("header-points");
   const streakEl = document.getElementById("header-streak");
-  if (!pointsEl || !streakEl) { renderHeaderImmediate(profile, lang, progress); return; }
+  if (!pointsEl || !streakEl) { renderHeaderImmediate(profile, lang); return; }
   pointsEl.textContent = pointsText(profile, lang);
   streakEl.textContent = `${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}`;
-  const progressEl = document.getElementById("header-progress");
-  if (progress && progressEl) progressEl.textContent = progress;
 }
 
 /** Ranking modal — opened by tapping the header's points/rank number (see
@@ -264,21 +329,6 @@ async function openRankingPanel(lang) {
       `).join("")}
     </div>
   `));
-}
-
-/** Fire-and-forget: refetches this language's current state and fills in
- * the header's progress line once it resolves. Used only from renderScoreStep,
- * which doesn't have a langState on hand (just the guessResult) — everywhere
- * else that renders the header already has one synchronously. Guarded by
- * sessionToken, same risk revealThenSyncHeader itself guards against (see its
- * comment): a stale response must never clobber a LATER session's header. */
-function refreshHeaderProgressSoon(lang) {
-  const token = sessionToken;
-  refetchLangState(lang).then((fresh) => {
-    if (token !== sessionToken) return;
-    const el = document.getElementById("header-progress");
-    if (el) el.textContent = progressText(fresh, lang);
-  });
 }
 
 /** Animate `elNode` 0 -> `to`, then flash it, then (only THEN) sync the
@@ -558,8 +608,7 @@ function renderSignInGate() {
   const lang = "no";
   app.replaceChildren(el(`
     <div class="screen">
-      ${MASCOT_HTML}
-      <h1 style="text-align:center">${t(lang, "appName")}</h1>
+      ${ROOSTER_LOGO_HTML}
       <div class="card">
         <h2>${t(lang, "signInHeading")}</h2>
         <p class="empty-note">${t(lang, "signInBody")}</p>
@@ -755,9 +804,10 @@ function openResetConfirm(overlay, lang) {
 
 /** The ONE screen shown before any gameplay language is known — the very
  * first thing a brand-new player sees (ahead of even the name screen).
- * Deliberately bilingual/neutral chrome (js/i18n.js LANGUAGE_PICKER), since
- * there's no "current language" yet to render it IN. Every screen after
- * this one renders entirely in whichever language got picked here. */
+ * Deliberately bilingual/neutral chrome — no heading text at all now (the
+ * two button labels, "Norsk"/"English", already say it), since there's no
+ * "current language" yet to render one IN. Every screen after this one
+ * renders entirely in whichever language got picked here. */
 function renderLanguagePicker(onChoose) {
   clearActiveTimer();
   const buttons = LANGS.map((lang) =>
@@ -765,9 +815,8 @@ function renderLanguagePicker(onChoose) {
   ).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      ${MASCOT_HTML}
-      <h1 style="text-align:center">${LANGUAGE_PICKER.heading}</h1>
-      <div class="card" style="margin-top:16px">${buttons}</div>
+      ${ROOSTER_LOGO_HTML}
+      <div class="card">${buttons}</div>
     </div>
   `));
   for (const lang of LANGS) {
@@ -791,8 +840,7 @@ function renderChooseTodayLangStep(primaryLang, enabledLangs, byLang) {
     <div class="screen">
       ${MASCOT_HTML}
       <h1 style="text-align:center">${t(primaryLang, "chooseTodayLangGreeting")}</h1>
-      <h2 style="text-align:center; margin-top:12px">${t(primaryLang, "chooseTodayLangHeading")}</h2>
-      <p class="empty-note" style="text-align:center; margin-top:8px">${t(primaryLang, "chooseTodayLangNote")}</p>
+      <p class="empty-note" style="text-align:center; margin-top:8px">${t(primaryLang, "chooseTodayLangHeading")}</p>
       <div class="card" style="margin-top:16px">${buttons}</div>
     </div>
   `));
@@ -806,10 +854,14 @@ function renderChooseTodayLangStep(primaryLang, enabledLangs, byLang) {
 function renderNameScreen(lang, startingName, onDone) {
   currentScreenLang = lang;
   clearActiveTimer();
+  let avatarIndex = 0; // AVATAR_ORDER[0] ("nesen") — same default as an unset profile
   app.replaceChildren(el(`
     <div class="screen">
-      ${MASCOT_HTML}
-      <h1 style="text-align:center">${t(lang, "appName")}</h1>
+      <div class="avatar-picker">
+        <button type="button" class="avatar-picker-arrow" id="avatar-prev" aria-label="${t(lang, "avatarPrev")}">‹</button>
+        <div id="avatar-preview">${avatarHtml(AVATAR_ORDER[avatarIndex])}</div>
+        <button type="button" class="avatar-picker-arrow" id="avatar-next" aria-label="${t(lang, "avatarNext")}">›</button>
+      </div>
       <div class="card">
         <h2>${t(lang, "chooseNameHeading")}</h2>
         <input type="text" id="name-input" value="${startingName}" />
@@ -817,9 +869,16 @@ function renderNameScreen(lang, startingName, onDone) {
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
     </div>
   `));
+  const preview = document.getElementById("avatar-preview");
+  const cycle = (delta) => {
+    avatarIndex = (avatarIndex + delta + AVATAR_ORDER.length) % AVATAR_ORDER.length;
+    preview.replaceChildren(el(avatarHtml(AVATAR_ORDER[avatarIndex])));
+  };
+  document.getElementById("avatar-prev").addEventListener("click", () => cycle(-1));
+  document.getElementById("avatar-next").addEventListener("click", () => cycle(1));
   wireContinueButton(() => {
     const displayName = document.getElementById("name-input").value.trim() || startingName;
-    onDone(displayName);
+    onDone(displayName, AVATAR_ORDER[avatarIndex]);
   });
 }
 
@@ -829,7 +888,7 @@ function renderHowToPlay(lang, onDone) {
   const bodyParagraphs = t(lang, "howToPlayBody").split("\n\n").map((p) => `<p>${p}</p>`).join("");
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot mascot-spaced" src="assets/nesen.svg" alt="" />
+      <img class="mascot" src="assets/nesen.svg" alt="" />
       <div class="card">
         <h2>${t(lang, "howToPlayHeading")}</h2>
         ${bodyParagraphs}
@@ -849,11 +908,11 @@ function renderWelcomeStep(lang, displayName, profile, onStart) {
   clearActiveTimer();
   app.replaceChildren(el(`
     <div class="screen">
-      <img class="mascot mascot-spaced" src="assets/nesen.svg" alt="" />
+      <img class="mascot" src="assets/nesen.svg" alt="" />
       <h1 style="text-align:center">${t(lang, "welcomeHeading", { name: displayName })}</h1>
-      <div class="card">
+      <div class="card" style="margin-top:16px">
         <div class="stat-row"><span>${t(lang, "welcomeStartPoints")}</span><span id="start-points" style="font-weight:700">0</span></div>
-        <div class="stat-row" style="margin-top:8px"><span>${t(lang, "streak")}</span><span id="start-streak" style="font-weight:700">0</span></div>
+        <div class="stat-row" style="margin-top:8px"><span>${t(lang, "welcomeStreakLabel")}</span><span style="font-weight:700"><span id="start-streak">0</span> ${t(lang, "doneDays")}</span></div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "welcomeContinue")}</button>
     </div>
@@ -874,7 +933,7 @@ function renderReadyStep(langState, lang, onStart) {
     <div class="screen">
       ${MASCOT_HTML}
       <h1 style="text-align:center">${t(lang, "readyHeading", { name: profile.displayName })}</h1>
-      <div class="card">
+      <div class="card" style="margin-top:16px">
         <div class="stat-row"><span>${t(lang, "points")}</span><span style="font-weight:700">${profile.rating}</span></div>
         <div class="stat-row" style="margin-top:8px"><span>${t(lang, "streak")}</span><span style="font-weight:700">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
       </div>
@@ -902,10 +961,10 @@ function renderWriteRecap(result, profile, lang, onContinue) {
       <div class="screen">
         ${MASCOT_HTML}
         <p class="eyebrow" style="text-align:center">${t(lang, "writeRecapEyebrow")}</p>
-        <div class="card">
+        <div class="card" style="margin-top:16px">
           <p style="text-align:center">${t(lang, "writeRecapNoneFooled")}</p>
-          <div class="stat-row" style="margin-top:12px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
-          <div class="stat-row"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
+          <div class="stat-row" style="margin-top:16px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
+          <div class="stat-row" style="margin-top:10px"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
         </div>
         <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
       </div>
@@ -921,11 +980,11 @@ function renderWriteRecap(result, profile, lang, onContinue) {
       <p style="text-align:center; font-weight:700; font-size:18px">${t(lang, "writeRecapFooled", { count: fooledWordCount })}</p>
       <p class="eyebrow" style="text-align:center; margin-top:8px">${t(lang, "writeRecapYouGet")}</p>
       <div class="recap-points" id="points">0</div>
-      <div class="card">
+      <div class="card" style="margin-top:16px">
         <div class="stat-row"><span>${t(lang, "streakBonus")}</span><span>+${result.writeStreakPct}%</span></div>
-        <div class="stat-row" style="margin-top:8px"><span>${t(lang, "total")}</span><span style="font-weight:700">${result.writePoints}</span></div>
-        <div class="stat-row" style="margin-top:8px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
-        <div class="stat-row"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
+        <div class="stat-row" style="margin-top:10px"><span>${t(lang, "total")}</span><span style="font-weight:700">${result.writePoints}</span></div>
+        <div class="stat-row" style="margin-top:10px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
+        <div class="stat-row" style="margin-top:10px"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
     </div>
@@ -1088,8 +1147,8 @@ function renderScoreStep(result, lang, onContinue) {
     <div class="screen">
       ${MASCOT_HTML}
       <p class="eyebrow" style="text-align:center">${t(lang, "scoreEyebrow")}</p>
-      <div class="recap-points" id="points">0</div>
-      <div class="card">
+      <div class="recap-points score-points" id="points">0</div>
+      <div class="card" style="margin-top:16px">
         <div class="stat-row"><span>${t(lang, "correctGuesses")}</span><span>${result.correctCount} / ${result.guessTotal}${pctLabel(result.pct)}</span></div>
         <div class="review-list">${rows}</div>
       </div>
@@ -1097,10 +1156,8 @@ function renderScoreStep(result, lang, onContinue) {
     </div>
   `));
   wireReviewToggles();
+  if (result.correctCount > 0) launchConfetti();
   revealThenSyncHeader(document.getElementById("points"), result.points, result.profile, lang);
-  // No langState on hand here (only the guessResult) — refetch just for the
-  // progress line, now that guessing is fully done for today.
-  refreshHeaderProgressSoon(lang);
   wireContinueButton(onContinue);
 }
 
@@ -1232,6 +1289,7 @@ function renderDoneStep(langState, lang, otherPending) {
     : "";
   app.replaceChildren(el(`
     <div class="screen-success">
+      <p class="done-progress" style="color:inherit">${progressText(langState, lang)}</p>
       ${MASCOT_HTML}
       <p class="eyebrow" style="text-align:center; color:inherit">${t(lang, "doneStreakLabel")}</p>
       <div class="recap-points" id="streak-num" style="color:inherit">0</div>
@@ -1240,17 +1298,13 @@ function renderDoneStep(langState, lang, otherPending) {
       ${extraBtn}
     </div>
   `));
+  launchConfetti(); // unconditional here (unlike the score step) — finishing the day is worth celebrating regardless of how guessing went
   revealThenSyncHeader(document.getElementById("streak-num"), langState.profile.streakDays, langState.profile, lang);
-  // Unlike the streak-number reveal above, today's progress isn't a "spoiler"
-  // (it's not the number being dramatically counted up) — update it right
-  // away rather than waiting for the reveal-then-sync delay.
-  const progressEl = document.getElementById("header-progress");
-  if (progressEl) progressEl.textContent = progressText(langState, lang);
   document.getElementById("play-other-lang-btn")?.addEventListener("click", () => enterLanguageFlow(otherPending.lang, otherPending.state));
 }
 
 async function resumeFlowFromState(langState, lang) {
-  updateHeader(langState.profile, lang, progressText(langState, lang));
+  updateHeader(langState.profile, lang);
   const allGuessed = langState.guessWords.length > 0 && langState.guessWords.every((w) => w.alreadyGuessed);
   const allWritten = langState.writeWords.every((w) => w.alreadySubmitted);
   if (langState.guessWords.length > 0 && !allGuessed) { renderGuessWordStep(langState, lang); return; }
@@ -1266,12 +1320,12 @@ async function resumeFlowFromState(langState, lang) {
  * "play the other language too" button — one code path regardless of how
  * the user got here. */
 async function enterLanguageFlow(lang, langState) {
-  renderHeaderImmediate(langState.profile, lang, progressText(langState, lang));
+  renderHeaderImmediate(langState.profile, lang);
   if (langState.recap) {
     renderWriteRecap(langState.recap, langState.profile, lang, async () => {
       await store.ackRecap(identity.userId, lang);
       const fresh = await refetchLangState(lang);
-      renderHeaderImmediate(fresh.profile, lang, progressText(fresh, lang));
+      renderHeaderImmediate(fresh.profile, lang);
       renderReadyStep(fresh, lang, () => resumeFlowFromState(fresh, lang));
     });
     return;
@@ -1368,7 +1422,7 @@ async function routeToCurrentScreen() {
   if (untouchedButNotDone) { await enterLanguageFlow(untouchedButNotDone, byLang[untouchedButNotDone]); return; }
 
   // Everything's done today.
-  renderHeaderImmediate(byLang[primaryLang].profile, primaryLang, progressText(byLang[primaryLang], primaryLang));
+  renderHeaderImmediate(byLang[primaryLang].profile, primaryLang);
   const otherPending = await otherLangStillPending(primaryLang);
   renderDoneStep(byLang[primaryLang], primaryLang, otherPending);
 }
@@ -1584,7 +1638,7 @@ const GALLERY_PREVIEW_SCREENS = {
   "welcome": (lang) => renderWelcomeStep(lang, FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
   "ready": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
+    renderHeaderImmediate(profile, lang);
     renderReadyStep({ profile }, lang, () => {});
   },
   "choose-today-lang": (lang) => {
@@ -1594,13 +1648,13 @@ const GALLERY_PREVIEW_SCREENS = {
   },
   "write-recap-none": (lang) => {
     const profile = fixtureProfile();
-    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
+    renderHeaderImmediate(profile, lang);
     renderWriteRecap({ fooledByWord: [] }, profile, lang, () => {});
   },
   "write-recap-fooled": (lang) => {
     const profile = fixtureProfile();
     const words = FIXTURE_WORDS[lang];
-    renderHeaderImmediate(profile, lang, progressText(fixtureProgressState(0, 0), lang));
+    renderHeaderImmediate(profile, lang);
     renderWriteRecap({
       fooledByWord: [{ wordId: words[0].wordId, count: 7 }, { wordId: words[1].wordId, count: 3 }],
       writeStreakPct: profile.streakBonusPct, writeBasePoints: 112, writePoints: 123,
@@ -1608,43 +1662,43 @@ const GALLERY_PREVIEW_SCREENS = {
   },
   "guess": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
+    renderHeaderImmediate(state.profile, lang);
     renderGuessWordStep(state, lang);
   },
   "guess-hint": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
+    renderHeaderImmediate(state.profile, lang);
     renderGuessWordStep(state, lang);
     document.getElementById(`hint-${state.guessWords[0].wordId}`)?.click();
   },
   "timeout-guess": (lang) => {
-    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(0, 0), lang));
+    renderHeaderImmediate(fixtureProfile(), lang);
     renderTimeoutStep("guess", lang, () => {});
   },
   "score": (lang) => {
-    renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang, progressText(fixtureProgressState(3, 0), lang));
+    renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang);
     renderScoreStep(fixtureScoreResult(lang), lang, () => {});
   },
   "write": async (lang) => {
     const state = await store.getToday();
-    renderHeaderImmediate(state.profile, lang, progressText(state, lang));
+    renderHeaderImmediate(state.profile, lang);
     renderWriteWordStep(state, lang);
   },
   "timeout-write": (lang) => {
-    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(3, 1), lang));
+    renderHeaderImmediate(fixtureProfile(), lang);
     renderTimeoutStep("write", lang, () => {});
   },
   "timeout-write-saved": (lang) => {
-    renderHeaderImmediate(fixtureProfile(), lang, progressText(fixtureProgressState(3, 1), lang));
+    renderHeaderImmediate(fixtureProfile(), lang);
     renderTimeoutStep("write-saved", lang, () => {});
   },
   "done": (lang) => {
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang, progressText(fixtureProgressState(3, 3), lang));
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
     renderDoneStep({ profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }), ...fixtureProgressState(3, 3) }, lang, null);
   },
   "done-with-other-lang": (lang) => {
     const otherLang = lang === "no" ? "en" : "no";
-    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang, progressText(fixtureProgressState(3, 3), lang));
+    renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
     renderDoneStep(
       { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }), ...fixtureProgressState(3, 3) }, lang,
       { lang: otherLang, state: { profile: fixtureProfile({ rating: 700 }) } },
@@ -1701,7 +1755,7 @@ async function main() {
   if (isFirstTime) {
     renderLanguagePicker((lang) => {
       currentScreenLang = lang;
-      renderNameScreen(lang, identity.displayName, (displayName) => registerFlow(lang, displayName));
+      renderNameScreen(lang, identity.displayName, (displayName, avatar) => registerFlow(lang, displayName, avatar));
     });
     return;
   }
@@ -1709,10 +1763,10 @@ async function main() {
   await routeToCurrentScreen();
 }
 
-async function registerFlow(lang, displayName) {
+async function registerFlow(lang, displayName, avatar) {
   identity.displayName = displayName;
   saveIdentity(identity);
-  await store.ensureProfile(identity.userId, displayName);
+  await store.ensureProfile(identity.userId, displayName, avatar);
   await store.setEnabledLangs(identity.userId, [lang]);
   await renderDevToolbar(); // pick up the brand-new player in the dev switcher
   renderHowToPlay(lang, async () => {
@@ -1725,7 +1779,7 @@ function registerNewPlayer() {
   identity = { userId: crypto.randomUUID(), displayName: suggestName() };
   renderLanguagePicker((lang) => {
     currentScreenLang = lang;
-    renderNameScreen(lang, identity.displayName, (displayName) => registerFlow(lang, displayName));
+    renderNameScreen(lang, identity.displayName, (displayName, avatar) => registerFlow(lang, displayName, avatar));
   });
 }
 

@@ -121,15 +121,33 @@ html, body {
   text-underline-offset: 2px;
 }
 .header-points:active { opacity: 0.6; }
-/* Today's write/guess progress (see ui.js progressText) — deliberately
- * smaller/lighter than the points and streak lines below it, since it's
- * supplementary info, not one of the two headline stats. */
-.header-progress { font-size: 11px; opacity: 0.65; margin-bottom: 2px; }
 
-/* Big-number reveals (score/welcome/done steps) pulse once their count-up
- * finishes; the header only updates to match AFTER this plays (see ui.js). */
-@keyframes flash-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); color: var(--color-accent-turn); } }
-.flash { animation: flash-pulse 400ms ease-in-out; }
+/* Big-number reveals (score/done steps) pulse once their count-up finishes;
+ * the header only updates to match AFTER this plays (see ui.js
+ * revealThenSyncHeader). Scale bumped (was 1.15) and duration tightened (was
+ * 400ms) for a snappier, more noticeable "flash and enlarge quickly". */
+@keyframes flash-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); color: var(--color-accent-turn); } }
+.flash { animation: flash-pulse 350ms ease-in-out; }
+
+/* -- confetti (score step when any guess was correct; done step always) --
+ * see ui.js launchConfetti. Plain colored rects, no library — falls from
+ * just above the viewport to ~75vh with a full rotation, then the element
+ * is removed by JS once its animation ends. `position: fixed` so it overlays
+ * the actual viewport regardless of #app's own scroll position. */
+.confetti-piece {
+  position: fixed;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 50;
+  animation: confetti-fall 1500ms ease-in forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(75vh) rotate(360deg); opacity: 0; }
+}
 
 /* Every screen transition gets a soft rise-and-fade entrance — reuses the
  * token literally named for this (tokens.json motion.durations.screenIn). */
@@ -168,6 +186,12 @@ html, body {
   margin-bottom: calc(-1 * var(--cta-clearance));
   padding-bottom: var(--cta-clearance);
 }
+/* Today's write/guess progress ("3/3 gjettet + 1/3 skrevet") — used to live
+ * in the persistent header on every screen; now shown exactly once, here,
+ * above the mascot on the done step only (see ui.js progressText/
+ * renderDoneStep). Small/muted since it's a recap, not this screen's real
+ * headline (the streak number is). */
+.done-progress { font-size: 11px; opacity: 0.65; text-align: center; }
 
 /* -- dev toolbar: testing-only, see CLAUDE.md — not part of the shipped UX --
  * Deliberately monochrome and far from the game's palette (light gray, black
@@ -229,12 +253,52 @@ p { margin: 0; line-height: 1.4; }
 
 .mascot { width: 96px; height: 96px; display: block; margin: 0 auto; }
 .mascot.small { width: 48px; height: 48px; margin: 0; }
-/* A few screens (how-to-play, welcome) put the mascot directly above a
- * heading or card with no other element between them to create natural
- * spacing — this opts those specific screens in without affecting every
- * other mascot usage, most of which already have their own eyebrow/heading
- * spacing in between. */
-.mascot-spaced { margin-bottom: 16px; }
+/* Every full-size mascot/avatar/logo image sits directly above the next
+ * element (a heading, an eyebrow, a card) with nothing else in between to
+ * create spacing — a real, repeated bug (screens colliding edge to edge)
+ * fixed once here rather than per-screen, so it can never regress on a new
+ * screen either. Excludes .small (the header's inline icon, which must NOT
+ * push the name/stats away from it). */
+.mascot:not(.small) { margin-bottom: 20px; }
+
+/* A rectangular source photo (not hand-drawn to already read as an icon,
+ * unlike nesen.svg) — masked circular to read as an avatar rather than a
+ * photo, "equivalent rounded corners" to everything else in the app that
+ * uses --radius-chip for a fully round shape (chips, the future pill this
+ * shares its token with). */
+.mascot.avatar-rooster { border-radius: var(--radius-chip); object-fit: cover; }
+/* The third avatar option (see js/ui.js AVATARS) — no source art, just an
+ * emoji centered on a brand-green circle. font-size is 55% of the box so it
+ * doesn't touch the edges at either the full-size or header-small scale. */
+.mascot.avatar-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-chip);
+  background: var(--color-accent-truth);
+  font-size: 53px;
+  line-height: 1;
+}
+.mascot.small.avatar-emoji { font-size: 26px; }
+
+/* -- avatar picker (name screen only, see ui.js renderNameScreen) ---------- */
+.avatar-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.avatar-picker-arrow {
+  background: none;
+  border: none;
+  padding: 8px;
+  font-size: 28px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+.avatar-picker-arrow:active { opacity: 0.6; }
 
 .card {
   background: var(--color-surface);
@@ -280,14 +344,19 @@ p { margin: 0; line-height: 1.4; }
  * Safari the on-screen keyboard only shrinks the visual viewport, so without
  * --keyboard-inset this button ends up sitting behind the keyboard instead
  * of above it (a real bug on the name/write screens' text input + this
- * button — see js/ui.js's trackKeyboardInset). */
+ * button — see js/ui.js's trackKeyboardInset).
+ * Side inset is 32px (not #app's own 20px) — a `.card`'s content sits 20px
+ * (#app) + 20px (the card's own padding) from the true screen edge, and a
+ * button matching only the bare 20px looked flush/edge-to-edge next to that
+ * more generous card inset. max-width shrinks by the same extra 24px so the
+ * desktop-centered column still lines up with #app's. */
 .btn-cta {
   position: fixed;
   left: 50%;
   bottom: calc(40px + env(safe-area-inset-bottom) + var(--keyboard-inset));
   transform: translateX(-50%);
-  width: calc(100% - 40px);
-  max-width: 440px;
+  width: calc(100% - 64px);
+  max-width: 416px;
   z-index: 15;
 }
 
@@ -344,19 +413,35 @@ textarea, input[type="text"] {
 .option-btn.wrong { background: var(--color-accent-bluff); border-color: var(--color-accent-bluff); }
 
 /* -- hint: percentage badge appended into an option button once fetched -- */
+/* Pinned to the bottom-left corner (like .btn-cta is pinned bottom-center)
+ * rather than sitting inline in .word-block's normal flow above the option
+ * list — it used to read as "just another item in the same stack" as the
+ * answer options, sharing their spacing rhythm even though its own button
+ * style already differed. A muted, low-emphasis chip (1px border, secondary
+ * text color, no shadow) so it reads as a minor auxiliary action, never
+ * competing with the real answer choices. */
 .hint-btn {
-  align-self: flex-start;
+  position: fixed;
+  left: 20px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 15;
   font-family: inherit;
   font-size: var(--type-sub-size);
   font-weight: 600;
-  border: 2px solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-chip);
   background: var(--color-surface);
-  color: var(--color-text-on-surface);
-  padding: 4px 12px;
+  color: var(--color-text-secondary);
+  padding: 6px 14px;
   cursor: pointer;
 }
+.hint-btn:active { opacity: 0.6; }
 .hint-btn:disabled { opacity: 0.5; cursor: default; }
+/* Reserves scroll room so a long option list's last item never ends up
+ * hidden behind the fixed hint chip — same reasoning as
+ * #app:has(.btn-cta) above, just a smaller reservation for a much smaller
+ * fixed element. */
+#app:has(.hint-btn) { padding-bottom: 72px; }
 .hint-pct {
   flex-shrink: 0;
   font-weight: 700;
@@ -413,6 +498,11 @@ textarea, input[type="text"] {
   text-align: center;
   animation: pop-in var(--spring-tally-pop-duration) var(--spring-tally-pop-ease);
 }
+/* Score step only (write-recap and done's streak-num share .recap-points
+ * but keep their own/inherited color) — the score IS a correct/incorrect
+ * outcome, so it gets the app's one "true/correct" green, same token
+ * .option-btn.correct and .screen-success already use. */
+.score-points { color: var(--color-accent-truth); }
 
 @keyframes pop-in { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 

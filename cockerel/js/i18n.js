@@ -65,16 +65,19 @@ const STRINGS = {
     cancel: "Avbryt",
 
     chooseNameHeading: "Hva heter du?",
+    avatarPrev: "Forrige ikon",
+    avatarNext: "Neste ikon",
     continue: "Fortsett",
 
     howToPlayHeading: "Slik fungerer spillet",
-    howToPlayBody: "Hver dag skriver du falske definisjoner på 3 nye ord, og gjetter den ekte definisjonen blant andres bløffer på gårsdagens ord.\n\nDu får poeng for riktige gjett og for å lure andre, pluss en liten bonus for dager på rad.",
+    howToPlayBody: "Hver dag skriver du bløffer til 3 nye ord.\n\nSå gjetter du den riktige definisjonen på gårsdagens ord.\n\nDu får poeng for riktige gjett og når andre tror på din definisjon.",
     howToPlayContinue: "Skjønner, sett i gang",
 
     welcomeHeading: "Heisann, {name}!",
     points: "Poeng",
     welcomeStartPoints: "Start-poeng",
     streak: "Streak",
+    welcomeStreakLabel: "Streak (poengbonus)",
     welcomeContinue: "Gi meg dagens 3 ord",
 
     readyHeading: "Velkommen tilbake, {name}!",
@@ -116,7 +119,6 @@ const STRINGS = {
 
     chooseTodayLangGreeting: "Velkommen tilbake!",
     chooseTodayLangHeading: "Hvilket språk vil du spille i dag?",
-    chooseTodayLangNote: "Du kan spille det andre språket etterpå — ingenting går tapt.",
 
     streakUnitOne: "dag",
     streakUnitMany: "dager",
@@ -171,16 +173,19 @@ const STRINGS = {
     cancel: "Cancel",
 
     chooseNameHeading: "What's your name?",
+    avatarPrev: "Previous icon",
+    avatarNext: "Next icon",
     continue: "Continue",
 
     howToPlayHeading: "How the game works",
-    howToPlayBody: "Every day you write fake definitions for 3 new words, and guess the real definition among other players' bluffs on yesterday's words.\n\nYou earn points for correct guesses and for fooling others, plus a small bonus for playing several days in a row.",
+    howToPlayBody: "Every day you write bluffs for 3 new words.\n\nThen you guess the correct definition for yesterday's words.\n\nYou get points for correct guesses and when others believe your definition.",
     howToPlayContinue: "Got it, let's go",
 
     welcomeHeading: "Hi there, {name}!",
     points: "Points",
     welcomeStartPoints: "Starting points",
     streak: "Streak",
+    welcomeStreakLabel: "Streak (points bonus)",
     welcomeContinue: "Give me today's 3 words",
 
     readyHeading: "Welcome back, {name}!",
@@ -222,7 +227,6 @@ const STRINGS = {
 
     chooseTodayLangGreeting: "Welcome back!",
     chooseTodayLangHeading: "Which language do you want to play today?",
-    chooseTodayLangNote: "You can play the other language afterward — nothing is lost.",
 
     streakUnitOne: "day",
     streakUnitMany: "days",
@@ -246,14 +250,6 @@ export function t(lang, key, vars) {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) => (name in vars ? String(vars[name]) : `{${name}}`));
 }
-
-// The ONE screen shown before any gameplay language is known (first-ever
-// onboarding, before the Name screen) — see js/ui.js's language-picker step.
-// Deliberately bilingual/neutral chrome, not looked up per-lang, since
-// there's no "current language" yet to look it up IN.
-export const LANGUAGE_PICKER = {
-  heading: "Choose your language / Velg språk",
-};
 
 export function otherLang(lang) {
   return LANGS.find((l) => l !== lang);

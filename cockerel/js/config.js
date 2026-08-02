@@ -101,8 +101,8 @@ export const LEADERBOARD = {
 // keyed off however much of the window was left when the user acted) —
 // nothing below assumes it exists yet.
 export const TIMERS = {
-  guessSeconds: 30,
-  writeSeconds: 60,
+  guessSeconds: 45,
+  writeSeconds: 120,
 };
 
 // If the write timer runs out but the user had already typed at least this
