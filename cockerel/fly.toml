@@ -18,7 +18,11 @@ primary_region = "arn"  # Stockholm — pick whatever's closest to your friends
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  # Kept at 1 (not 0, unlike fly.staging.toml) so production never cold-starts
+  # for real players — costs ~$2/month extra (shared-cpu-1x:256MB billed
+  # 24/7 instead of only while awake). Staging deliberately stays scale-to-
+  # zero since only the maintainer/testers hit it.
+  min_machines_running = 1
 
 # db.json lives here (server/db.mjs's DATA_DIR) — without this mount, every
 # redeploy or machine restart wipes all player data.
