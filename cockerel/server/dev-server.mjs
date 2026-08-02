@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   loadDb, saveDb, ensureToday, currentNow, getTodayState, submitDefinition, submitGuess, skipGuess,
   ensureProfileFor, ackRecap, listDays, listPlayers, advanceDay, getVoteDistribution, resetPlayer,
-  computeAdminStats, linkGoogleIdentity, wipeAllUsers, setEnabledLangs,
+  computeAdminStats, linkGoogleIdentity, wipeAllUsers, setEnabledLangs, getLeaderboard,
 } from "./db.mjs";
 import { verifyGoogleIdToken } from "./auth.mjs";
 import { appendGalleryFeedback } from "./gallery-feedback.mjs";
@@ -194,6 +194,18 @@ const routes = [
       const lang = url.searchParams.get("lang");
       const result = await withDb((db) => getVoteDistribution(db, userId, wordId, lang));
       sendJson(res, result.ok ? 200 : 400, result);
+    },
+  },
+  {
+    // Ranking list shown by tapping the header's points/rank number (see
+    // js/ui.js openRankingPanel) — real players only, no auth needed (same
+    // posture as /api/today: this is ordinary gameplay data, not admin data).
+    method: "GET", path: "/api/leaderboard",
+    handler: async (req, res, url) => {
+      const lang = url.searchParams.get("lang");
+      const userId = url.searchParams.get("userId");
+      const result = await withDb((db) => getLeaderboard(db, lang, userId));
+      sendJson(res, 200, { ok: true, ...result });
     },
   },
   {

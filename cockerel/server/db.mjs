@@ -206,15 +206,37 @@ function ensureBotLeaderboard(db, lang, rng) {
   });
 }
 
-/** 1-based rank among every real profile's current rating IN THIS LANGUAGE + that language's bot pool. */
+/** 1-based rank among every real profile's current rating IN THIS LANGUAGE.
+ * Bots are deliberately excluded (see cockerel/CLAUDE.md) — db.botLeaderboard
+ * still exists and is generated (ensureBotLeaderboard below), but its only
+ * remaining consumer is the admin dashboard's informational bot-count/bot%
+ * columns (computeAdminStats), not a player's own rank or the ranking list
+ * (getLeaderboard below). */
 function computeRank(db, myRating, lang) {
-  const allRatings = [
-    ...Object.values(db.profiles)
-      .map((p) => (p.langs?.[lang] ? currentRating(p.langs[lang]) : null))
-      .filter((r) => r !== null),
-    ...(db.botLeaderboard?.[lang] ?? []),
-  ];
+  const allRatings = Object.values(db.profiles)
+    .map((p) => (p.langs?.[lang] ? currentRating(p.langs[lang]) : null))
+    .filter((r) => r !== null);
   return 1 + allRatings.filter((r) => r > myRating).length;
+}
+
+/** Every real player's rank/first-name/rating for one language, sorted best
+ * first — powers the ranking list js/ui.js's openRankingPanel shows when a
+ * player taps their points/rank number in the header. Only a first name is
+ * exposed (not the full display name, and never userId) since this is
+ * visible to every other player, not just admins — see computeAdminStats
+ * for the token-gated, full-detail equivalent. `rank` reuses computeRank
+ * itself so the number shown here always matches the number a player sees
+ * on their own header. */
+export function getLeaderboard(db, lang, userId) {
+  const entries = Object.entries(db.profiles)
+    .filter(([, p]) => p.langs?.[lang])
+    .map(([uid, p]) => {
+      const rating = currentRating(p.langs[lang]);
+      const name = (p.displayName ?? "").trim().split(/\s+/)[0] || p.displayName;
+      return { name, rating, rank: computeRank(db, rating, lang), isYou: uid === userId };
+    })
+    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+  return { entries };
 }
 
 /** Ensures the identity-level profile shell exists — displayName/device/

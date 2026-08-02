@@ -125,6 +125,11 @@ const STRINGS = {
     headerProgressGuessed: "{done}/{total} gjettet",
     headerProgressWritten: "{done}/{total} skrevet",
     headerProgressJoiner: " + ",
+
+    rankingTitle: "Rangering",
+    rankingLoading: "Laster …",
+    rankingEmpty: "Ingen andre spillere ennå.",
+    rankingYou: "deg",
   },
   en: {
     appName: "Cockerel",
@@ -226,6 +231,11 @@ const STRINGS = {
     headerProgressGuessed: "{done}/{total} guessed",
     headerProgressWritten: "{done}/{total} written",
     headerProgressJoiner: " + ",
+
+    rankingTitle: "Ranking",
+    rankingLoading: "Loading …",
+    rankingEmpty: "No other players yet.",
+    rankingYou: "you",
   },
 };
 

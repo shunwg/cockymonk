@@ -49,6 +49,10 @@ export function storageLocal(base = "") {
     ackRecap: (userId, lang) => post("/api/ack-recap", { userId, lang }),
     getVoteDistribution: (userId, wordId, lang) =>
       get(`/api/vote-distribution?userId=${encodeURIComponent(userId)}&wordId=${encodeURIComponent(wordId)}&lang=${encodeURIComponent(lang)}`),
+    // Ranking modal (see js/ui.js openRankingPanel) — real players only, for
+    // the given language, sorted best first.
+    getLeaderboard: (userId, lang) =>
+      get(`/api/leaderboard?userId=${encodeURIComponent(userId)}&lang=${encodeURIComponent(lang)}`),
     resetPlayer: (userId) => post("/api/reset-player", { userId }),
     signInWithGoogle: (idToken, userId) => post("/api/auth/google", { idToken, userId, device: detectDevice() }),
     // Settings-panel toggle / onboarding's initial choice — see

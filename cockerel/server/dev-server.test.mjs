@@ -128,6 +128,23 @@ test("dev-server.mjs core HTTP surface", async (t) => {
     assert.deepEqual(langRes.body.enabledLangs, ["no"]);
   });
 
+  await t.test("GET /api/leaderboard is real-players-only (bots excluded) and first-name-only", async () => {
+    const other = `http-test-other-${Date.now()}`;
+    await postJson(base, "/api/profile", { userId: other, displayName: "Kari Nordmann" });
+    await postJson(base, "/api/set-languages", { userId: other, enabledLangs: ["no"] });
+
+    const { status, body } = await getJson(base, `/api/leaderboard?userId=${other}&lang=no`);
+    assert.equal(status, 200);
+    assert.equal(body.ok, true);
+    // Exactly the 2 real players created so far — ensureBotLeaderboard's 200
+    // fixed bots (js/config.js LEADERBOARD.botCount) must NOT show up here,
+    // or this would be 202+ instead.
+    assert.equal(body.entries.length, 2);
+    const mine = body.entries.find((e) => e.isYou);
+    assert.equal(mine.name, "Kari"); // first name only, not "Kari Nordmann"
+    assert.equal(body.entries.filter((e) => e.isYou).length, 1);
+  });
+
   let writeWords, guessWords;
   await t.test("GET /api/today returns today's write words and yesterday's (bootstrapped) guess words", async () => {
     const { status, body } = await getJson(base, `/api/today?userId=${userId}`);

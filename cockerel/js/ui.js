@@ -131,6 +131,15 @@ function pctLabel(pct) {
   return pct ? `<span class="streak-pct">+${pct}%</span>` : "";
 }
 
+// The ranking list (openRankingPanel) is the first place another player's
+// free-text displayName is broadcast to every OTHER player rather than just
+// shown back to themselves (or gated behind the dev-only #devbar) — so
+// unlike the handful of other `${profile.displayName}` interpolations in
+// this file, it needs actual HTML-escaping, not just trusting the input.
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 // The full-size mascot image markup, identical across most screens (the
 // header's own small variant — `renderHeaderImmediate`'s `mascot small` — is
 // deliberately separate and untouched by this).
@@ -190,10 +199,20 @@ function renderHeaderImmediate(profile, lang, progress) {
     <div class="header-name">${profile.displayName}</div>
     <div class="header-stats">
       ${progress ? `<div class="header-progress" id="header-progress">${progress}</div>` : ""}
-      <div class="header-points" id="header-points">${pointsText(profile, lang)}</div>
+      <button class="header-points" id="header-points" type="button">${pointsText(profile, lang)}</button>
       <div id="header-streak">${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}</div>
     </div>
   `;
+  // Rewired here (not in updateHeader) because innerHTML above is the only
+  // thing that ever recreates this node — updateHeader's normal path just
+  // patches textContent on the SAME node, so a listener attached here
+  // survives every later header update untouched. Reads currentScreenLang
+  // at CLICK time (not the `lang` param closed over above) for the same
+  // reason openSettingsPanel does — updateHeader can later refresh these
+  // numbers for a different language (e.g. switching languages via the
+  // done-step's "play the other language" button) without this node ever
+  // being recreated, so a captured `lang` would silently go stale.
+  document.getElementById("header-points").addEventListener("click", () => openRankingPanel(currentScreenLang));
 }
 
 function updateHeader(profile, lang, progress) {
@@ -204,6 +223,47 @@ function updateHeader(profile, lang, progress) {
   streakEl.textContent = `${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}`;
   const progressEl = document.getElementById("header-progress");
   if (progress && progressEl) progressEl.textContent = progress;
+}
+
+/** Ranking modal — opened by tapping the header's points/rank number (see
+ * renderHeaderImmediate). Lists every real (non-bot; see server/db.mjs
+ * getLeaderboard) player's rank/first name/rating for `lang`, fetched fresh
+ * on every open — a live snapshot of who's ahead/behind right now, not
+ * something worth caching. Same modal-overlay/modal-card pattern as
+ * openSettingsPanel, but single-screen (no back/forward navigation needed
+ * here, so no renderMain-style re-callable function). */
+async function openRankingPanel(lang) {
+  const overlay = el(`<div class="modal-overlay" id="ranking-overlay"><div class="modal-card"></div></div>`);
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector(".modal-card").replaceChildren(el(`
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <h2>${t(lang, "rankingTitle")}</h2>
+      <div id="ranking-body"><p class="empty-note">${t(lang, "rankingLoading")}</p></div>
+      <button class="btn secondary full" id="close-ranking-btn">${t(lang, "close")}</button>
+    </div>
+  `));
+  document.getElementById("close-ranking-btn").addEventListener("click", () => overlay.remove());
+
+  const { entries } = await store.getLeaderboard(identity.userId, lang);
+  const body = document.getElementById("ranking-body");
+  if (!body) return; // modal already closed while the fetch was in flight
+  if (!entries.length) {
+    body.replaceChildren(el(`<p class="empty-note">${t(lang, "rankingEmpty")}</p>`));
+    return;
+  }
+  body.replaceChildren(el(`
+    <div class="ranking-list">
+      ${entries.map((e) => `
+        <div class="ranking-row ${e.isYou ? "you" : ""}">
+          <span class="ranking-rank">${e.rank}.</span>
+          <span class="ranking-name">${escapeHtml(e.name)}${e.isYou ? ` (${t(lang, "rankingYou")})` : ""}</span>
+          <span class="ranking-rating">${e.rating}</span>
+        </div>
+      `).join("")}
+    </div>
+  `));
 }
 
 /** Fire-and-forget: refetches this language's current state and fills in
@@ -1497,6 +1557,18 @@ function createFixtureStore(lang) {
     listDays: async () => ({ days: [], current: null }),
     listPlayers: async () => ({ players: [] }),
     advanceDay: async () => ({ todayKey: null }),
+    // Backs the header's points/rank button (see openRankingPanel) — every
+    // gallery card that shows a header can be clicked, not just "guess"/
+    // "write", so this needs a real (if fixture) answer rather than being
+    // left unimplemented and throwing on click.
+    getLeaderboard: async () => ({
+      ok: true,
+      entries: [
+        { name: "Kari", rating: 990, rank: 1, isYou: false },
+        { name: "Ferdigfigur", rating: profile.rating, rank: 2, isYou: true },
+        { name: "Ola", rating: 760, rank: 3, isYou: false },
+      ],
+    }),
   };
 }
 
