@@ -349,8 +349,14 @@ p { margin: 0; line-height: 1.4; }
  * (#app) + 20px (the card's own padding) from the true screen edge, and a
  * button matching only the bare 20px looked flush/edge-to-edge next to that
  * more generous card inset. max-width shrinks by the same extra 24px so the
- * desktop-centered column still lines up with #app's. */
-.btn-cta {
+ * desktop-centered column still lines up with #app's.
+ * Selector is `.btn.full.btn-cta` (three classes), not just `.btn-cta` — every
+ * real CTA button carries all three classes (see js/ui.js), and `.btn.full`
+ * above is ALSO two classes; a plain `.btn-cta` (one class) loses that
+ * specificity fight and its width is silently overridden by `.btn.full`'s
+ * `width: 100%`, which is exactly what made this inset a no-op before. This
+ * was a real bug, not hypothetical — don't simplify back to `.btn-cta` alone. */
+.btn.full.btn-cta {
   position: fixed;
   left: 50%;
   bottom: calc(40px + env(safe-area-inset-bottom) + var(--keyboard-inset));
