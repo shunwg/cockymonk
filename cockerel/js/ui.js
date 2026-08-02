@@ -217,27 +217,35 @@ function wireContinueButton(handler) {
   document.getElementById("continue-btn").addEventListener("click", handler);
 }
 
-// "N dager (+X% poengbonus)" / "N days (+X% points bonus)" — the one
-// canonical streak phrase, used everywhere the streak itself (not some
-// other stat's bonus) is shown.
+// "N dager (+X% bonus)" / "N days (+X% bonus)" — the one canonical streak
+// phrase, used everywhere the streak itself (not some other stat's bonus) is
+// shown. Returns HTML, not plain text — the bonus part is wrapped in
+// .text-paren (smaller/muted) to de-emphasize it against the headline
+// "N dager" — every caller already renders this into innerHTML, not
+// textContent (see updateHeader).
 function streakText(days, pct, lang) {
   const unit = days === 1 ? t(lang, "streakUnitOne") : t(lang, "streakUnitMany");
-  const bonus = pct ? t(lang, "streakBonusSuffix", { pct }) : "";
+  const bonus = pct ? `<span class="text-paren">${t(lang, "streakBonusSuffix", { pct })}</span>` : "";
   return `${days} ${unit}${bonus}`;
 }
 
 // -- persistent header --------------------------------------------------
 // #header itself holds the settings menu button (see renderSettingsButton)
-// plus a nested #header-profile wrapper — the profile info (mascot/name/
-// score) is deliberately scoped to that inner wrapper, not the whole header,
-// so renderHeaderImmediate/updateHeader below never touch (or need to
-// re-wire the click listener on) the menu button. #header-profile is
-// deliberately NOT re-rendered on every screen — only ever touched by
-// updateHeader(), so a point/streak reveal elsewhere in the screen can finish
-// its own big-number animation and flash BEFORE the header catches up.
+// plus two nested wrappers — #header-profile-top (icon+name) and
+// #header-stats (points/rank + streak) — the profile info is deliberately
+// scoped to those, not the whole header, so renderHeaderImmediate/
+// updateHeader below never touch (or need to re-wire the click listener on)
+// the menu button. Neither wrapper is re-rendered on every screen — only
+// ever touched by updateHeader(), so a point/streak reveal elsewhere in the
+// screen can finish its own big-number animation and flash BEFORE the
+// header catches up.
 
+// Returns HTML (see streakText's comment) — the rank part is the
+// parenthetical, de-emphasized the same way.
 function pointsText(profile, lang) {
-  return t(lang, "pointsRank", { rating: profile.rating, rank: profile.rank });
+  const main = t(lang, "pointsMain", { rating: profile.rating });
+  const rank = `<span class="text-paren">${t(lang, "pointsRankSuffix", { rank: profile.rank })}</span>`;
+  return main + rank;
 }
 
 /** "2/3 gjettet + 3/3 skrevet" — today's write/guess progress for one
@@ -256,23 +264,23 @@ function progressText(langState, lang) {
   return parts.join(t(lang, "headerProgressJoiner"));
 }
 
-// The persistent navbar (#header-profile) — deliberately does NOT show
+// The persistent navbar — deliberately does NOT show
 // today's write/guess progress ("3/3 gjettet + 1/3 skrevet") anymore; that
 // used to live here but read as clutter on every single screen. It now only
 // ever appears once, on the done step itself (see renderDoneStep and
 // progressText below), not in the navbar at all.
 function renderHeaderImmediate(profile, lang) {
-  document.getElementById("header-profile").innerHTML = `
+  document.getElementById("header-profile-top").innerHTML = `
     ${avatarHtml(profile.avatar ?? "nesen", "small")}
     <div class="header-name">${profile.displayName}</div>
-    <div class="header-stats">
-      <button class="header-points" id="header-points" type="button">${pointsText(profile, lang)}</button>
-      <div id="header-streak">${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}</div>
-    </div>
+  `;
+  document.getElementById("header-stats").innerHTML = `
+    <button class="header-points" id="header-points" type="button">${pointsText(profile, lang)}</button>
+    <div id="header-streak">${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}</div>
   `;
   // Rewired here (not in updateHeader) because innerHTML above is the only
   // thing that ever recreates this node — updateHeader's normal path just
-  // patches textContent on the SAME node, so a listener attached here
+  // patches innerHTML on the SAME node, so a listener attached here
   // survives every later header update untouched. Reads currentScreenLang
   // at CLICK time (not the `lang` param closed over above) for the same
   // reason openSettingsPanel does — updateHeader can later refresh these
@@ -286,8 +294,10 @@ function updateHeader(profile, lang) {
   const pointsEl = document.getElementById("header-points");
   const streakEl = document.getElementById("header-streak");
   if (!pointsEl || !streakEl) { renderHeaderImmediate(profile, lang); return; }
-  pointsEl.textContent = pointsText(profile, lang);
-  streakEl.textContent = `${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}`;
+  // innerHTML, not textContent — pointsText/streakText both return HTML now
+  // (a nested .text-paren span for the de-emphasized rank/bonus part).
+  pointsEl.innerHTML = pointsText(profile, lang);
+  streakEl.innerHTML = `${t(lang, "streak")}: ${streakText(profile.streakDays, profile.streakBonusPct, lang)}`;
 }
 
 /** Ranking modal — opened by tapping the header's points/rank number (see
@@ -449,23 +459,29 @@ async function renderDevToolbar() {
 // Rendered once at boot, not re-rendered per navigation (unlike #devbar) —
 // its click handler reads `identity`/currentScreenLang fresh at click time,
 // so it always acts on whoever/whatever is currently active, including
-// after a dev-toolbar switch. Lives INSIDE #header as its first child, ahead
-// of the (separately-managed, see renderHeaderImmediate) #header-profile
-// wrapper — same physical top-left spot on every screen, since #header
-// itself always renders now (see :empty guard in app.css, which only ever
-// matters for the brief instant before this function has run). On screens
-// with no profile yet (#header-profile empty — name/how-to-play/welcome/
-// sign-in-gate) this is the ONLY thing in the header row, which is exactly
-// the "more space before the next thing" look asked for — #header's own
-// flex `gap` still applies against #screen-root either way.
+// after a dev-toolbar switch.
+// Two columns: `.header-left` (icon+name on top, the menu button on its own
+// row below, both hugging the same left edge) and `#header-stats` (points/
+// rank + streak, right-aligned) — splitting the left column into its own
+// two rows is what gives the stats column the extra horizontal room it
+// needs for its denser text. Both #header-profile-top and #header-stats are
+// created empty here and filled by renderHeaderImmediate/updateHeader — the
+// menu button itself is the one thing neither of those ever touches or
+// re-wires. On screens with no profile yet (#header-profile-top empty —
+// name/how-to-play/welcome/sign-in-gate) `.header-left` just shows the menu
+// button alone (see the `:empty` guard in app.css), which is exactly the
+// "more space before the next thing" look asked for.
 function renderSettingsButton() {
   const menuBtn = el(`
     <button class="header-menu-btn" id="settings-fab" aria-label="${t(currentScreenLang, "settingsAriaLabel")}">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>
     </button>
   `);
-  const profileWrap = el(`<div id="header-profile" class="header-profile"></div>`);
-  header.replaceChildren(menuBtn, profileWrap);
+  const profileTop = el(`<div id="header-profile-top" class="header-profile-top"></div>`);
+  const left = el(`<div class="header-left"></div>`);
+  left.append(profileTop, menuBtn);
+  const stats = el(`<div id="header-stats" class="header-stats"></div>`);
+  header.replaceChildren(left, stats);
   menuBtn.addEventListener("click", openSettingsPanel);
 }
 

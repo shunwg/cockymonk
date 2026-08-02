@@ -122,8 +122,9 @@ const STRINGS = {
 
     streakUnitOne: "dag",
     streakUnitMany: "dager",
-    streakBonusSuffix: " (+{pct}% poengbonus)",
-    pointsRank: "{rating} poeng ({rank}. plass)",
+    streakBonusSuffix: " (+{pct}% bonus)",
+    pointsMain: "{rating} poeng",
+    pointsRankSuffix: " (#{rank})",
     headerProgressGuessed: "{done}/{total} gjettet",
     headerProgressWritten: "{done}/{total} skrevet",
     headerProgressJoiner: " + ",
@@ -230,8 +231,9 @@ const STRINGS = {
 
     streakUnitOne: "day",
     streakUnitMany: "days",
-    streakBonusSuffix: " (+{pct}% points bonus)",
-    pointsRank: "{rating} points (#{rank})",
+    streakBonusSuffix: " (+{pct}% bonus)",
+    pointsMain: "{rating} points",
+    pointsRankSuffix: " (#{rank})",
     headerProgressGuessed: "{done}/{total} guessed",
     headerProgressWritten: "{done}/{total} written",
     headerProgressJoiner: " + ",

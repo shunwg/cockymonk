@@ -69,18 +69,26 @@ html, body {
  * numbers, deliberately delayed after a point-changing reveal (see the
  * flash classes below). #header:empty only ever matters for the brief
  * instant before js/ui.js's renderSettingsButton has run at boot — after
- * that #header always has at least the menu button. */
+ * that #header always has at least the menu button.
+ * Deliberately INVERTED from the rest of the app: a solid dark-navy fill —
+ * the same --color-ink-night the rest of the app only ever uses as TEXT
+ * (e.g. on colored buttons, the done screen) — with off-white content, on
+ * top of it. This is a fixed look, not reactive to the app's own light/dark
+ * theme toggle, so its text color is a literal value matching dark theme's
+ * own --color-text-on-bg rather than a theme-conditional token (which would
+ * flip to near-black in light mode and disappear against this background). */
 #header:empty { display: none; }
 #header {
+  --header-text: #F4EFE4;
   margin: -24px -20px 0;
   padding: 12px 20px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 14px;
+  background: var(--color-ink-night, #1B1B2E);
+  color: var(--header-text);
 }
-/* The divider line only makes sense once there's a profile row to divide
- * from the screen below it — bare menu-button screens (onboarding) skip it. */
-#header:has(.header-profile:not(:empty)) { border-bottom: 1px solid var(--color-border); }
 
 .header-menu-btn {
   display: flex;
@@ -99,10 +107,25 @@ html, body {
 .header-menu-btn:active { opacity: 0.6; }
 .header-menu-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 
-.header-profile { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.header-profile:empty { display: none; }
+/* Two rows, both hugging the header's left edge (see ui.js
+ * renderSettingsButton): icon+name on top, the menu button on its own row
+ * below. Splitting these into their own column instead of one single row
+ * alongside the stats is what frees up horizontal room for #header-stats'
+ * denser text on dual-language/high-streak profiles. */
+.header-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.header-profile-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header-profile-top:empty { display: none; }
 .header-name { font-family: var(--type-display-family); font-weight: 600; font-size: 15px; }
-.header-stats { margin-left: auto; text-align: right; font-size: var(--type-sub-size); }
+
+.header-stats { text-align: right; font-size: var(--type-sub-size); flex-shrink: 0; }
+.header-stats:empty { display: none; }
+/* De-emphasized parenthetical suffix — e.g. the "(#42)" after a rating, or
+ * "(+30% bonus)" after a streak count — smaller and dimmer than the
+ * headline number it follows. Reused wherever that same "main number (extra
+ * detail)" pattern shows up (see ui.js pointsText/streakText), not just the
+ * header — relative units (em/opacity) so it scales with whatever context
+ * it's used in rather than a fixed header-only size. */
+.text-paren { font-size: 0.85em; opacity: 0.75; }
 /* A real <button> now (see ui.js renderHeaderImmediate — opens the ranking
  * modal). Default button display is inline-block, so it still right-aligns
  * correctly via .header-stats' inherited text-align: right with no layout
