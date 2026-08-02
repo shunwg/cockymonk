@@ -1147,10 +1147,15 @@ async function afterGuessAction(res, lang) {
 
 function renderGuessWordMarkup(w, lang) {
   const options = w.options.map((opt) => `<button class="option-btn" id="opt-${w.wordId}-${opt.id}"><span>${opt.text}</span></button>`).join("");
+  // Omitted entirely (not just disabled) when nobody's guessed this word yet
+  // today — see `hintAvailable` in server/db.mjs's getTodayStateForLang —
+  // there'd be nothing to hint at, and showing a button just to click it
+  // and learn that felt worse than not offering it at all.
+  const hintBtn = w.hintAvailable ? `<button class="hint-btn" id="hint-${w.wordId}">${t(lang, "hint")}</button>` : "";
   return `
     <div class="word-block">
       <div class="word-title">${w.word}</div>
-      <button class="hint-btn" id="hint-${w.wordId}">${t(lang, "hint")}</button>
+      ${hintBtn}
       <div class="option-list" id="option-list-${w.wordId}">${options}</div>
     </div>`;
 }
@@ -1572,6 +1577,13 @@ function createFixtureStore(lang) {
           wordId: w.wordId, word: w.word,
           alreadyGuessed: Boolean(mine), choiceId: mine?.choiceId ?? null, correct: mine?.correct ?? null,
           options: fixtureWordOptions(w).map((o) => ({ id: o.id, text: o.text })),
+          // Mirrors server/db.mjs's real hintAvailable — true only for
+          // words[0] here, matching otherGuesses above (the only word this
+          // fixture seeded any "other players'" guesses for). Needed so the
+          // "guess"/"guess-hint" gallery cards still show the hint button at
+          // all now that js/ui.js's renderGuessWordMarkup omits it entirely
+          // when there's nothing to hint at.
+          hintAvailable: otherGuesses.some((g) => g.wordId === w.wordId),
         };
       }),
       profile,

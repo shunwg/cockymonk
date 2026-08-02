@@ -155,6 +155,7 @@ test("dev-server.mjs core HTTP surface", async (t) => {
     assert.equal(writeWords.length, 3);
     assert.equal(guessWords.length, 3);
     assert.ok(guessWords.every((w) => w.options.length > 0), "day-1 bootstrap already has guessable options");
+    assert.ok(guessWords.every((w) => w.hintAvailable === false), "no real guesses recorded yet — bootstrap only fills decoy options, not db.guesses");
   });
 
   await t.test("POST /api/submit-definition: validation errors and the happy path", async () => {
@@ -197,6 +198,14 @@ test("dev-server.mjs core HTTP surface", async (t) => {
     const repeat = await postJson(base, "/api/submit-guess", { userId, wordId: w1.wordId, choiceId: w1.options[0].id, lang: "no" });
     assert.equal(repeat.status, 400);
     assert.equal(repeat.body.error, "already_guessed");
+
+    // A second user's own /api/today now sees hintAvailable flip to true for
+    // all three words — a guess (or the w3 skip) was just recorded for each.
+    const other = `http-test-hint-${Date.now()}`;
+    await postJson(base, "/api/profile", { userId: other, displayName: "Hint Checker" });
+    await postJson(base, "/api/set-languages", { userId: other, enabledLangs: ["no"] });
+    const { body: otherToday } = await getJson(base, `/api/today?userId=${other}`);
+    assert.ok(otherToday.byLang.no.guessWords.every((w) => w.hintAvailable === true));
   });
 
   await t.test("POST /api/ack-recap and /api/reset-player", async () => {

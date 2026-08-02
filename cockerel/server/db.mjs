@@ -407,12 +407,18 @@ function getTodayStateForLang(db, userId, lang) {
       const word = wordById(allWords, id);
       const existingGuess = db.guesses.find((g) => g.dayKey === todayKey && g.lang === lang && g.wordId === id && g.userId === userId);
       const options = visibleOptionsFor(yesterday.options[id], userId).map((o) => ({ id: o.id, text: o.text }));
+      // Same underlying query getVoteDistribution itself uses to decide
+      // `noData` — surfaced here too so the client can skip rendering the
+      // hint button at all when nobody's guessed this word yet today,
+      // rather than showing it and only then discovering there's nothing to
+      // hint at (see js/ui.js renderGuessWordMarkup).
+      const hintAvailable = db.guesses.some((g) => g.dayKey === todayKey && g.lang === lang && g.wordId === id);
       return {
         wordId: id, word: word.word,
         alreadyGuessed: Boolean(existingGuess),
         choiceId: existingGuess?.choiceId ?? null,
         correct: existingGuess?.correct ?? null,
-        options,
+        options, hintAvailable,
       };
     });
   }
