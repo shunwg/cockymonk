@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createServer as createNetServer } from "node:net";
 import { fileURLToPath } from "node:url";
+import { LANGS } from "../js/config.js";
 
 const SERVER_SCRIPT = fileURLToPath(new URL("./dev-server.mjs", import.meta.url));
 
@@ -78,6 +79,24 @@ test("dev-server.mjs core HTTP surface", async (t) => {
     const { status, body } = await getJson(base, "/api/config");
     assert.equal(status, 200);
     assert.deepEqual(body, { ok: true, devTools: true, googleClientId: null, requireGoogleAuth: false });
+  });
+
+  // This endpoint backs the About panel's word-list credits, which exist to
+  // satisfy CC BY 4.0 (Bokmålsordboka) and the WordNet license — so "every
+  // active corpus has a non-empty attribution" is a legal requirement, not a
+  // nice-to-have, and it must stay reachable without auth.
+  await t.test("GET /api/credits returns an attribution for every active corpus", async () => {
+    const { status, body } = await getJson(base, "/api/credits");
+    assert.equal(status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.corpora.length, LANGS.length, "one credit per configured language");
+    for (const lang of LANGS) {
+      const entry = body.corpora.find((c) => c.lang === lang);
+      assert.ok(entry, `${lang} is credited`);
+      assert.ok(entry.attribution?.length > 10, `${lang}: a real attribution string`);
+      assert.ok(entry.version, `${lang}: names the version it describes`);
+      assert.ok(entry.counts.words > 0, `${lang}: reports a word count`);
+    }
   });
 
   await t.test("static file serving: index.html, unknown path 404s, path traversal is rejected", async () => {

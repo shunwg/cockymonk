@@ -5,8 +5,8 @@ A Wordle-style **async daily spinoff** of Cocky Monk (`../shunwg`): once a day, 
 **This app is standalone.** It has no navigation to Cocky Monk's party/hotseat modes or to Ordkrig's online/local modes — one entry point (`index.html`), one flow. `app/` (see below) is a second client for the same game and backend, not a different app.
 
 ## Provenance (read before assuming something is original)
-- **Word corpus** (`js/words.no.json`) is a one-way, point-in-time copy from `../ordkrig/src/data/generated/words.no.json`, produced by `Tools/build-words.mjs`. Re-run that script to pick up new Ordkrig words; don't hand-edit `words.no.json`. `js/words.en.json` is a separate, **hand-written PLACEHOLDER corpus** (~40 words) — Ordkrig has no English content to import, so there is no equivalent generator for it; see "Dual-language gameplay" below.
-- **Bot decoys** (`js/decoys.js`) port the nearness-matching algorithm from `../ordkrig/src/bots/answerPool.ts` against a copy of `../ordkrig/src/data/generated/fakeDefs.json` (now `js/fakeDefs.no.json`). If Ordkrig's algorithm changes in a way that matters here, port the change manually — there is no live link. The linguistic heuristics it leans on (stop words, "learned/Latinate" suffixes, verb/adjective phrase detection) are parameterized per language via `LANG_PROFILES` — `no` is this original Norwegian tuning, unchanged; `en` is a separate, hand-tuned English adaptation, not ported from anywhere.
+- **Word corpora** (`js/corpora/<lang>/<version>/`) are one-way, point-in-time copies from `../ordkrig/src/data/generated/`, produced by `Tools/build-words.mjs` — **both** languages now, not just Norwegian. Never hand-edit a corpus file; re-import into a new version (see "Versioned corpora" below). Ordkrig's English pipeline (`ordkrig/scripts/wordgen-en/1_build_en.mjs`, WordNet 3.1 + Norvig web-frequency filtering) was overlooked when dual-language gameplay was first built — this file used to claim Ordkrig had no English content, which was never true.
+- **Bot decoys** (`js/decoys.js`) port the nearness-matching algorithm from `../ordkrig/src/bots/answerPool.ts` against a copy of `../ordkrig/src/data/generated/fakeDefs.json` (now `js/corpora/no/v1/fakeDefs.json`). If Ordkrig's algorithm changes in a way that matters here, port the change manually — there is no live link. The linguistic heuristics it leans on (stop words, "learned/Latinate" suffixes, verb/adjective phrase detection) are parameterized per language via `LANG_PROFILES` — `no` is this original Norwegian tuning, unchanged; `en` is a separate, hand-tuned English adaptation, not ported from anywhere.
 - **Rating/streak shape** (`js/rating.js`) ports the *spirit* of `../ordkrig/src/services/profileStore.ts` (`rating = base + avg(per-day performance)`), with two deliberate differences: **no quit penalty** (missed days are expected and must never be punished), and a **percentage** streak bonus (`config.js STREAK_BONUS`: +10%/day up to +70% at streak day 7+) instead of Ordkrig's flat streak addend. Full scoring rationale (including the ONE way to lose points — guessing 0/3 in a day) is documented in `README.md`, not repeated here. `rating.js`'s `applyStreakBonus` only multiplies POSITIVE base points — a bad guessing day (`SCORING.guessScoreByCorrectCount` can be negative) must never be made worse by having a long streak; that guard is load-bearing, don't remove it "to simplify." `rating.js` itself has no notion of language at all — see "Dual-language gameplay" below for how one `freshProfile()` becomes two independent tracks.
 - **Streak ≠ rating denominator — two separate day-sets, on purpose** (`js/rating.js` top comment). `participatedDays` is touched the INSTANT a user writes or guesses anything ("streak = at least submitting or guessing," not doing all 6) and drives the streak display + bonus %. `countedDays` is touched only once a day's points are actually known via settlement — which happens at two different times for the same calendar day, since write-points and guess-points settle a rollover apart (see `server/db.mjs`'s top comment). Conflating these two was a real bug caught during design; don't merge them back into one.
 - **Visual identity** (`css/tokens.css`, `assets/fredoka.css`, `assets/nesen.svg`) is copied from Cocky Monk's `../shunwg/DesignSystem/tokens.json` and `../shunwg/Lab/vendor/`. Re-sync with `Tools/sync-tokens.mjs` rather than hand-editing token values. Every copied asset has a row in this project's own `ASSETS.md`, not just Cocky Monk's.
@@ -31,6 +31,55 @@ A Wordle-style **async daily spinoff** of Cocky Monk (`../shunwg`): once a day, 
 - **Every returning session passes through a `Ready` step (or the write recap, which serves the same role) before the guess timer starts** — opening the app must never itself start a 45-second clock. Don't collapse this away "to save a click."
 - **`#devbar` (in `js/ui.js`, endpoints under `/api/dev/*`) is a testing tool, not shipped UX.** A date dropdown advances the server's simulated "now" one day at a time (`db.devClock`, append-only — there is deliberately no "go back" endpoint), and a player dropdown switches the active local identity or registers a new one, so the write-today/guess-tomorrow loop and multi-player interactions can be tested solo without waiting real days. Gated by the server's `DEV_TOOLS` env var (`server/dev-server.mjs`, default on): the client asks `GET /api/config` and skips rendering the toolbar entirely when it's off, and the server 404s `/api/dev/*` regardless of the client. Set `DEV_TOOLS=0` on any deployed instance.
 
+## Versioned corpora
+A language's word list is **versioned**, not a single file pair. Content lives in
+`js/corpora/<lang>/<version>/{words.json, fakeDefs.json, manifest.json}`, one directory per version,
+and `js/config.js`'s `CORPUS_VERSIONS` is the one place that says which version each language is
+currently drawing new daily batches from. This exists because the word lists are expected to keep
+improving from playtest feedback — so swapping one in, and **rolling one back**, both have to be
+routine and safe rather than a migration.
+
+- **A published version directory is immutable.** Improving the word list means adding
+  `js/corpora/<lang>/v<N+1>/` and repointing `CORPUS_VERSIONS`, never editing a version in place.
+  Everything below depends on that; `js/words.js`'s header comment explains why in detail.
+- **Every batch records the version it was drawn from** (`batch.corpusVersion`, `server/db.mjs`), and
+  words are resolved **per batch** (`corpusForBatch`), never per language. This is the load-bearing
+  bit: it means changing `CORPUS_VERSIONS` only redirects *tomorrow's* draw, and can never retroactively
+  reword, break, or orphan a day that's already been played. Note the direct consequence — on the day
+  after a switch, the same language's today-batch and yesterday-batch are on **different versions at the
+  same time**, so no code path may hoist a single `loadWords(lang)` across both. `settleBatch` needs no
+  corpus at all (it scores the options frozen at seal time).
+- `js/words.js` is the registry: `loadCorpus(lang, version)` (cached in-process — corpora are immutable
+  and the pools reach 14k entries, which `db.mjs` used to re-parse on *every request*), `listVersions`,
+  `activeVersion`, `corpusMeta`, `validateCorpus`. A deployed instance can roll back without a redeploy
+  via `COCKEREL_CORPUS_NO` / `COCKEREL_CORPUS_EN` (`fly secrets set`), same posture as `DEV_TOOLS`/
+  `ADMIN_TOKEN`. An unknown version throws at boot rather than falling back — `dev-server.mjs` prints the
+  active corpora on startup so a misconfigured deploy is obvious immediately.
+- `recentlyUsedWordIds` is deliberately **best-effort across a version switch**: ids from older-version
+  batches are used as-is, which is exactly right when a version bump keeps ids stable (the normal case)
+  and degrades to "no exclusion" when it doesn't. Mapping ids between corpora would need a notion of word
+  identity surviving a rewording, which no version format guarantees.
+- **Tools**: `npm run build-words` imports from Ordkrig into the *next* version number, refuses to
+  overwrite an existing version (`--force` only for an import you haven't played or committed yet), and
+  no-ops entirely when upstream content is unchanged — so it's safe to re-run any time. It does **not**
+  activate what it imports; that's the separate `CORPUS_VERSIONS` edit, on purpose, so activation shows
+  up in a diff. `npm run corpus list|validate|diff` inspects what's on disk (read-only by design — there's
+  no "switch version" command, since that belongs in a commit).
+- **Attribution is a licensing obligation, not decoration.** Bokmålsordboka's definitions are CC BY 4.0 and
+  WordNet's license requires its notice be retained, so every corpus manifest carries an `attribution`
+  string (missing one fails `js/corpora.test.mjs`), `GET /api/credits` serves the **active** corpora's
+  strings, and `js/ui.js`'s `renderAboutPanel` (Settings → About) displays them. Because it's read from
+  the manifests at runtime rather than hardcoded in `js/i18n.js`, switching or rolling back a corpus
+  version updates the visible credit automatically — don't "simplify" that into a static string. Like
+  `renderInstallInstructions`, it's a settings sub-screen, so it's not a gallery card; the gallery renders
+  the real settings button on every card, so it's reachable from all of them.
+- `js/corpora.test.mjs` validates every corpus on disk and end-to-end tests both a forward switch and a
+  rollback across a day boundary. `validateCorpus` separates hard `problems` (missing fields, duplicate
+  ids, a manifest disagreeing with its content — these fail the suite) from soft `warnings` (small corpus,
+  bluff pool overlapping the game words). The overlap case is only a warning because `js/decoys.js` already
+  refuses to serve a decoy whose word is the target or whose definition matches the truth — `no/v1` has
+  907 such entries and always has. Keeping old versions playable is the point, so they must not fail CI.
+
 ## Dual-language gameplay
 Cockerel plays in Norwegian ("no") and English ("en") — `js/config.js`'s `LANGS` is the one place both
 codes are defined. A player picks ONE language at onboarding (the very first screen, before even naming
@@ -42,11 +91,13 @@ into one number felt actively wrong. `js/engine.js` and `js/rating.js` need **ze
 they're pure functions over whatever word list / fakeDefs pool / profile object the caller passes in; all
 of the real work is in `server/db.mjs`'s orchestration layer and the content-loading layer.
 
-- **English content is a small, hand-written PLACEHOLDER corpus** (`js/words.en.json`, ~40 words;
-  `js/fakeDefs.en.json`, currently the same 40 entries reshaped as the bluff pool) — real,
-  dictionary-accurate definitions, but nowhere near Norwegian's 996-word Bokmålsordboka-sourced scale.
-  Treat it as scaffolding that makes the feature fully functional and testable, not production content —
-  sourcing a real English corpus is a separate future task. `js/decoys.js`'s `LANG_PROFILES` (stop words,
+- **English content is real now** (`js/corpora/en/v2/`, 1100 words + a 14000-entry bluff pool) — imported
+  from Ordkrig's own English pipeline (WordNet 3.1 glosses, filtered by Norvig web-frequency rank to keep
+  only genuinely obscure words with short, plain-vocabulary definitions), the same methodology behind the
+  Norwegian list. That's ~366 days of content at 3 words/day, comparable in scale to Norwegian's 996.
+  The old hand-written ~40-word placeholder is still on disk as `js/corpora/en/v1/` and is still
+  selectable — kept because the versioning scheme's whole promise is that you can go back, not because
+  anything needs it. `js/decoys.js`'s `LANG_PROFILES` (stop words,
   "learned/Latinate" suffix regex, verb/adjective definition-prefix detection, alphabet) has a real,
   hand-tuned English entry alongside the original Norwegian one — this is genuine algorithm adaptation,
   not just a data swap, since decoys.js's own header comment used to say "Norwegian-only port."
@@ -183,8 +234,11 @@ An Expo/React Native port of the same game, targeting iOS (TestFlight) first, th
 - No `eas build`/`eas submit` (or any `eas`/App Store Connect action) is ever run by an agent — that's a human, from their own machine, per `app/AGENTS.md`.
 
 ## Workflow
-1. `npm run build-words` after any Ordkrig wordlist change you want reflected here.
-2. `npm test` — engine/scoring/rollover vectors must be green before any commit touching `js/engine.js` or `js/rating.js`.
+1. `npm run build-words` after any Ordkrig wordlist change you want reflected here — it writes a NEW
+   corpus version and no-ops if nothing changed upstream. Then `npm run corpus validate`, then point
+   `js/config.js` `CORPUS_VERSIONS` at it when you actually want it live. `npm run corpus list` shows
+   what's on disk and which version is active; `npm run corpus diff <lang> <from> <to>` shows what moved.
+2. `npm test` — engine/scoring/rollover vectors and corpus validation must be green before any commit touching `js/engine.js`, `js/rating.js`, or `js/corpora/`.
 3. `npm run simulate` — `Tools/simulate-day.mjs` plays several simulated days with multiple users (most enrolled in one language, a few in both) + bot fill; run it after any change to the rollover or decoy logic, since a single day's playtest can't exercise the write→guess offset or the per-language independence invariant it asserts.
 4. `npm run serve` to run it locally; verify visually before calling a screen done.
 
@@ -230,9 +284,13 @@ Set the token on each deploy: `fly secrets set ADMIN_TOKEN=... -a cockerel` and 
 - Never merge the two languages' rating/streak/leaderboard tracks back into one number, and never let a
   language's `enabledLangs`-disablement (settings toggle) retroactively drop or block credit for work
   already done while it was enabled — see "Dual-language gameplay" above for the reasoning.
-- `js/words.en.json`/`js/fakeDefs.en.json` are placeholder content, not production-scale — don't present
-  them as equivalent to the Norwegian corpus, and don't quietly grow them piecemeal without noting it's
-  still placeholder-quality until a real content-sourcing pass happens.
+- Never edit a published corpus version in place, and never delete an old version directory that any
+  batch in a live `db.json` still points at — cut a new version instead. See "Versioned corpora" above;
+  in-place edits silently rewrite what past days meant, which is the exact failure the per-batch
+  `corpusVersion` pin exists to prevent.
+- Importing a corpus (`npm run build-words`) and activating it (`js/config.js` `CORPUS_VERSIONS`) are two
+  separate steps on purpose. Don't collapse them, and don't activate a version that
+  `npm run corpus validate` reports problems for.
 - Any change to `js/ui.js`'s screens (new screen, removed screen, or a changed data shape a `render*Step`
   function expects) must be reflected in the screen gallery in the same change — see "Keeping it
   current" under Screen gallery above. Don't treat this as optional cleanup; a stale gallery defeats

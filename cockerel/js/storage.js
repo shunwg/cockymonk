@@ -37,6 +37,10 @@ export function storageLocal(base = "") {
   }
   return {
     getConfig: () => get("/api/config"),
+    // Word-list attribution for the About panel, read from the active
+    // corpora's manifests server-side — fetched on demand (only when that
+    // panel opens), not at boot like getConfig.
+    getCredits: () => get("/api/credits"),
     // `avatar` (see js/ui.js AVATARS) is only ever sent from the name
     // screen's onboarding call — every later call (e.g. a returning visit's
     // main()) omits it, so it never overwrites an already-chosen avatar.

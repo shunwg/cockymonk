@@ -1,0 +1,12 @@
+{
+  "lang": "en",
+  "version": "v1",
+  "label": "Hand-written English placeholder",
+  "status": "placeholder",
+  "source": "Hand-written for the dual-language feature — no generator, no upstream.",
+  "importedAt": "2026-08-01",
+  "importedBy": "hand",
+  "counts": { "words": 40, "fakeDefs": 40 },
+  "attribution": "Ours (written for this project).",
+  "notes": "Scaffolding that made dual-language gameplay testable, ~13 days of content at 3 words/day. Superseded by en/v2; kept so a rollback is possible and so the batches drawn from it while it was active still resolve. Word ids are \"en-1\"..\"en-40\" — deliberately NOT the same id namespace as en/v2's \"en1\"..\"en1100\"."
+}

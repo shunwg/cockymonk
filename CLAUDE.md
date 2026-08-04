@@ -113,7 +113,8 @@ One-line pitch: a Wordle-style daily ritual for when you can't play the physical
 ### Commands
 ```bash
 cd cockerel
-node Tools/build-words.mjs    # re-import words.json + fakeDefs.json from ../ordkrig
+node Tools/build-words.mjs    # re-import both languages' corpora from ../ordkrig into a NEW version
+node Tools/corpus.mjs list     # versioned word lists on disk + which is active (also: validate, diff)
 node Tools/sync-tokens.mjs    # re-copy tokens.css/Fredoka/Nesen mark from ../shunwg
 npm test                       # node --test js/engine.test.mjs — scoring/rollover/streak vectors
 node Tools/simulate-day.mjs   # multi-user, multi-day smoke test (in-memory, no server needed)
@@ -128,6 +129,7 @@ npm run web                    # or `npm run ios` / `npm run android`
 - `js/engine.js` + `js/rating.js` — pure logic (batches, submissions, guesses, scoring, rating/streak), tested against `js/vectors.json`. No bare `Date.now()`/`Math.random()`.
 - `js/decoys.js` — ports Ordkrig's `answerPool.ts` nearness-matching bot-decoy algorithm against a copied `fakeDefs.json`.
 - `server/db.mjs` — the only impure module: file-backed JSON store (`server/data/`, gitignored except `seed.json`) + the daily rollover. A single day's points settle in **two passes at two different times** (guess-points one rollover after the day ends, write-points one rollover after that) — see the long comment at the top of `db.mjs` before touching settlement logic.
+- `js/corpora/<lang>/<version>/` + `js/words.js` — **versioned** word lists, one immutable directory per version, with `js/config.js`'s `CORPUS_VERSIONS` naming the active one per language. Every batch records the version it was drawn from, so switching (or rolling back) only affects future days. Both languages' content is imported from `ordkrig/` — Norwegian from Bokmålsordboka, English from WordNet 3.1. See `cockerel/CLAUDE.md`'s "Versioned corpora" before touching any of this.
 - `js/storage.js` — the seam (`storageLocal()` today; a `storageRemote()` swap-in is the future path to real hosted persistence — that's a new decision to make explicitly, not a quiet default).
 - Visual identity (tokens, Fredoka, the Nesen mark) is copied from `shunwg/`, not referenced live — re-sync via `Tools/sync-tokens.mjs` after upstream changes.
 - `app/` — an Expo/React Native port of the same game (`iOS first`, then Android/web from one codebase, modeled on `ordkrig/`'s setup), against a separate `cockerel-staging` Fly.io backend so its testers don't collide with the production web app's. Read `app/AGENTS.md` before working there — same rule as `ordkrig/AGENTS.md`: no `eas build`/`eas submit`/App Store Connect action from an agent, ever.

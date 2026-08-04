@@ -708,3 +708,19 @@ textarea, input[type="text"] {
 /* iOS "Add to Home Screen" walkthrough (see ui.js renderInstallInstructions)
  * — a plain numbered list read top to bottom, no other chrome needed. */
 .install-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
+
+/* About panel word-list credits (renderAboutPanel). One block per active
+ * corpus: the license/attribution line is the part that legally has to be
+ * legible, so it stays at normal body size and weight, with the language +
+ * word count demoted underneath as supporting detail. The left rule groups
+ * multi-line attributions visually without needing a box. */
+.about-credit {
+  border-left: 2px solid var(--color-border);
+  padding-left: 10px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.about-credit-source { line-height: 1.4; }
+.about-credit-meta { font-size: 12px; color: var(--color-text-secondary); }

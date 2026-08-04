@@ -678,6 +678,68 @@ function renderInstallInstructions(overlay, lang, onBack) {
   document.getElementById("install-instructions-back-btn").addEventListener("click", onBack);
 }
 
+/**
+ * About / credits — a settings sub-screen, same swap-content-in-place pattern
+ * as renderInstallInstructions above (and, like it and the confirm steps, not
+ * a gallery card: the gallery previews main-flow screens, and every card
+ * already renders the real settings button, so this is reachable from any of
+ * them).
+ *
+ * This screen EXISTS to satisfy a licensing obligation, not as decoration:
+ * Bokmålsordboka's definitions are CC BY 4.0 and WordNet's license requires
+ * its copyright notice be retained, so both corpora must be credited
+ * somewhere in the app (see ASSETS.md). Don't remove it, and don't let the
+ * attribution text drift — it's fetched from the active corpora's manifests
+ * (GET /api/credits), so it always describes the word list actually in play
+ * rather than a hardcoded guess.
+ *
+ * Rendered in ONE language (the caller's `lang`), like every screen except
+ * the language picker — but it lists every active corpus, not just that
+ * language's, since credit is owed for all content the app ships.
+ */
+async function renderAboutPanel(overlay, lang, onBack) {
+  const card = overlay.querySelector(".modal-card");
+  const body = (creditsHtml) => el(`
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <button class="btn-text" id="about-back-btn">← ${t(lang, "back")}</button>
+      <h2>${t(lang, "aboutHeading")}</h2>
+      <p class="empty-note">${t(lang, "aboutBlurb")}</p>
+      <section class="settings-section">
+        <p class="settings-section-title">${t(lang, "aboutWordsHeading")}</p>
+        <p class="empty-note">${t(lang, "aboutWordsIntro")}</p>
+        ${creditsHtml}
+      </section>
+    </div>
+  `);
+  const wireBack = () => document.getElementById("about-back-btn").addEventListener("click", onBack);
+
+  // Render the frame immediately so "back" works even while the fetch is in
+  // flight (or if it never resolves) — this panel must never trap a player.
+  card.replaceChildren(body(`<p class="empty-note">…</p>`));
+  wireBack();
+
+  let corpora = [];
+  try {
+    const res = await store.getCredits();
+    corpora = res?.corpora ?? [];
+  } catch {
+    corpora = [];
+  }
+  // A failed fetch shows a plain note rather than an empty section — silently
+  // rendering nothing would look like "this app credits no one."
+  const creditsHtml = corpora.length
+    ? corpora.map((c) => `
+        <div class="about-credit">
+          <p class="about-credit-source">${escapeHtml(c.attribution)}</p>
+          <p class="about-credit-meta">${escapeHtml(LANG_LABELS[c.lang] ?? c.lang)} · ${t(lang, "aboutCorpusLine", { count: c.counts.words })}</p>
+        </div>
+      `).join("")
+    : `<p class="empty-note">${t(lang, "aboutCreditsUnavailable")}</p>`;
+
+  card.replaceChildren(body(creditsHtml));
+  wireBack();
+}
+
 // Fetches enabledLangs fresh rather than trusting lastKnownEnabledLangs —
 // that cache is only ever WRITTEN by routeToCurrentScreen(), which a
 // brand-new player never passes through before their first-ever settings
@@ -750,6 +812,11 @@ async function openSettingsPanel() {
           <div id="install-section-body">${installSectionHtml(lang)}</div>
         </section>
 
+        <section class="settings-section">
+          <p class="settings-section-title">${t(lang, "aboutSectionTitle")}</p>
+          <button class="btn-text" id="about-btn">${t(lang, "aboutLinkLabel")}</button>
+        </section>
+
         <div class="settings-danger-zone">
           <p class="settings-section-title">${t(lang, "accountSectionTitle")}</p>
           ${accountSectionHtml(lang)}
@@ -762,6 +829,7 @@ async function openSettingsPanel() {
 
     document.getElementById("close-settings-btn").addEventListener("click", closeAndMaybeReroute);
     document.getElementById("reset-btn").addEventListener("click", () => openResetConfirm(overlay, lang));
+    document.getElementById("about-btn").addEventListener("click", () => renderAboutPanel(overlay, lang, renderMain));
     document.getElementById("theme-toggle-btn").addEventListener("click", (e) => {
       const next = loadTheme() === "light" ? "dark" : "light";
       saveTheme(next);
@@ -1613,6 +1681,17 @@ function createFixtureStore(lang) {
 
   return {
     getConfig: async () => ({ ok: true, devTools: true, googleClientId: null, requireGoogleAuth: false }),
+    // The settings button is rendered on every gallery card, so the About
+    // panel is reachable from all of them — it needs credits data here or it
+    // would always show its "couldn't load" fallback in the gallery. Text
+    // mirrors the real manifests (js/corpora/*/manifest.json).
+    getCredits: async () => ({
+      ok: true,
+      corpora: [
+        { lang: "no", version: "v1", counts: { words: 996, fakeDefs: 9076 }, attribution: "Ordforklaringer fra Bokmålsordboka, © Språkrådet og Universitetet i Bergen (CC BY 4.0)." },
+        { lang: "en", version: "v2", counts: { words: 1100, fakeDefs: 14000 }, attribution: "Definitions derived from WordNet 3.1, © Princeton University (WordNet License)." },
+      ],
+    }),
     getToday: async () => today(),
     submitGuess: async (_userId, wordId, choiceId) => {
       const correct = fixtureWordOptions(words.find((w) => w.wordId === wordId)).find((o) => o.id === choiceId)?.kind === "truth";

@@ -1,0 +1,15 @@
+{
+  "lang": "en",
+  "version": "v2",
+  "label": "WordNet 3.1 obscure English, web-frequency filtered (Ordkrig import)",
+  "status": "production",
+  "source": "../ordkrig/src/data/generated/{words.en.json,fakeDefs.en.json}, built by ordkrig/scripts/wordgen-en/1_build_en.mjs",
+  "importedAt": "2026-08-03",
+  "importedBy": "Tools/build-words.mjs",
+  "counts": {
+    "words": 1100,
+    "fakeDefs": 14000
+  },
+  "attribution": "Definitions derived from WordNet 3.1, © Princeton University (WordNet License).",
+  "notes": "Generated — never hand-edit. Re-import into a new version instead (see CLAUDE.md 'Versioned corpora')."
+}

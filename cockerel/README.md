@@ -12,8 +12,9 @@ Everything resets at UTC midnight. Missing a day is fine — streaks reward show
 
 ```bash
 npm install        # none yet, but keeps the lockfile honest as deps get added
-npm run build-words   # copy the latest word corpus from ../ordkrig
-npm test               # engine/scoring/rollover vectors
+npm run build-words   # import the latest word corpora from ../ordkrig as a new version (no-ops if unchanged)
+npm run corpus        # list the versioned word lists on disk, and which one is live
+npm test               # engine/scoring/rollover vectors + corpus validation
 npm run serve          # → http://localhost:8788
 ```
 
@@ -21,7 +22,12 @@ There's also a native app (`app/`, Expo/React Native — iOS, Android, and web f
 
 ## Where things come from
 
-See the **Provenance** section in `CLAUDE.md` — the word list, bot decoys, and rating formula are ported from Ordkrig; the look (tokens, Fredoka font, the Nesen mark) is ported from Cocky Monk.
+See the **Provenance** section in `CLAUDE.md` — the word lists, bot decoys, and rating formula are ported from Ordkrig; the look (tokens, Fredoka font, the Nesen mark) is ported from Cocky Monk.
+
+Word lists are **versioned** (`js/corpora/<lang>/<version>/`, active version chosen in `js/config.js`)
+so they can be improved from playtest feedback and rolled back without disturbing days already played —
+see **Versioned corpora** in `CLAUDE.md`. Definitions come from Bokmålsordboka (Norwegian, CC BY 4.0) and
+WordNet 3.1 (English); both need credit in an About screen — see `ASSETS.md`.
 
 ## Game mechanics & scoring
 

@@ -54,6 +54,18 @@
 // db.identities (Google account -> userId) and db.devClock stay
 // global/shared — one account, one simulated "now," regardless of which
 // languages that account plays.
+//
+// -- Versioned corpora (see cockerel/CLAUDE.md "Versioned corpora") --------
+// A language's word list is versioned (js/corpora/<lang>/<version>/), and
+// every batch records the version it was DRAWN from in `batch.corpusVersion`.
+// Words are therefore resolved per BATCH, never per language — see
+// corpusForBatch below. That pin is what makes changing js/config.js
+// CORPUS_VERSIONS a safe, reversible operation: it redirects tomorrow's draw
+// without touching any day already played, so rolling back to an older word
+// list can't strand a sealed batch whose ids only exist in the newer one.
+// Note that today's and yesterday's batches for the SAME language can be on
+// different versions (that's exactly what the day after a switch looks like),
+// which is why no code path may hoist a single loadWords(lang) across both.
 import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -68,7 +80,7 @@ import {
   applyStreakBonus, currentRating, currentStreak, hasUnseenResult, markResultSeen,
 } from "../js/rating.js";
 import { LANG_PROFILES } from "../js/decoys.js";
-import { loadWords, loadFakeDefs, wordById } from "../js/words.js";
+import { loadCorpus, activeVersion } from "../js/words.js";
 import { OPTIONS, SCORING, BATCH, LEADERBOARD, HINT, LANGS } from "../js/config.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -100,6 +112,12 @@ export function freshDb() {
  */
 function migrateToMultiLang(db) {
   for (const b of db.batches) if (!b.lang) b.lang = "no";
+  // Batches drawn before corpora were versioned came from what is now v1 of
+  // their language — for BOTH languages, since the versioned layout was
+  // introduced by moving the then-current files into <lang>/v1/ unchanged.
+  // Tagging them explicitly (rather than defaulting at read time) means a
+  // batch's corpus is always answerable from the batch alone.
+  for (const b of db.batches) if (!b.corpusVersion) b.corpusVersion = "v1";
   for (const s of db.submissions) if (!s.lang) s.lang = "no";
   for (const g of db.guesses) if (!g.lang) g.lang = "no";
   for (const userId of Object.keys(db.profiles)) {
@@ -160,6 +178,42 @@ function latestBatchDayKeyForLang(db, lang) {
   return batches.reduce((max, b) => (b.dayKey > max ? b.dayKey : max), batches[0].dayKey);
 }
 
+/**
+ * The corpus a given batch's words live in — ALWAYS use this to resolve a
+ * word id belonging to an existing batch, never loadCorpus(lang) with the
+ * active version, or the day after a version switch would fail to resolve
+ * yesterday's ids (see the "Versioned corpora" note at the top of this file).
+ * Corpora are cached in js/words.js, so calling this per batch is cheap.
+ */
+function corpusForBatch(batch) {
+  const corpus = loadCorpus(batch.lang, batch.corpusVersion);
+  // A batch whose ids aren't in its own pinned corpus means that corpus was
+  // edited in place, deleted and recreated, or the pin is wrong — all of
+  // which are recoverable if you're told, and a mystifying
+  // "Cannot read properties of undefined" three frames into engine.js if
+  // you're not. Cheap (wordsPerDay ids) and only ever fires on real breakage.
+  const missing = batch.wordIds.filter((id) => !corpus.byId.has(id));
+  if (missing.length) {
+    throw new Error(
+      `Batch ${batch.dayKey}/${batch.lang} is pinned to corpus ${batch.lang}/${batch.corpusVersion}, ` +
+        `which has no word ${missing.map((id) => `"${id}"`).join(", ")}. That version was probably edited ` +
+        `in place or replaced — restore it (version directories are immutable, see js/words.js), or if ` +
+        `this data is disposable, wipe it.`,
+    );
+  }
+  return corpus;
+}
+
+/**
+ * Word ids used recently, so the daily draw doesn't repeat them. Ids from
+ * batches drawn on an OLDER corpus version are included as-is: where a
+ * version bump keeps ids stable (the normal case for an edited word list)
+ * that's exactly right, and where it doesn't the ids simply don't match
+ * anything in the new corpus, degrading to "no exclusion" rather than an
+ * error. Best-effort across a version switch is the correct trade here —
+ * the alternative (mapping ids between corpora) would need a concept of word
+ * identity that survives rewording, which no version format guarantees.
+ */
 function recentlyUsedWordIds(db, beforeDayKey, lang) {
   const cutoff = addDays(beforeDayKey, -BATCH.recentlyUsedWindowDays);
   return db.batches
@@ -167,14 +221,18 @@ function recentlyUsedWordIds(db, beforeDayKey, lang) {
     .flatMap((b) => b.wordIds);
 }
 
-function sealBatch(db, allWords, fakeDefsPool, dayKey, lang, rng) {
+function sealBatch(db, dayKey, lang, rng) {
   const batch = findBatch(db, dayKey, lang);
   if (!batch || batch.sealedAt) return;
+  // Both the truth text and the bot decoys must come from the batch's OWN
+  // corpus version — a batch drawn from v1 gets v1's definitions and v1's
+  // bluff pool even if the language has since moved to v2.
+  const { byId, fakeDefs: fakeDefsPool } = corpusForBatch(batch);
   const subsForBatch = db.submissions.filter((s) => s.dayKey === dayKey && s.lang === lang);
   batch.options = {};
   batch.closeMatches = {};
   for (const wordId of batch.wordIds) {
-    const word = wordById(allWords, wordId);
+    const word = byId.get(wordId);
     const submissions = subsForBatch.filter((s) => s.wordId === wordId).map((s) => ({ userId: s.userId, text: s.text }));
     const { options, closeMatches } = sealWord({
       word, submissions, fakeDefsPool, rng, targetCount: OPTIONS.targetPoolSize, langProfile: LANG_PROFILES[lang],
@@ -279,7 +337,9 @@ export function setEnabledLangs(db, userId, langs) {
   return { ok: true, enabledLangs: filtered };
 }
 
-function settleBatch(db, allWords, settledAsOfDayKey, writeDayKey, lang) {
+// Needs no corpus at all — settlement scores the options frozen into the
+// batch at seal time, never the word list they came from.
+function settleBatch(db, settledAsOfDayKey, writeDayKey, lang) {
   const batch = findBatch(db, writeDayKey, lang);
   if (!batch || !batch.sealedAt || batch.settledAt) return;
   const guessDayKey = addDays(writeDayKey, 1);
@@ -328,9 +388,22 @@ function recordDayResult(db, userId, lang, asOfDayKey, fields) {
 }
 
 function ensureTodayForLang(db, todayKey, lang, rng) {
-  const allWords = loadWords(lang);
-  const fakeDefsPool = loadFakeDefs(lang);
+  // New batches are drawn from whatever version is active RIGHT NOW, and are
+  // stamped with it (see drawBatch). Already-existing batches keep their own
+  // stamp — sealBatch/settleBatch resolve through corpusForBatch, so nothing
+  // below needs the active corpus except the draw itself.
+  const version = activeVersion(lang);
+  const allWords = loadCorpus(lang, version).words;
   ensureBotLeaderboard(db, lang, rng); // self-healing: runs once per lang, no-ops after
+
+  const drawBatch = (dayKey, usedIds) => {
+    const { words } = pickDailyWords(allWords, usedIds, BATCH.wordsPerDay, rng);
+    db.batches.push({
+      dayKey, lang, corpusVersion: version,
+      wordIds: words.map((w) => w.id), sealedAt: null, settledAt: null,
+    });
+    return words;
+  };
 
   if (!db.batches.some((b) => b.lang === lang)) {
     // Bootstrap: a brand-new game (or a language's very first day, if it's
@@ -338,26 +411,20 @@ function ensureTodayForLang(db, todayKey, lang, rng) {
     // human submissions, fully bot-filled decoys) so day-1 users always have
     // something to guess.
     const yesterdayKey = addDays(todayKey, -1);
-    const { words: yWords } = pickDailyWords(allWords, [], BATCH.wordsPerDay, rng);
-    db.batches.push({ dayKey: yesterdayKey, lang, wordIds: yWords.map((w) => w.id), sealedAt: null, settledAt: null });
-    sealBatch(db, allWords, fakeDefsPool, yesterdayKey, lang, rng);
+    const yWords = drawBatch(yesterdayKey, []);
+    sealBatch(db, yesterdayKey, lang, rng);
 
-    const { words } = pickDailyWords(allWords, yWords.map((w) => w.id), BATCH.wordsPerDay, rng);
-    db.batches.push({ dayKey: todayKey, lang, wordIds: words.map((w) => w.id), sealedAt: null, settledAt: null });
+    drawBatch(todayKey, yWords.map((w) => w.id));
     return;
   }
 
   let latest = latestBatchDayKeyForLang(db, lang);
   while (latest < todayKey) {
     const nextKey = addDays(latest, 1);
-    sealBatch(db, allWords, fakeDefsPool, latest, lang, rng);
+    sealBatch(db, latest, lang, rng);
     const priorWriteDay = addDays(latest, -1);
-    if (findBatch(db, priorWriteDay, lang)) settleBatch(db, allWords, nextKey, priorWriteDay, lang);
-    if (!findBatch(db, nextKey, lang)) {
-      const used = recentlyUsedWordIds(db, nextKey, lang);
-      const { words } = pickDailyWords(allWords, used, BATCH.wordsPerDay, rng);
-      db.batches.push({ dayKey: nextKey, lang, wordIds: words.map((w) => w.id), sealedAt: null, settledAt: null });
-    }
+    if (findBatch(db, priorWriteDay, lang)) settleBatch(db, nextKey, priorWriteDay, lang);
+    if (!findBatch(db, nextKey, lang)) drawBatch(nextKey, recentlyUsedWordIds(db, nextKey, lang));
     latest = nextKey;
   }
 }
@@ -389,22 +456,26 @@ function profileSnapshot(db, profile, lang) {
 }
 
 function getTodayStateForLang(db, userId, lang) {
-  const allWords = loadWords(lang);
   const todayKey = latestBatchDayKeyForLang(db, lang);
   const today = findBatch(db, todayKey, lang);
   const yesterdayKey = addDays(todayKey, -1);
   const yesterday = findBatch(db, yesterdayKey, lang);
 
+  // Two separate corpus lookups on purpose: on the first day after a corpus
+  // version switch, today's write words and yesterday's guess words come from
+  // different versions of the same language.
+  const todayCorpus = corpusForBatch(today);
   const writeWords = today.wordIds.map((id) => {
-    const word = wordById(allWords, id);
+    const word = todayCorpus.byId.get(id);
     const already = db.submissions.some((s) => s.dayKey === todayKey && s.lang === lang && s.wordId === id && s.userId === userId);
     return { wordId: id, word: word.word, alreadySubmitted: already };
   });
 
   let guessWords = [];
   if (yesterday?.sealedAt) {
+    const yesterdayCorpus = corpusForBatch(yesterday);
     guessWords = yesterday.wordIds.map((id) => {
-      const word = wordById(allWords, id);
+      const word = yesterdayCorpus.byId.get(id);
       const existingGuess = db.guesses.find((g) => g.dayKey === todayKey && g.lang === lang && g.wordId === id && g.userId === userId);
       const options = visibleOptionsFor(yesterday.options[id], userId).map((o) => ({ id: o.id, text: o.text }));
       // Same underlying query getVoteDistribution itself uses to decide
@@ -473,10 +544,11 @@ export function submitDefinition(db, { userId, wordId, text, lang }) {
 // after the round is fully resolved, so there's no fairness reason left to
 // hide WHICH option is which (unlike visibleOptionsFor at guess time) — but
 // the percentages themselves still go through the same display cap.
-function buildGuessReview(allWords, yesterday, byWord, allGuesses, todayKey, lang) {
+function buildGuessReview(yesterday, byWord, allGuesses, todayKey, lang) {
+  const { byId } = corpusForBatch(yesterday);
   return yesterday.wordIds.map((id) => {
     const g = byWord.get(id);
-    const word = wordById(allWords, id);
+    const word = byId.get(id);
     const guessesForWord = allGuesses.filter((x) => x.dayKey === todayKey && x.lang === lang && x.wordId === id);
     const shares = voteShareByOption(yesterday.options[id], guessesForWord);
     const pctById = new Map(displayVoteDistribution(shares, HINT).map((d) => [d.id, d.pct]));
@@ -498,7 +570,7 @@ function buildGuessReview(allWords, yesterday, byWord, allGuesses, todayKey, lan
  * timeout skip (skipGuess), whichever fills it. Returns null while slots
  * remain open.
  */
-function maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday, lang) {
+function maybeFinalizeGuessing(db, userId, todayKey, yesterday, lang) {
   const myGuesses = db.guesses.filter((g) => g.dayKey === todayKey && g.lang === lang && g.userId === userId && yesterday.wordIds.includes(g.wordId));
   if (myGuesses.length !== yesterday.wordIds.length) return null;
   const byWord = new Map(myGuesses.map((g) => [g.wordId, g]));
@@ -517,12 +589,11 @@ function maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday, lang) 
   return {
     correctCount, guessTotal: results.length, points, pct: effectivePct,
     profile: profileSnapshot(db, db.profiles[userId], lang),
-    words: buildGuessReview(allWords, yesterday, byWord, db.guesses, todayKey, lang),
+    words: buildGuessReview(yesterday, byWord, db.guesses, todayKey, lang),
   };
 }
 
 export function submitGuess(db, { userId, wordId, choiceId, lang }) {
-  const allWords = loadWords(lang);
   const todayKey = latestBatchDayKeyForLang(db, lang);
   const yesterdayKey = addDays(todayKey, -1);
   const yesterday = findBatch(db, yesterdayKey, lang);
@@ -542,7 +613,7 @@ export function submitGuess(db, { userId, wordId, choiceId, lang }) {
   // Correctness is knowable the instant this is guessed — nothing here waits
   // for a future event, unlike a writer's fooled-vote credit (see
   // settleBatch). This is what lets the UI show an immediate score step.
-  const guessResult = maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday, lang);
+  const guessResult = maybeFinalizeGuessing(db, userId, todayKey, yesterday, lang);
   return { ok: true, correct, guessResult, profile: profileSnapshot(db, db.profiles[userId], lang) };
 }
 
@@ -554,7 +625,6 @@ export function submitGuess(db, { userId, wordId, choiceId, lang }) {
  * writing or guessing, not by having a word merely time out on you.
  */
 export function skipGuess(db, { userId, wordId, lang }) {
-  const allWords = loadWords(lang);
   const todayKey = latestBatchDayKeyForLang(db, lang);
   const yesterdayKey = addDays(todayKey, -1);
   const yesterday = findBatch(db, yesterdayKey, lang);
@@ -565,7 +635,7 @@ export function skipGuess(db, { userId, wordId, lang }) {
   ensureProfile(db, userId, userId);
   ensureLangProfile(db, userId, lang);
   db.guesses.push({ dayKey: todayKey, lang, wordId, userId, choiceId: null, correct: false, skipped: true });
-  const guessResult = maybeFinalizeGuessing(db, allWords, userId, todayKey, yesterday, lang);
+  const guessResult = maybeFinalizeGuessing(db, userId, todayKey, yesterday, lang);
   return { ok: true, guessResult, profile: profileSnapshot(db, db.profiles[userId], lang) };
 }
 

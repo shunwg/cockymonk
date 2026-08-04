@@ -7,13 +7,27 @@
  */
 
 // Supported gameplay languages — see cockerel/CLAUDE.md's "Dual-language
-// gameplay" section for the full architecture. "no" (Norwegian) is the
-// original, production-content language; "en" (English) is a small
-// hand-written PLACEHOLDER corpus (js/words.en.json / js/fakeDefs.en.json),
-// not production-scale content. Every batch/submission/guess/profile-track
-// is keyed by one of these codes — never hardcode "no" as "the" language
-// anywhere new, even though it's still the only one with real content today.
+// gameplay" section for the full architecture. Both now have a real corpus
+// (see CORPUS_VERSIONS below). Every batch/submission/guess/profile-track is
+// keyed by one of these codes — never hardcode "no" as "the" language
+// anywhere new.
 export const LANGS = ["no", "en"];
+
+// Which corpus VERSION each language draws new daily batches from — see
+// cockerel/CLAUDE.md's "Versioned corpora" section. Content lives in
+// js/corpora/<lang>/<version>/, one immutable directory per version; this is
+// the one place that says which is live.
+//
+// Changing a value here only affects batches drawn AFTER the change. Every
+// batch records the version it was drawn from (`batch.corpusVersion`), so
+// history keeps resolving against the corpus it was actually played with —
+// which is exactly what makes rolling back safe. `node Tools/corpus.mjs list`
+// shows what's on disk; a deployed instance can override without a redeploy
+// via COCKEREL_CORPUS_NO / COCKEREL_CORPUS_EN (see js/words.js).
+export const CORPUS_VERSIONS = {
+  no: "v1",
+  en: "v2",
+};
 
 export const BATCH = {
   wordsPerDay: 3,

@@ -13,6 +13,8 @@ import {
 } from "./db.mjs";
 import { verifyGoogleIdToken } from "./auth.mjs";
 import { appendGalleryFeedback } from "./gallery-feedback.mjs";
+import { activeVersion, corpusMeta } from "../js/words.js";
+import { LANGS } from "../js/config.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8788;
@@ -238,6 +240,23 @@ const routes = [
     },
   },
   {
+    // Credits for the About panel. Served from each active corpus's own
+    // manifest.json rather than hardcoded in the client, so the attribution a
+    // player sees can't drift from the corpus actually in play — switching
+    // js/config.js CORPUS_VERSIONS (or a COCKEREL_CORPUS_* rollback) updates
+    // this automatically. Both licenses REQUIRE this credit: Bokmålsordboka
+    // is CC BY 4.0, WordNet's license requires its notice be retained.
+    // Public and unauthenticated, like /api/config — it's a legal notice.
+    method: "GET", path: "/api/credits",
+    handler: async (req, res) => {
+      const corpora = LANGS.map((lang) => {
+        const { version, label, attribution, counts, source } = corpusMeta(lang, activeVersion(lang));
+        return { lang, version, label, attribution, counts, source };
+      }).filter((c) => c.attribution);
+      sendJson(res, 200, { ok: true, corpora });
+    },
+  },
+  {
     method: "POST", path: "/api/auth/google",
     handler: async (req, res) => {
       if (!GOOGLE_CLIENT_ID) { sendJson(res, 404, { ok: false, error: "not_configured" }); return; }
@@ -326,4 +345,14 @@ createServer(async (req, res) => {
   } catch (err) {
     sendJson(res, 500, { ok: false, error: String(err?.message ?? err) });
   }
-}).listen(PORT, "0.0.0.0", () => console.log(`Cockerel → http://localhost:${PORT}/`));
+}).listen(PORT, "0.0.0.0", () => {
+  // Fail at boot, not mid-request: a bad CORPUS_VERSIONS entry (or a
+  // COCKEREL_CORPUS_* override pointing at a version that isn't deployed)
+  // would otherwise only surface on the first rollover, having already
+  // served a page.
+  for (const lang of LANGS) {
+    const { version, counts, status } = corpusMeta(lang, activeVersion(lang));
+    console.log(`corpus ${lang}/${version}: ${counts.words} words, ${counts.fakeDefs} decoys [${status}]`);
+  }
+  console.log(`Cockerel → http://localhost:${PORT}/`);
+});

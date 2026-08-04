@@ -1,0 +1,12 @@
+{
+  "lang": "no",
+  "version": "v1",
+  "label": "Bokmålsordboka-derived obscure Norwegian (Ordkrig import)",
+  "status": "production",
+  "source": "../ordkrig/src/data/generated/{words.no.json,fakeDefs.json}, built by ordkrig/scripts/wordgen/",
+  "importedAt": "2026-07-28",
+  "importedBy": "Tools/build-words.mjs",
+  "counts": { "words": 996, "fakeDefs": 9076 },
+  "attribution": "Ordforklaringer fra Bokmålsordboka, © Språkrådet og Universitetet i Bergen (CC BY 4.0).",
+  "notes": "The original Cockerel corpus. Word ids are plain integers-as-strings (\"1\"..\"996\"); keep them stable in any future no/vN so cross-version recently-used exclusion keeps working."
+}
