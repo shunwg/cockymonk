@@ -62,6 +62,17 @@ function clearActiveTimer() {
 // after a dev-toolbar switch).
 let sessionToken = 0;
 
+// Set true the first time routeToCurrentScreen() actually runs for real
+// gameplay (never during the sign-in gate or first-time onboarding intro
+// screens, which reach their next step directly rather than through
+// routeToCurrentScreen). Gates checkForNewDay() below so a resumed PWA never
+// reroutes a player who hasn't reached real gameplay yet.
+let routedOnce = false;
+// The dayKey routeToCurrentScreen() last rendered for — compared against a
+// fresh fetch in checkForNewDay() to detect a day rollover that happened
+// while the PWA was backgrounded/suspended (not reloaded).
+let lastKnownDayKey = null;
+
 // Small suggested-name generator — same <Adjective><Animal> SHAPE as
 // ordkrig/src/config/usernames.ts, not its actual word lists (see CLAUDE.md
 // Provenance: only the pattern is reused here).
@@ -417,7 +428,33 @@ window.addEventListener("appinstalled", () => {
  * no install prompt ever fires — never a fatal error for the app itself. */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  // A PWA opened from the home screen icon often sits on one open tab for
+  // days without a fresh navigation, and browsers only auto-check sw.js for
+  // byte-for-byte changes around navigations — so also poke it explicitly
+  // whenever the app is foregrounded (pairs with checkForNewDay's own
+  // visibilitychange listener in main()).
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") reg.update().catch(() => {});
+    });
+  }).catch(() => {});
+
+  // sw.js calls skipWaiting()/clients.claim() itself (see its header
+  // comment), so a newly-fetched version claims control of already-open
+  // tabs on its own, without waiting for a manual "reload" prompt. This just
+  // reloads once that happens, so the player actually RUNS the new code
+  // rather than old JS talking to a new service worker. `hadController`
+  // guards against reloading on a page's very first-ever load, where
+  // clients.claim() also fires controllerchange (going from no controller
+  // to one) even though there's no real "update" to apply.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloadedForNewVersion = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloadedForNewVersion) return;
+    reloadedForNewVersion = true;
+    location.reload();
+  });
 }
 
 async function renderDevToolbar() {
@@ -1481,10 +1518,12 @@ async function otherLangStillPending(lang) {
  */
 async function routeToCurrentScreen() {
   sessionToken++; // invalidate any reveal still in flight from a prior session
+  routedOnce = true;
   await renderDevToolbar();
   const consolidated = await store.getToday(identity.userId);
-  const { enabledLangs, byLang } = consolidated;
+  const { enabledLangs, byLang, todayKey } = consolidated;
   lastKnownEnabledLangs = enabledLangs;
+  lastKnownDayKey = todayKey;
 
   if (!enabledLangs.length) {
     renderLanguagePicker(async (lang) => {
@@ -1514,6 +1553,23 @@ async function routeToCurrentScreen() {
   renderHeaderImmediate(byLang[primaryLang].profile, primaryLang);
   const otherPending = await otherLangStillPending(primaryLang);
   renderDoneStep(byLang[primaryLang], primaryLang, otherPending);
+}
+
+// Installed-as-PWA players don't get a fresh page load every morning — the
+// app is usually resumed from a suspended background tab/home-screen icon,
+// so main()'s one-time routeToCurrentScreen() call can go stale for days
+// (e.g. still showing yesterday's Done/score screen after the UTC-midnight
+// rollover happened while backgrounded). Wired to visibilitychange/pageshow
+// in main() below: on resume, re-fetch just enough to compare dayKeys and
+// only reroute if the day actually changed, so it never interrupts an
+// active guess/write timer on an ordinary tab-switch within the same day.
+async function checkForNewDay() {
+  if (!routedOnce || !identity) return;
+  let todayKey;
+  try {
+    ({ todayKey } = await store.getToday(identity.userId));
+  } catch { return; }
+  if (todayKey !== lastKnownDayKey) await routeToCurrentScreen();
 }
 
 // -- dev-only screen gallery preview (see gallery.html / js/gallery.js) -----
@@ -1834,6 +1890,18 @@ async function main() {
   applyTheme(loadTheme()); // index.html's inline script already did this pre-paint; keep state in sync
   trackKeyboardInset();
   registerServiceWorker();
+
+  // Resumed-from-background PWA support (see checkForNewDay's own comment):
+  // visibilitychange covers the normal "left the app, came back" case;
+  // pageshow's `persisted` flag additionally catches bfcache restores
+  // (e.g. Safari's back/forward swipe), which don't fire visibilitychange
+  // on some browsers.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkForNewDay();
+  });
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) checkForNewDay();
+  });
 
   try {
     const config = await store.getConfig();

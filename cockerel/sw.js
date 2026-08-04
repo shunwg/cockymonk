@@ -17,7 +17,7 @@
 // change — activate() deletes every other cockerel-shell-* cache, so an
 // unbumped version just means one extra file added to an existing cache
 // (harmless, network-first makes it moot anyway), not stale content served.
-const CACHE_NAME = "cockerel-shell-v1";
+const CACHE_NAME = "cockerel-shell-v2";
 const APP_SHELL = [
   "./",
   "index.html",
