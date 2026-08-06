@@ -41,12 +41,25 @@ export const OPTIONS = {
   targetPoolSize: 5,
 };
 
+// ONE currency, one arithmetic. Every value below is a number of POINTS that
+// lands directly on the player's running total (see POINTS): the "+78" on the
+// score screen is literally what the header's total goes up by. Balance is
+// therefore sized around what a DAY should be worth, not around an abstract
+// rating scale:
+//   a strong day (3/3 guessed + three bluffs that each fooled a couple of
+//   people, on a week-long streak)  ~200 points
+//   an ordinary day                 ~50-90 points
+//   a bad day (0/3, nobody fooled)  -15 points
+// which keeps the daily number legible (two/low three digits — never single
+// digits, never five) and lets a total climb into the hundreds in a week and
+// the thousands in a month. Rescaling this table means rescaling every stored
+// total with it — see loadDb's PROFILE_VERSION 4 migration in server/db.mjs.
 export const SCORING = {
   // Guessing is scored per DAY (all 3 guesses together), not per word — one
   // simple lookup by how many of today's 3 you got right. See README.md
   // "Scoring" for the reasoning: negative at 0/3, breakeven at 1/3 (a lucky
-  // single guess shouldn't move your rating), real reward starts at 2/3.
-  guessScoreByCorrectCount: [-50, 0, 120, 300], // index = correctCount (0..3)
+  // single guess shouldn't move your total), real reward starts at 2/3.
+  guessScoreByCorrectCount: [-15, 0, 30, 75], // index = correctCount (0..3)
   // Points for fooling people with a bluff: bluffBaseK * fooledCount^bluffExponent,
   // rounded. A concave (sub-linear) curve, not a flat rate or a fixed pool —
   // fooling 1 person earns exactly bluffBaseK (real, but modest); each
@@ -55,13 +68,14 @@ export const SCORING = {
   // legitimately huge score) without a lucky single vote in a tiny game
   // outscoring a bluff that genuinely fooled a crowd. See BLUFF-SCENARIOS.md
   // for worked examples across small and large games.
-  bluffBaseK: 40,
+  bluffBaseK: 12,
   bluffExponent: 0.5, // 0.5 = square root
   // A written submission that (near-)matches the truth — Cocky Monk's
   // dobbeltreff. Worth more than a plain correct guess since it happened at
   // write time, independent of anyone voting for it (it's never even shown
-  // as its own option — see engine.js mergeSubmissions).
-  closeMatchBonus: 150,
+  // as its own option — see engine.js mergeSubmissions). Sized at roughly
+  // "fooled a dozen people," same relative weight it had before the rescale.
+  closeMatchBonus: 40,
 };
 
 // Display-only caps for the "hint" vote-distribution shown during guessing
@@ -92,15 +106,37 @@ export const STREAK_BONUS = {
   maxPct: 70,
 };
 
-export const RATING = {
-  base: 800,
+// A player's headline number is a running SUM of every day's points — not an
+// average, and not an Elo-style rating around a base (it used to be
+// `800 + average(day totals)`, which is why nothing here is called "rating"
+// any more). The whole point of the change: the number on the score screen
+// and the number in the header are the same currency, so
+//
+//     total after today = total before today + today's points
+//
+// holds exactly, every day, with no conversion in between.
+export const POINTS = {
+  // Everyone starts from nothing and keeps what they earn.
+  start: 0,
+  // ...and can never be dragged below it. A 0/3 guessing day is the one way
+  // to LOSE points (see SCORING above), but it can only ever eat into points
+  // you actually have — a brand-new player's first bad day shows 0, not -15.
+  // The day's DISPLAYED points are clamped to match (rating.js
+  // effectivePoints), so the arithmetic above never silently disagrees.
+  floor: 0,
+  // One-time conversion for totals accumulated under the old, ~4x-larger
+  // point table (guess 3/3 was 300, not 75). Applied once per stored profile
+  // by the PROFILE_VERSION 4 migration in server/db.mjs's loadDb, so existing
+  // players keep their standing relative to each other on the new scale.
+  legacyScaleDivisor: 4,
 };
 
-// A fixed pool of imaginary competitors so a leaderboard rank ("129. plass")
-// means something before there are enough real players — generated ONCE
-// (server/db.mjs ensureBotLeaderboard) and stored in db.json, never
-// regenerated, so a given user's rank only moves because of real play, not
-// because the bots reroll under them.
+// A fixed pool of imaginary competitors, left over from when rank was padded
+// with bots. Its RATINGS are now dead weight — they're on the old 800-base
+// scale, and nothing displays or compares them any more (see server/db.mjs
+// computeRank: bots are excluded from rank entirely). Only the pool's SIZE is
+// still read, by the admin dashboard's informational bot-count columns.
+// Generated ONCE (server/db.mjs ensureBotLeaderboard) and stored in db.json.
 export const LEADERBOARD = {
   botCount: 200,
   botMean: 850,

@@ -83,7 +83,7 @@ const STRINGS = {
 
     welcomeHeading: "Heisann, {name}!",
     points: "Poeng",
-    welcomeStartPoints: "Start-poeng",
+    welcomeStartPoints: "Poeng ved start",
     streak: "Streak",
     welcomeStreakLabel: "Streak (poengbonus)",
     welcomeContinue: "Gi meg dagens 3 ord",
@@ -93,11 +93,14 @@ const STRINGS = {
 
     writeRecapEyebrow: "Gårsdagens resultater",
     writeRecapNoneFooled: "Ingen ble lurt av ordene dine sist, lykke til denne gangen!",
-    rating: "Rating",
     writeRecapFooled: "{count} av dine ord lurte andre!",
     writeRecapYouGet: "Du får",
     streakBonus: "Streak-bonus",
-    total: "Total",
+    // The receipt that ties a day's points to the running total — see
+    // js/ui.js pointsBreakdownRows. "Poeng i alt" is deliberately the SAME
+    // wording as the header's total, so the two read as one number.
+    pointsBase: "Grunnpoeng",
+    pointsTotal: "Poeng i alt",
 
     timeoutGuessHeading: "Du rakk ikke å gjette",
     timeoutWriteHeading: "Du rakk ikke å skrive",
@@ -111,7 +114,7 @@ const STRINGS = {
     hintNoData: "Ingen har gjettet ordet ennå",
     hintShown: "Hint vist",
 
-    scoreEyebrow: "Din poengsum",
+    scoreEyebrow: "Dagens poeng",
     correctGuesses: "Riktige svar",
     correctAnswer: "Riktig svar",
     yourAnswer: "Ditt svar",
@@ -131,7 +134,7 @@ const STRINGS = {
     streakUnitOne: "dag",
     streakUnitMany: "dager",
     streakBonusSuffix: " (+{pct}% bonus)",
-    pointsMain: "{rating} poeng",
+    pointsMain: "{points} poeng",
     pointsRankSuffix: " (#{rank})",
     headerProgressGuessed: "{done}/{total} gjettet",
     headerProgressWritten: "{done}/{total} skrevet",
@@ -200,7 +203,7 @@ const STRINGS = {
 
     welcomeHeading: "Hi there, {name}!",
     points: "Points",
-    welcomeStartPoints: "Starting points",
+    welcomeStartPoints: "Points at the start",
     streak: "Streak",
     welcomeStreakLabel: "Streak (points bonus)",
     welcomeContinue: "Give me today's 3 words",
@@ -210,11 +213,13 @@ const STRINGS = {
 
     writeRecapEyebrow: "Yesterday's results",
     writeRecapNoneFooled: "Nobody was fooled by your words last time — good luck this round!",
-    rating: "Rating",
     writeRecapFooled: "{count} of your words fooled someone!",
     writeRecapYouGet: "You get",
     streakBonus: "Streak bonus",
-    total: "Total",
+    // Same wording as the header's total, on purpose — see the Norwegian
+    // block above.
+    pointsBase: "Base points",
+    pointsTotal: "Total points",
 
     timeoutGuessHeading: "You ran out of time to guess",
     timeoutWriteHeading: "You ran out of time to write",
@@ -228,7 +233,7 @@ const STRINGS = {
     hintNoData: "No one has guessed this word yet",
     hintShown: "Hint shown",
 
-    scoreEyebrow: "Your score",
+    scoreEyebrow: "Today's points",
     correctGuesses: "Correct answers",
     correctAnswer: "Correct answer",
     yourAnswer: "Your answer",
@@ -248,7 +253,7 @@ const STRINGS = {
     streakUnitOne: "day",
     streakUnitMany: "days",
     streakBonusSuffix: " (+{pct}% bonus)",
-    pointsMain: "{rating} points",
+    pointsMain: "{points} points",
     pointsRankSuffix: " (#{rank})",
     headerProgressGuessed: "{done}/{total} guessed",
     headerProgressWritten: "{done}/{total} written",

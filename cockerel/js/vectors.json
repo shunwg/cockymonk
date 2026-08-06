@@ -1,18 +1,18 @@
 {
-  "_comment": "Test vectors coupled to js/config.js's CURRENT values (guessScoreByCorrectCount=[-50,0,120,300], bluffBaseK=40, bluffExponent=0.5, closeMatchBonus=150, streakBonus.stepPct=10/maxPct=70, rating.base=800). If a vector fails, the engine is wrong — not the vector (change vectors only alongside a deliberate config/rule change). Large-fooled-count scoreFooledVotes cases live as generated inline tests in engine.test.mjs instead of here, to avoid hand-authoring hundred-entry guess arrays as JSON.",
+  "_comment": "Test vectors coupled to js/config.js's CURRENT values (guessScoreByCorrectCount=[-15,0,30,75], bluffBaseK=12, bluffExponent=0.5, closeMatchBonus=40, streakBonus.stepPct=10/maxPct=70, POINTS.start=0/floor=0). If a vector fails, the engine is wrong — not the vector (change vectors only alongside a deliberate config/rule change). Large-fooled-count scoreFooledVotes cases live as generated inline tests in engine.test.mjs instead of here, to avoid hand-authoring hundred-entry guess arrays as JSON.",
 
   "scoreGuesses": [
-    { "id": "SG1-three-correct", "results": [true, true, true], "expected": { "points": 300, "correctCount": 3 } },
-    { "id": "SG2-two-correct-order-independent", "results": [true, false, true], "expected": { "points": 120, "correctCount": 2 } },
+    { "id": "SG1-three-correct", "results": [true, true, true], "expected": { "points": 75, "correctCount": 3 } },
+    { "id": "SG2-two-correct-order-independent", "results": [true, false, true], "expected": { "points": 30, "correctCount": 2 } },
     { "id": "SG3-one-correct-breaks-even", "results": [false, true, false], "expected": { "points": 0, "correctCount": 1 } },
-    { "id": "SG4-none-correct-is-a-penalty", "results": [false, false, false], "expected": { "points": -50, "correctCount": 0 } }
+    { "id": "SG4-none-correct-is-a-penalty", "results": [false, false, false], "expected": { "points": -15, "correctCount": 0 } }
   ],
 
   "applyStreakBonus": [
     { "id": "ASB1-positive-gets-boosted", "basePoints": 100, "pct": 20, "expected": 120 },
-    { "id": "ASB2-negative-untouched-by-streak", "basePoints": -50, "pct": 70, "expected": -50 },
+    { "id": "ASB2-negative-untouched-by-streak", "basePoints": -15, "pct": 70, "expected": -15 },
     { "id": "ASB3-zero-untouched", "basePoints": 0, "pct": 30, "expected": 0 },
-    { "id": "ASB4-no-bonus-passthrough", "basePoints": 300, "pct": 0, "expected": 300 }
+    { "id": "ASB4-no-bonus-passthrough", "basePoints": 75, "pct": 0, "expected": 75 }
   ],
 
   "mergeSubmissions": [
@@ -46,7 +46,7 @@
         { "userId": "g3", "choiceId": "c" }
       ],
       "expected": {
-        "deltas": { "p1": 29, "p2": 29 },
+        "deltas": { "p1": 9, "p2": 9 },
         "fooledCounts": { "p1": 2, "p2": 2 }
       }
     },
@@ -57,19 +57,21 @@
         { "id": "b", "kind": "truth", "authors": [], "text": "sannhet" }
       ],
       "guesses": [{ "userId": "g1", "choiceId": "a" }],
-      "expected": { "deltas": { "p1": 40 }, "fooledCounts": { "p1": 1 } }
+      "expected": { "deltas": { "p1": 12 }, "fooledCounts": { "p1": 1 } }
     }
   ],
 
   "scoreCloseMatches": [
-    { "id": "CM1-accumulates", "closeMatches": ["c", "c"], "expected": { "c": 300 } }
+    { "id": "CM1-accumulates", "closeMatches": ["c", "c"], "expected": { "c": 80 } }
   ],
 
   "creditPoints": [
-    { "id": "R1-first-day", "priorCountedDays": [], "dayKey": "2026-07-20", "points": 300, "expected": { "ratingSum": 300, "countedDays": ["2026-07-20"] } },
-    { "id": "R2-consecutive-day", "priorCountedDays": ["2026-07-20"], "priorRatingSum": 300, "dayKey": "2026-07-21", "points": 200, "expected": { "ratingSum": 500, "countedDays": ["2026-07-20", "2026-07-21"] } },
-    { "id": "R3-gap-is-fine-no-penalty", "priorCountedDays": ["2026-07-20", "2026-07-21"], "priorRatingSum": 500, "dayKey": "2026-07-23", "points": 150, "expected": { "ratingSum": 650, "countedDays": ["2026-07-20", "2026-07-21", "2026-07-23"] } },
-    { "id": "R4-second-touch-of-a-day-only-adds-points", "priorCountedDays": ["2026-07-20"], "priorRatingSum": 300, "dayKey": "2026-07-20", "points": 150, "expected": { "ratingSum": 450, "countedDays": ["2026-07-20"] } }
+    { "id": "R1-first-day", "priorCountedDays": [], "dayKey": "2026-07-20", "points": 75, "expected": { "pointsTotal": 75, "countedDays": ["2026-07-20"] } },
+    { "id": "R2-consecutive-day", "priorCountedDays": ["2026-07-20"], "priorPointsTotal": 75, "dayKey": "2026-07-21", "points": 50, "expected": { "pointsTotal": 125, "countedDays": ["2026-07-20", "2026-07-21"] } },
+    { "id": "R3-gap-is-fine-no-penalty", "priorCountedDays": ["2026-07-20", "2026-07-21"], "priorPointsTotal": 125, "dayKey": "2026-07-23", "points": 40, "expected": { "pointsTotal": 165, "countedDays": ["2026-07-20", "2026-07-21", "2026-07-23"] } },
+    { "id": "R4-second-touch-of-a-day-only-adds-points", "priorCountedDays": ["2026-07-20"], "priorPointsTotal": 75, "dayKey": "2026-07-20", "points": 34, "expected": { "pointsTotal": 109, "countedDays": ["2026-07-20"] } },
+    { "id": "R5-a-bad-day-subtracts", "priorCountedDays": ["2026-07-20"], "priorPointsTotal": 75, "dayKey": "2026-07-21", "points": -15, "expected": { "pointsTotal": 60, "countedDays": ["2026-07-20", "2026-07-21"] } },
+    { "id": "R6-total-never-goes-below-the-floor", "priorCountedDays": [], "priorPointsTotal": 10, "dayKey": "2026-07-20", "points": -15, "expected": { "pointsTotal": 0, "countedDays": ["2026-07-20"] } }
   ],
 
   "currentStreak": [
@@ -92,8 +94,15 @@
     { "id": "SBP6-zero-streak-no-bonus", "streakDays": 0, "expected": 0 }
   ],
 
-  "currentRating": [
-    { "id": "CR1", "ratingSum": 500, "countedDays": ["2026-07-20", "2026-07-21"], "expected": 1050 },
-    { "id": "CR2-unplayed", "ratingSum": 0, "countedDays": [], "expected": 800 }
+  "effectivePoints": [
+    { "id": "EP1-fits-in-the-total", "pointsTotal": 100, "points": -15, "expected": -15 },
+    { "id": "EP2-trimmed-to-what-you-have", "pointsTotal": 12, "points": -15, "expected": -12 },
+    { "id": "EP3-nothing-left-to-lose", "pointsTotal": 0, "points": -15, "expected": 0 },
+    { "id": "EP4-gains-pass-through-untouched", "pointsTotal": 0, "points": 75, "expected": 75 }
+  ],
+
+  "totalPoints": [
+    { "id": "TP1-is-just-the-running-sum", "pointsTotal": 512, "countedDays": ["2026-07-20", "2026-07-21"], "expected": 512 },
+    { "id": "TP2-unplayed-starts-at-zero", "pointsTotal": 0, "countedDays": [], "expected": 0 }
   ]
 }

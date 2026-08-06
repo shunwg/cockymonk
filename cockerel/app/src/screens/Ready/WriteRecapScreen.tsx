@@ -36,7 +36,7 @@ export function WriteRecapScreen({
             Ingen ble lurt av ordene dine sist, lykke til denne gangen!
           </Text>
           <StatRow label="Streak" value={streakText(profile.streakDays, profile.streakBonusPct)} bold style={{ width: "100%" }} />
-          <StatRow label="Rating" value={String(profile.rating)} style={{ width: "100%" }} />
+          <StatRow label="Poeng i alt" value={String(profile.points)} style={{ width: "100%" }} />
         </Card>
         <Button title="Fortsett" onPress={onContinue} />
       </View>
@@ -56,7 +56,7 @@ export function WriteRecapScreen({
         <StatRow label="Streak-bonus" value={`+${recap.writeStreakPct}%`} />
         <StatRow label="Total" value={String(recap.writePoints)} bold />
         <StatRow label="Streak" value={streakText(profile.streakDays, profile.streakBonusPct)} bold />
-        <StatRow label="Rating" value={String(profile.rating)} />
+        <StatRow label="Poeng i alt" value={String(profile.points)} />
       </Card>
       <Button title="Fortsett" onPress={onContinue} />
     </View>

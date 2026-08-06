@@ -11,7 +11,7 @@
 // Ordkrig. The #devbar (date/player switchers) is a TESTING TOOL, not part
 // of the shipped UX — see CLAUDE.md.
 import { storageLocal, loadOrCreateIdentity, saveIdentity, loadTheme, saveTheme, IDENTITY_KEY, LEGACY_IDENTITY_KEY } from "./storage.js";
-import { TIMERS, WRITE_AUTOSUBMIT_MIN_CHARS } from "./config.js";
+import { TIMERS, WRITE_AUTOSUBMIT_MIN_CHARS, SCORING } from "./config.js";
 import { GALLERY_SCREENS } from "./gallery-screens.js";
 import { LANGS, LANG_LABELS, LANG_NAMES, t } from "./i18n.js";
 
@@ -45,11 +45,14 @@ let lastKnownEnabledLangs = [];
 // Guards the one word-timer that may be running at a time — every screen
 // transition MUST clear this first, or a stale timeout can fire against a
 // screen the user has already left (see renderGuessWordStep/renderWriteWordStep).
+// Two handles, one clock: `activeTimer` is the expiry, `activeFrame` is the
+// display loop that paints the bar and the seconds label from the same
+// deadline (see startCountdown). Both have to be cancelled together.
 let activeTimer = null;
-let activeInterval = null;
+let activeFrame = null;
 function clearActiveTimer() {
   if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
-  if (activeInterval) { clearInterval(activeInterval); activeInterval = null; }
+  if (activeFrame) { cancelAnimationFrame(activeFrame); activeFrame = null; }
 }
 
 // Bumped every time routeToCurrentScreen() runs — a genuinely different
@@ -82,16 +85,39 @@ function suggestName() {
   return ADJ[Math.floor(Math.random() * ADJ.length)] + ANIMAL[Math.floor(Math.random() * ANIMAL.length)];
 }
 
-function animateCount(elNode, to, ms = 900, from = 0, onComplete) {
+// `format` lets a counting number animate in its final presentation (grouped
+// thousands, a leading +/−) instead of snapping into it at the end — see
+// formatPoints/signedPoints below.
+function animateCount(elNode, to, ms = 900, from = 0, onComplete, format = String) {
   const start = performance.now();
   function tick(now) {
     const t = Math.min(1, (now - start) / ms);
     const eased = 1 - Math.pow(1 - t, 3);
-    elNode.textContent = Math.round(from + (to - from) * eased);
+    elNode.textContent = format(Math.round(from + (to - from) * eased));
     if (t < 1) requestAnimationFrame(tick);
     else if (onComplete) onComplete();
   }
   requestAnimationFrame(tick);
+}
+
+// -- points formatting -------------------------------------------------------
+// There is exactly ONE points number in this game (see js/rating.js): a
+// running total that a day's points are added to. These two helpers are what
+// keep that visible — a day is always rendered SIGNED ("+78", "−12") and a
+// total never is, so the two can never be mistaken for each other on screen,
+// and "+78" is literally what the header's total goes up by.
+
+/** Grouped thousands — a season's total reaches four digits, and "1 315" is
+ * far easier to read at a glance than "1315". */
+function formatPoints(n, lang) {
+  return new Intl.NumberFormat(lang === "no" ? "nb-NO" : "en-US").format(n);
+}
+
+/** A single day's points: always signed, so it reads as a CHANGE to the
+ * total rather than as a second, unrelated score. */
+function signedPoints(n, lang) {
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return `${sign}${formatPoints(Math.abs(n), lang)}`;
 }
 
 // Reuses the app's own accent tokens (no ad-hoc colors) for a plain colored-
@@ -160,10 +186,6 @@ function el(html) {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
   return t.content.firstElementChild;
-}
-
-function pctLabel(pct) {
-  return pct ? `<span class="streak-pct">+${pct}%</span>` : "";
 }
 
 // The ranking list (openRankingPanel) is the first place another player's
@@ -254,7 +276,7 @@ function streakText(days, pct, lang) {
 // Returns HTML (see streakText's comment) — the rank part is the
 // parenthetical, de-emphasized the same way.
 function pointsText(profile, lang) {
-  const main = t(lang, "pointsMain", { rating: profile.rating });
+  const main = t(lang, "pointsMain", { points: formatPoints(profile.points) });
   const rank = `<span class="text-paren">${t(lang, "pointsRankSuffix", { rank: profile.rank })}</span>`;
   return main + rank;
 }
@@ -345,7 +367,7 @@ async function openRankingPanel(lang) {
         <div class="ranking-row ${e.isYou ? "you" : ""}">
           <span class="ranking-rank">${e.rank}.</span>
           <span class="ranking-name">${escapeHtml(e.name)}${e.isYou ? ` (${t(lang, "rankingYou")})` : ""}</span>
-          <span class="ranking-rating">${e.rating}</span>
+          <span class="ranking-rating">${formatPoints(e.points, lang)}</span>
         </div>
       `).join("")}
     </div>
@@ -357,7 +379,7 @@ async function openRankingPanel(lang) {
  * Captures the CURRENT session token and bails at both checkpoints if a
  * dev-toolbar switch (or fresh load) has moved the app on to a different
  * session in the meantime — see the sessionToken comment above. */
-function revealThenSyncHeader(elNode, to, profile, lang) {
+function revealThenSyncHeader(elNode, to, profile, lang, format = String) {
   const token = sessionToken;
   animateCount(elNode, to, 900, 0, () => {
     if (token !== sessionToken) return;
@@ -367,7 +389,7 @@ function revealThenSyncHeader(elNode, to, profile, lang) {
       elNode.classList.remove("flash");
       updateHeader(profile, lang);
     }, 450);
-  });
+  }, format);
 }
 
 // -- dev toolbar (testing only — see CLAUDE.md) ------------------------------
@@ -1038,7 +1060,7 @@ function renderWelcomeStep(lang, displayName, profile, onStart) {
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "welcomeContinue")}</button>
     </div>
   `));
-  animateCount(document.getElementById("start-points"), profile.rating, 900);
+  animateCount(document.getElementById("start-points"), profile.points, 900);
   animateCount(document.getElementById("start-streak"), 0, 900, 5);
   wireContinueButton(onStart);
 }
@@ -1055,7 +1077,7 @@ function renderReadyStep(langState, lang, onStart) {
       ${MASCOT_HTML}
       <h1 style="text-align:center">${t(lang, "readyHeading", { name: profile.displayName })}</h1>
       <div class="card" style="margin-top:16px">
-        <div class="stat-row"><span>${t(lang, "points")}</span><span style="font-weight:700">${profile.rating}</span></div>
+        <div class="stat-row"><span>${t(lang, "points")}</span><span style="font-weight:700">${formatPoints(profile.points)}</span></div>
         <div class="stat-row" style="margin-top:8px"><span>${t(lang, "streak")}</span><span style="font-weight:700">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "readyContinue")}</button>
@@ -1085,7 +1107,7 @@ function renderWriteRecap(result, profile, lang, onContinue) {
         <div class="card" style="margin-top:16px">
           <p style="text-align:center">${t(lang, "writeRecapNoneFooled")}</p>
           <div class="stat-row" style="margin-top:16px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
-          <div class="stat-row" style="margin-top:10px"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
+          <div class="stat-row points-total-row"><span>${t(lang, "pointsTotal")}</span><span>${formatPoints(profile.points, lang)}</span></div>
         </div>
         <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
       </div>
@@ -1094,6 +1116,10 @@ function renderWriteRecap(result, profile, lang, onContinue) {
     return;
   }
 
+  // Writer points are never negative (see db.mjs settleBatch), so the
+  // base/bonus breakdown always adds up here — same receipt shape as the
+  // score step, minus the floor-clamp caveat.
+  const writeBase = result.writeBasePoints ?? result.writePoints ?? 0;
   app.replaceChildren(el(`
     <div class="screen">
       ${MASCOT_HTML}
@@ -1102,15 +1128,13 @@ function renderWriteRecap(result, profile, lang, onContinue) {
       <p class="eyebrow" style="text-align:center; margin-top:8px">${t(lang, "writeRecapYouGet")}</p>
       <div class="recap-points" id="points">0</div>
       <div class="card" style="margin-top:16px">
-        <div class="stat-row"><span>${t(lang, "streakBonus")}</span><span>+${result.writeStreakPct}%</span></div>
-        <div class="stat-row" style="margin-top:10px"><span>${t(lang, "total")}</span><span style="font-weight:700">${result.writePoints}</span></div>
+        ${pointsBreakdownRows(result.writePoints ?? writeBase, writeBase, result.writeStreakPct ?? 0, profile.points, lang)}
         <div class="stat-row" style="margin-top:10px"><span>${t(lang, "streak")}</span><span class="streak-badge">${streakText(profile.streakDays, profile.streakBonusPct, lang)}</span></div>
-        <div class="stat-row" style="margin-top:10px"><span>${t(lang, "rating")}</span><span>${profile.rating}</span></div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
     </div>
   `));
-  animateCount(document.getElementById("points"), result.writeBasePoints ?? result.writePoints ?? 0, 900);
+  animateCount(document.getElementById("points"), result.writePoints ?? writeBase, 900, 0, undefined, (n) => signedPoints(n, lang));
   wireContinueButton(onContinue);
 }
 
@@ -1119,23 +1143,70 @@ function renderWriteRecap(result, profile, lang, onContinue) {
 function countdownBarHtml(seconds) {
   return `
     <div class="countdown-row">
-      <div class="countdown-bar"><div class="countdown-fill" style="animation-duration:${seconds}s"></div></div>
+      <div class="countdown-bar"><div class="countdown-fill" id="countdown-fill"></div></div>
       <span class="countdown-seconds" id="countdown-seconds">${seconds}s</span>
     </div>`;
 }
 
-// Ticks the seconds label next to the bar once a second — a separate,
-// plain-JS clock from the CSS width animation, so the bar can stay pure CSS.
-// Stopped by clearActiveTimer() same as the timeout setTimeout.
-function startCountdownSeconds(seconds) {
-  let remaining = seconds;
-  activeInterval = setInterval(() => {
-    remaining -= 1;
-    const label = document.getElementById("countdown-seconds");
-    if (!label) { clearInterval(activeInterval); activeInterval = null; return; }
-    label.textContent = `${Math.max(0, remaining)}s`;
-    if (remaining <= 0) { clearInterval(activeInterval); activeInterval = null; }
-  }, 1000);
+// Fraction of the window ELAPSED at which the bar changes colour — the same
+// two breakpoints the CSS keyframes used to interpolate between, now applied
+// as discrete class swaps (with a CSS transition doing the smoothing).
+const COUNTDOWN_WARN_AT = 0.6;
+const COUNTDOWN_URGENT_AT = 0.85;
+
+/**
+ * ONE clock per timed screen. The bar's width, the seconds label, and the
+ * expiry are all derived from a single `deadline`, and the two visible ones
+ * are recomputed together in the same frame — so they cannot disagree.
+ *
+ * This used to be THREE independent clocks: a CSS keyframe animation for the
+ * bar, a `setInterval` for the label, and a `setTimeout` for the expiry — and
+ * only two of them measured time. The label counted CALLBACKS, decrementing a
+ * counter once per tick, so any stall longer than the interval (a slow
+ * render, GC, a backgrounded tab — all routine on a phone) coalesced or
+ * dropped ticks, and every dropped tick was a second the label never
+ * subtracted, permanently. The bar and the expiry meanwhile kept real time.
+ * Measured with 1.8s stalls over a 45s window: the bar read 19.3s while the
+ * label still said 26s, and the screen timed out with the label claiming ~6
+ * seconds left. Reported from real play, not theoretical. Don't split these
+ * back apart "so the bar can stay pure CSS", and don't reintroduce a counter
+ * that decrements per tick — derive from a deadline or it will drift again.
+ *
+ * Deriving the display from a deadline rather than accumulating ticks also
+ * makes the hidden-tab case self-healing — requestAnimationFrame doesn't run
+ * at all while hidden, so on return the very next frame recomputes both
+ * numbers from the real remaining time and they jump to the truth together.
+ */
+function startCountdown(seconds, onExpire) {
+  const totalMs = seconds * 1000;
+  const deadline = performance.now() + totalMs;
+  const fill = document.getElementById("countdown-fill");
+  const label = document.getElementById("countdown-seconds");
+
+  // The expiry stays a plain setTimeout rather than "whenever the frame loop
+  // notices it hit zero", because requestAnimationFrame stops entirely in a
+  // hidden tab and a backgrounded player must still time out on schedule,
+  // exactly as before. It's the same instant as `deadline` by construction,
+  // so the thing that fires and the thing on screen agree.
+  activeTimer = setTimeout(() => { clearActiveTimer(); onExpire(); }, totalMs);
+
+  const paint = () => {
+    activeFrame = null;
+    // The screen moved on and took the bar with it (every transition calls
+    // clearActiveTimer first, so this is belt-and-braces).
+    if (!label?.isConnected) return;
+    const remaining = Math.max(0, deadline - performance.now());
+    const fraction = remaining / totalMs;
+    label.textContent = `${Math.ceil(remaining / 1000)}s`;
+    if (fill) {
+      fill.style.transform = `scaleX(${fraction})`;
+      const elapsed = 1 - fraction;
+      fill.classList.toggle("is-warn", elapsed >= COUNTDOWN_WARN_AT && elapsed < COUNTDOWN_URGENT_AT);
+      fill.classList.toggle("is-urgent", elapsed >= COUNTDOWN_URGENT_AT);
+    }
+    if (remaining > 0) activeFrame = requestAnimationFrame(paint);
+  };
+  paint();
 }
 
 // `kind` is "guess" (timed out, nothing recorded), "write" (timed out,
@@ -1227,15 +1298,13 @@ async function renderGuessWordStep(langState, lang) {
       document.getElementById(`opt-${word.wordId}-${id}`)?.insertAdjacentHTML("beforeend", `<span class="hint-pct">${pct}%</span>`);
     }
   });
-  activeTimer = setTimeout(async () => {
-    clearActiveTimer();
+  startCountdown(TIMERS.guessSeconds, async () => {
     renderTimeoutStep("guess", lang, async () => {
       const res = await store.skipGuess(identity.userId, word.wordId, lang);
       if (!res.ok) return;
       await afterGuessAction(res, lang);
     });
-  }, TIMERS.guessSeconds * 1000);
-  startCountdownSeconds(TIMERS.guessSeconds);
+  });
 }
 
 async function afterGuessAction(res, lang) {
@@ -1265,6 +1334,30 @@ function renderGuessWordMarkup(w, lang) {
     </div>`;
 }
 
+/**
+ * The receipt that makes a day's points and the running total add up on
+ * screen: base points, the streak bonus as its own line (with the points it
+ * was actually worth, not just a %), and the resulting TOTAL — the same
+ * number the header syncs to a moment later.
+ *
+ * The bonus lines are shown only when a bonus actually applied (a positive
+ * day — see rating.js applyStreakBonus). That isn't only cosmetic: on a
+ * negative day the shown points can also be trimmed by the total's floor
+ * (rating.js effectivePoints), so "base + bonus = today" would be the one
+ * case where the receipt didn't add up. A negative day has no bonus by
+ * definition, so skipping the breakdown there keeps it always honest.
+ */
+function pointsBreakdownRows(dayPoints, basePoints, pct, totalAfter, lang) {
+  const bonusRows = pct > 0 ? `
+    <div class="stat-row"><span>${t(lang, "pointsBase")}</span><span>${signedPoints(basePoints, lang)}</span></div>
+    <div class="stat-row"><span>${t(lang, "streakBonus")} <span class="streak-pct">+${pct}%</span></span><span>${signedPoints(dayPoints - basePoints, lang)}</span></div>
+  ` : "";
+  return `
+    ${bonusRows}
+    <div class="stat-row points-total-row"><span>${t(lang, "pointsTotal")}</span><span>${formatPoints(totalAfter, lang)}</span></div>
+  `;
+}
+
 function renderScoreStep(result, lang, onContinue) {
   currentScreenLang = lang;
   clearActiveTimer();
@@ -1275,7 +1368,8 @@ function renderScoreStep(result, lang, onContinue) {
       <p class="eyebrow" style="text-align:center">${t(lang, "scoreEyebrow")}</p>
       <div class="recap-points score-points" id="points">0</div>
       <div class="card" style="margin-top:16px">
-        <div class="stat-row"><span>${t(lang, "correctGuesses")}</span><span>${result.correctCount} / ${result.guessTotal}${pctLabel(result.pct)}</span></div>
+        <div class="stat-row"><span>${t(lang, "correctGuesses")}</span><span>${result.correctCount} / ${result.guessTotal}</span></div>
+        ${pointsBreakdownRows(result.points, result.basePoints, result.pct, result.profile.points, lang)}
         <div class="review-list">${rows}</div>
       </div>
       <button class="btn full btn-cta" id="continue-btn">${t(lang, "continue")}</button>
@@ -1283,7 +1377,7 @@ function renderScoreStep(result, lang, onContinue) {
   `));
   wireReviewToggles();
   if (result.correctCount > 0) launchConfetti();
-  revealThenSyncHeader(document.getElementById("points"), result.points, result.profile, lang);
+  revealThenSyncHeader(document.getElementById("points"), result.points, result.profile, lang, (n) => signedPoints(n, lang));
   wireContinueButton(onContinue);
 }
 
@@ -1368,8 +1462,7 @@ async function renderWriteWordStep(langState, lang, skippedIds = new Set()) {
     const fresh = await refetchLangState(lang);
     renderWriteWordStep(fresh, lang, skippedIds);
   });
-  activeTimer = setTimeout(async () => {
-    clearActiveTimer();
+  startCountdown(TIMERS.writeSeconds, async () => {
     // A rushed-but-real bluff shouldn't be thrown away just because the
     // clock beat the click — auto-submit whatever's typed if it's long
     // enough to plausibly be a real attempt (see config.js
@@ -1389,8 +1482,7 @@ async function renderWriteWordStep(langState, lang, skippedIds = new Set()) {
     renderTimeoutStep("write", lang, () => {
       renderWriteWordStep(langState, lang, new Set([...skippedIds, word.wordId]));
     });
-  }, TIMERS.writeSeconds * 1000);
-  startCountdownSeconds(TIMERS.writeSeconds);
+  });
 }
 
 function renderWriteWordMarkup(w, lang) {
@@ -1421,6 +1513,7 @@ function renderDoneStep(langState, lang, otherPending) {
       <div class="recap-points" id="streak-num" style="color:inherit">0</div>
       <p style="text-align:center">${t(lang, "doneDays")}</p>
       <p style="text-align:center; font-weight:700; font-size:18px">${t(lang, "doneBody")}</p>
+      <p class="done-progress" style="color:inherit">${t(lang, "pointsTotal")}: ${formatPoints(langState.profile.points, lang)}</p>
       ${extraBtn}
     </div>
   `));
@@ -1633,7 +1726,7 @@ const FIXTURE_WORDS = {
 };
 
 function fixtureProfile(overrides = {}) {
-  return { displayName: "Ferdigfigur", rating: 940, rank: 42, streakDays: 4, streakBonusPct: 40, ...overrides };
+  return { displayName: "Ferdigfigur", points: 940, rank: 42, streakDays: 4, streakBonusPct: 40, ...overrides };
 }
 
 /** A minimal langState-shaped stand-in — just enough (`writeWords`/
@@ -1659,8 +1752,11 @@ function fixtureWordOptions(w) {
 function fixtureScoreResult(lang) {
   const words = FIXTURE_WORDS[lang];
   return {
-    correctCount: 2, guessTotal: 3, points: 165, pct: 30,
-    profile: fixtureProfile({ rating: 985 }),
+    // basePoints + the 30% bonus = points, and profile.points is the total
+    // AFTER that day — the score step renders all three as one receipt, so
+    // fixture numbers that don't add up would look like a live bug.
+    correctCount: 2, guessTotal: 3, points: 39, basePoints: 30, pct: 30,
+    profile: fixtureProfile({ points: 979 }),
     words: words.map((w, i) => ({
       wordId: w.wordId, word: w.word, correct: i !== 1,
       options: fixtureWordOptions(w).map((o) => ({
@@ -1676,7 +1772,7 @@ function createFixtureStore(lang) {
   const words = FIXTURE_WORDS[lang];
   let guesses = []; // { wordId, choiceId, correct }
   const submitted = new Set();
-  let profile = fixtureProfile({ rating: 820, streakDays: 3, streakBonusPct: 30 });
+  let profile = fixtureProfile({ points: 820, streakDays: 3, streakBonusPct: 30 });
   // A couple of "other players'" guesses on the first word, seeded up front,
   // so the hint has real data to show without requiring any prior action.
   const otherGuesses = [
@@ -1717,12 +1813,15 @@ function createFixtureStore(lang) {
 
   function finalizeGuessingIfDone() {
     if (guesses.length < words.length) return null;
-    const table = [-50, 0, 120, 300];
+    // Mirrors js/config.js SCORING.guessScoreByCorrectCount, plus the same
+    // floor clamp db.mjs applies (rating.js effectivePoints) — the gallery's
+    // interactive "guess" card should move its total by exactly what it says.
     const correctCount = guesses.filter((g) => g.correct).length;
-    const points = table[Math.min(correctCount, table.length - 1)];
-    profile = { ...profile, rating: profile.rating + points };
+    const basePoints = SCORING.guessScoreByCorrectCount[Math.min(correctCount, SCORING.guessScoreByCorrectCount.length - 1)];
+    const points = Math.max(0, profile.points + basePoints) - profile.points;
+    profile = { ...profile, points: profile.points + points };
     return {
-      correctCount, guessTotal: words.length, points, pct: 0, profile,
+      correctCount, guessTotal: words.length, points, basePoints, pct: 0, profile,
       words: words.map((w) => {
         const g = guesses.find((x) => x.wordId === w.wordId);
         return {
@@ -1781,9 +1880,9 @@ function createFixtureStore(lang) {
     getLeaderboard: async () => ({
       ok: true,
       entries: [
-        { name: "Kari", rating: 990, rank: 1, isYou: false },
-        { name: "Ferdigfigur", rating: profile.rating, rank: 2, isYou: true },
-        { name: "Ola", rating: 760, rank: 3, isYou: false },
+        { name: "Kari", points: 990, rank: 1, isYou: false },
+        { name: "Ferdigfigur", points: profile.points, rank: 2, isYou: true },
+        { name: "Ola", points: 760, rank: 3, isYou: false },
       ],
     }),
   };
@@ -1798,7 +1897,7 @@ const GALLERY_PREVIEW_SCREENS = {
   "language-picker": () => renderLanguagePicker(() => {}),
   "name": (lang) => renderNameScreen(lang, FIXTURE_IDENTITY.displayName, () => {}),
   "how-to-play": (lang) => renderHowToPlay(lang, () => {}),
-  "welcome": (lang) => renderWelcomeStep(lang, FIXTURE_IDENTITY.displayName, fixtureProfile({ rating: 800, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
+  "welcome": (lang) => renderWelcomeStep(lang, FIXTURE_IDENTITY.displayName, fixtureProfile({ points: 0, streakDays: 0, streakBonusPct: 0, rank: 118 }), () => {}),
   "ready": (lang) => {
     const profile = fixtureProfile();
     renderHeaderImmediate(profile, lang);
@@ -1806,7 +1905,7 @@ const GALLERY_PREVIEW_SCREENS = {
   },
   "choose-today-lang": (lang) => {
     renderChooseTodayLangStep(lang, ["no", "en"], {
-      no: { profile: fixtureProfile() }, en: { profile: fixtureProfile({ rating: 700, streakDays: 2, streakBonusPct: 20 }) },
+      no: { profile: fixtureProfile() }, en: { profile: fixtureProfile({ points: 700, streakDays: 2, streakBonusPct: 20 }) },
     });
   },
   "write-recap-none": (lang) => {
@@ -1819,8 +1918,10 @@ const GALLERY_PREVIEW_SCREENS = {
     const words = FIXTURE_WORDS[lang];
     renderHeaderImmediate(profile, lang);
     renderWriteRecap({
+      // 7 and 3 people fooled = round(12*√7) + round(12*√3) = 53 base
+      // (js/config.js SCORING.bluffBaseK/bluffExponent), +40% streak = 74.
       fooledByWord: [{ wordId: words[0].wordId, count: 7 }, { wordId: words[1].wordId, count: 3 }],
-      writeStreakPct: profile.streakBonusPct, writeBasePoints: 112, writePoints: 123,
+      writeStreakPct: profile.streakBonusPct, writeBasePoints: 53, writePoints: 74,
     }, profile, lang, () => {});
   },
   "guess": async (lang) => {
@@ -1839,8 +1940,15 @@ const GALLERY_PREVIEW_SCREENS = {
     renderTimeoutStep("guess", lang, () => {});
   },
   "score": (lang) => {
-    renderHeaderImmediate(fixtureProfile({ rating: 820 }), lang);
-    renderScoreStep(fixtureScoreResult(lang), lang, () => {});
+    const result = fixtureScoreResult(lang);
+    // The header starts on the total BEFORE today and the reveal syncs it to
+    // the total after — so the card demonstrates the real "+39 on screen,
+    // +39 on the header" arithmetic instead of an arbitrary jump. DERIVED
+    // from the result rather than hardcoded, so the two can't drift apart:
+    // a fixture whose numbers don't add up reads as a live bug on the one
+    // screen whose whole job is showing that they do.
+    renderHeaderImmediate(fixtureProfile({ points: result.profile.points - result.points }), lang);
+    renderScoreStep(result, lang, () => {});
   },
   "write": async (lang) => {
     const state = await store.getToday();
@@ -1864,7 +1972,7 @@ const GALLERY_PREVIEW_SCREENS = {
     renderHeaderImmediate(fixtureProfile({ streakDays: 3, streakBonusPct: 30 }), lang);
     renderDoneStep(
       { profile: fixtureProfile({ streakDays: 4, streakBonusPct: 40 }), ...fixtureProgressState(3, 3) }, lang,
-      { lang: otherLang, state: { profile: fixtureProfile({ rating: 700 }) } },
+      { lang: otherLang, state: { profile: fixtureProfile({ points: 700 }) } },
     );
   },
   "sign-in-gate": () => renderSignInGate(),

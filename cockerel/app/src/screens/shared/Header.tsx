@@ -24,7 +24,7 @@ export function Header({ profile }: { profile: Profile | null }) {
       </Text>
       <View style={styles.stats}>
         <Text style={[styles.points, { color: tokens.colorTextOnBg }]}>
-          {profile.rating} poeng ({profile.rank}. plass)
+          {profile.points} poeng ({profile.rank}. plass)
         </Text>
         <Text style={{ color: tokens.colorTextOnBg, fontSize: 15 }}>
           Streak: {streakText(profile.streakDays, profile.streakBonusPct)}

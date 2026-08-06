@@ -1,5 +1,5 @@
 // First-time-only: personal welcome before the very first "Gjett gårsdagens
-// ord" — rating counts UP into existence, streak counts DOWN to the 0 it
+// ord" — the points total counts UP into existence, streak counts DOWN to the 0 it
 // actually starts at (see cockerel/js/ui.js's renderWelcomeStep).
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../config/theme";
@@ -20,7 +20,7 @@ export function WelcomeScreen({
   onStart: () => void;
 }) {
   const { tokens } = useTheme();
-  const points = useCountUp(profile.rating, { ms: 900 });
+  const points = useCountUp(profile.points, { ms: 900 });
   const streak = useCountUp(0, { from: 5, ms: 900 });
 
   return (

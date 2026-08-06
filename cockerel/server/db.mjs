@@ -22,9 +22,9 @@
 // This makes each transition self-contained and naturally idempotent: it only
 // ever runs once per day, guarded by "does batch(N) already exist?".
 //
-// Streak vs. rating, two different day-sets (see js/rating.js top comment):
+// Streak vs. points, two different day-sets (see js/rating.js top comment):
 // participation is marked the instant someone writes or guesses ("streak =
-// at least submitting or guessing," not doing all 6); rating points for that
+// at least submitting or guessing," not doing all 6); the points for that
 // same day only land later, when settlement computes them. Settlement reads
 // the ALREADY-RECORDED participation streak to size that day's % bonus —
 // see js/rating.js streakEndingAt.
@@ -38,7 +38,7 @@
 // ensureToday below: it's simplest and most robust for both languages'
 // batch histories to always exist in lockstep, rather than lazily
 // bootstrapping a language's history the first time someone opts into it).
-// Rating/streak/leaderboard rank are tracked SEPARATELY per language — see
+// Points/streak/leaderboard rank are tracked SEPARATELY per language — see
 // the profile shape below — a deliberate choice (not a combined score) so a
 // Norwegian-only player's numbers are entirely about Norwegian, unaffected
 // by English existing.
@@ -76,12 +76,13 @@ import {
   voteShareByOption, displayVoteDistribution,
 } from "../js/engine.js";
 import {
-  freshProfile, creditPoints, markParticipated, streakEndingAt, streakBonusPct,
-  applyStreakBonus, currentRating, currentStreak, hasUnseenResult, markResultSeen,
+  freshProfile, creditPoints, effectivePoints, markParticipated, streakEndingAt,
+  streakBonusPct, applyStreakBonus, totalPoints, currentStreak, hasUnseenResult,
+  markResultSeen, PROFILE_VERSION,
 } from "../js/rating.js";
 import { LANG_PROFILES } from "../js/decoys.js";
 import { loadCorpus, activeVersion } from "../js/words.js";
-import { OPTIONS, SCORING, BATCH, LEADERBOARD, HINT, LANGS } from "../js/config.js";
+import { OPTIONS, SCORING, BATCH, LEADERBOARD, HINT, LANGS, POINTS } from "../js/config.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // Overridable so server/dev-server.test.mjs can point a spawned server at an
@@ -103,7 +104,7 @@ export function freshDb() {
  * One-time, idempotent shape upgrade for data written before dual-language
  * support existed: a batch/submission/guess with no `lang` was always
  * Norwegian (the only language that existed), so it's tagged "no". A
- * profile with no `.langs` had its rating fields directly at the top level
+ * profile with no `.langs` had its points/streak fields directly at the top level
  * (the exact freshProfile() shape) — that becomes langs.no, with
  * enabledLangs: ["no"] (that's the only language that user has ever
  * played, so it's the only one that should show up for them post-migration).
@@ -134,6 +135,41 @@ function migrateToMultiLang(db) {
   if (Array.isArray(db.botLeaderboard)) db.botLeaderboard = { no: db.botLeaderboard };
 }
 
+/**
+ * One-time, idempotent per-language-profile upgrade from the old "rating"
+ * (an average around a base of 800) to the current running points total.
+ *
+ * Two things change together, and they have to, since the old stored number
+ * was BOTH an average's numerator AND on a ~4x-larger point scale:
+ *   `ratingSum` (numerator, old scale)  ->  `pointsTotal` (sum, new scale)
+ * Dividing by POINTS.legacyScaleDivisor keeps existing players' standing
+ * relative to each other while putting them on the same scale their future
+ * days will be scored on — so tomorrow's "+78" lands on a total that means
+ * the same thing tomorrow's points do.
+ *
+ * IDEMPOTENCE IS LOAD-BEARING HERE, more than for any other migration in
+ * this file: loadDb() runs on EVERY request, and this one is arithmetic, not
+ * a shape change — re-running it would quietly divide every player's total by
+ * 4 again, and again, until everyone sat at 0. That's what the `v` version
+ * stamp (js/rating.js PROFILE_VERSION) guards; don't replace the check with
+ * something shape-based like `if ("ratingSum" in lp)` and assume it's the
+ * same thing.
+ */
+function migrateToPointsTotal(db) {
+  for (const p of Object.values(db.profiles)) {
+    for (const lang of Object.keys(p.langs ?? {})) {
+      const lp = p.langs[lang];
+      if ((lp.v ?? 0) >= PROFILE_VERSION) continue;
+      const { ratingSum, ...rest } = lp;
+      p.langs[lang] = {
+        ...rest,
+        v: PROFILE_VERSION,
+        pointsTotal: Math.max(POINTS.floor, Math.round((ratingSum ?? 0) / POINTS.legacyScaleDivisor)),
+      };
+    }
+  }
+}
+
 export async function loadDb() {
   await mkdir(DATA_DIR, { recursive: true });
   if (!existsSync(DB_FILE)) {
@@ -144,6 +180,7 @@ export async function loadDb() {
   if (!("devClock" in db)) db.devClock = null; // tolerate an older seed shape
   if (!("identities" in db)) db.identities = {}; // tolerate a pre-Google-Sign-In seed shape
   migrateToMultiLang(db);
+  migrateToPointsTotal(db); // must run AFTER the above — it walks p.langs
   return db;
 }
 
@@ -264,20 +301,20 @@ function ensureBotLeaderboard(db, lang, rng) {
   });
 }
 
-/** 1-based rank among every real profile's current rating IN THIS LANGUAGE.
+/** 1-based rank among every real profile's points total IN THIS LANGUAGE.
  * Bots are deliberately excluded (see cockerel/CLAUDE.md) — db.botLeaderboard
  * still exists and is generated (ensureBotLeaderboard below), but its only
  * remaining consumer is the admin dashboard's informational bot-count/bot%
  * columns (computeAdminStats), not a player's own rank or the ranking list
  * (getLeaderboard below). */
-function computeRank(db, myRating, lang) {
-  const allRatings = Object.values(db.profiles)
-    .map((p) => (p.langs?.[lang] ? currentRating(p.langs[lang]) : null))
+function computeRank(db, myPoints, lang) {
+  const allTotals = Object.values(db.profiles)
+    .map((p) => (p.langs?.[lang] ? totalPoints(p.langs[lang]) : null))
     .filter((r) => r !== null);
-  return 1 + allRatings.filter((r) => r > myRating).length;
+  return 1 + allTotals.filter((r) => r > myPoints).length;
 }
 
-/** Every real player's rank/first-name/rating for one language, sorted best
+/** Every real player's rank/first-name/points for one language, sorted best
  * first — powers the ranking list js/ui.js's openRankingPanel shows when a
  * player taps their points/rank number in the header. Only a first name is
  * exposed (not the full display name, and never userId) since this is
@@ -289,16 +326,16 @@ export function getLeaderboard(db, lang, userId) {
   const entries = Object.entries(db.profiles)
     .filter(([, p]) => p.langs?.[lang])
     .map(([uid, p]) => {
-      const rating = currentRating(p.langs[lang]);
+      const points = totalPoints(p.langs[lang]);
       const name = (p.displayName ?? "").trim().split(/\s+/)[0] || p.displayName;
-      return { name, rating, rank: computeRank(db, rating, lang), isYou: uid === userId };
+      return { name, points, rank: computeRank(db, points, lang), isYou: uid === userId };
     })
     .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
   return { entries };
 }
 
 /** Ensures the identity-level profile shell exists — displayName/device/
- * enabledLangs/langs — but does NOT enable or create any language's rating
+ * enabledLangs/langs — but does NOT enable or create any language's points
  * track by itself; see ensureLangProfile for that. */
 function ensureProfile(db, userId, displayName, device, avatar) {
   if (!db.profiles[userId]) db.profiles[userId] = { displayName, enabledLangs: [], langs: {} };
@@ -316,7 +353,7 @@ function ensureProfile(db, userId, displayName, device, avatar) {
   return db.profiles[userId];
 }
 
-/** Lazily creates that language's rating/streak track (freshProfile()) the
+/** Lazily creates that language's points/streak track (freshProfile()) the
  * first time it's actually used — NOT gated on enabledLangs, since a
  * language a user later disables in settings must keep crediting any
  * already-in-flight settlement for work they did while it was enabled. */
@@ -369,6 +406,9 @@ function settleBatch(db, settledAsOfDayKey, writeDayKey, lang) {
     ensureProfile(db, userId, userId);
     const langProfile = ensureLangProfile(db, userId, lang);
     const pct = streakBonusPct(streakEndingAt(langProfile.participatedDays, writeDayKey));
+    // No floor clamp needed on this side (unlike maybeFinalizeGuessing):
+    // writer points are fooled-votes plus close-match bonus, both of which
+    // are non-negative by construction — writing a bluff can never cost you.
     const points = applyStreakBonus(basePoints, pct);
     db.profiles[userId].langs[lang] = creditPoints(langProfile, { dayKey: writeDayKey, points });
     recordDayResult(db, userId, lang, settledAsOfDayKey, {
@@ -444,12 +484,12 @@ export function ensureToday(db, now) {
 function profileSnapshot(db, profile, lang) {
   const langProfile = profile.langs[lang];
   const streakDays = currentStreak(langProfile.participatedDays);
-  const rating = currentRating(langProfile);
+  const points = totalPoints(langProfile);
   return {
     displayName: profile.displayName,
     avatar: profile.avatar ?? "nesen", // see js/ui.js AVATARS — "nesen" is also the default for a brand-new picker
-    rating,
-    rank: computeRank(db, rating, lang),
+    points,
+    rank: computeRank(db, points, lang),
     streakDays,
     streakBonusPct: streakBonusPct(streakDays),
   };
@@ -580,14 +620,22 @@ function maybeFinalizeGuessing(db, userId, todayKey, yesterday, lang) {
   });
   const langProfile = db.profiles[userId].langs[lang];
   const pct = streakBonusPct(streakEndingAt(langProfile.participatedDays, todayKey));
-  const points = applyStreakBonus(basePoints, pct);
+  // Guessing is the one place a day's points can be NEGATIVE (0/3), so it's
+  // also the one place config.js POINTS.floor can bite. Report the clamped
+  // number, not the raw one — the score screen's "-12" must be exactly what
+  // the header's total drops by, even when the raw penalty was -15 and the
+  // player only had 12 points to lose. See rating.js effectivePoints.
+  const points = effectivePoints(langProfile, applyStreakBonus(basePoints, pct));
   db.profiles[userId].langs[lang] = creditPoints(langProfile, { dayKey: todayKey, points });
   // Report the bonus % as 0 when it didn't actually apply (a penalty day is
   // never amplified — see applyStreakBonus) — showing "+10%" next to a
   // negative result would wrongly imply the bonus did something here.
   const effectivePct = basePoints > 0 ? pct : 0;
   return {
-    correctCount, guessTotal: results.length, points, pct: effectivePct,
+    // basePoints + the bonus it earned = `points`, which is exactly what the
+    // profile's total went up by — the score step renders that as a receipt
+    // (js/ui.js pointsBreakdownRows), so all three numbers have to ship.
+    correctCount, guessTotal: results.length, points, basePoints, pct: effectivePct,
     profile: profileSnapshot(db, db.profiles[userId], lang),
     words: buildGuessReview(yesterday, byWord, db.guesses, todayKey, lang),
   };
@@ -769,9 +817,9 @@ const round1 = (n) => Math.round(n * 10) / 10;
  *    EARLIEST participatedDays entry FOR THAT LANGUAGE as its signup day for
  *    that language, also retroactive; bots are a fixed count per language
  *    (LEADERBOARD.botCount), not per-day.
- *  - `players`: current, live snapshot only (rating/streak/device), one row
- *    per (userId, enabled language) — there is no historical per-day rating
- *    ever stored (ratingSum is a running total, see js/rating.js), so a true
+ *  - `players`: current, live snapshot only (points/streak/device), one row
+ *    per (userId, enabled language) — there is no historical per-day total
+ *    ever stored (pointsTotal is a running sum, see js/rating.js), so a true
  *    day-by-day points/streak LOG isn't reconstructable without adding new
  *    forward-only tracking. Deliberately not added here to keep this
  *    additive/low-risk — revisit explicitly if real historical trends (not
@@ -822,17 +870,17 @@ export function computeAdminStats(db) {
     .flatMap(([userId, p]) =>
       (p.enabledLangs ?? []).filter((lang) => p.langs?.[lang]).map((lang) => {
         const langProfile = p.langs[lang];
-        const rating = currentRating(langProfile);
+        const points = totalPoints(langProfile);
         return {
-          userId, lang, displayName: p.displayName, rating,
-          rank: computeRank(db, rating, lang),
+          userId, lang, displayName: p.displayName, points,
+          rank: computeRank(db, points, lang),
           streakDays: currentStreak(langProfile.participatedDays),
           device: p.device ?? "unknown",
           lastActiveDayKey: langProfile.participatedDays[langProfile.participatedDays.length - 1] ?? null,
         };
       })
     )
-    .sort((a, b) => b.rating - a.rating);
+    .sort((a, b) => b.points - a.points);
 
   const botCount = LANGS.reduce((sum, lang) => sum + (db.botLeaderboard?.[lang] ?? []).length, 0);
   return { generatedAt: new Date().toISOString(), botCount, days, players };

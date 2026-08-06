@@ -126,21 +126,58 @@ test("submitGuess credits guess points immediately on the 3rd guess of the day, 
   assert.ok(db.profiles.guesser1.langs.no.countedDays.includes(todayKey));
 });
 
+/** Guess all 3 of yesterday's words wrong, returning the finalized result. */
+function guessEverythingWrong(db, userId, yesterday) {
+  let lastResult;
+  for (const wordId of yesterday.wordIds) {
+    lastResult = submitGuess(db, { userId, wordId, choiceId: wrongIdFor(yesterday, wordId), lang: "no" });
+  }
+  return lastResult.guessResult;
+}
+
 test("submitGuess with 0/3 correct is scored per SCORING.guessScoreByCorrectCount[0] (the one way to lose points)", () => {
   const db = freshDb();
   ensureToday(db, DAY0);
-  const todayKey = dayKey(DAY0);
-  const yesterdayKey = addDays(todayKey, -1);
+  const yesterdayKey = addDays(dayKey(DAY0), -1);
   ensureProfileFor(db, "guesser2", "Guesser Two");
+  // setEnabledLangs is what creates the per-language track (ensureLangProfile
+  // is lazy), so it has to come before poking at langs.no. Give them points to
+  // actually lose — a player sitting at the floor would exercise the clamp
+  // below instead, which is the next test's job.
+  setEnabledLangs(db, "guesser2", ["no"]);
+  db.profiles.guesser2.langs.no.pointsTotal = 500;
   const yesterday = db.batches.find((b) => b.lang === "no" && b.dayKey === yesterdayKey);
 
-  let lastResult;
-  for (const wordId of yesterday.wordIds) {
-    lastResult = submitGuess(db, { userId: "guesser2", wordId, choiceId: wrongIdFor(yesterday, wordId), lang: "no" });
-  }
-  assert.equal(lastResult.guessResult.correctCount, 0);
-  assert.equal(lastResult.guessResult.points, SCORING.guessScoreByCorrectCount[0]);
-  assert.ok(lastResult.guessResult.points < 0, "0/3 must be a genuine penalty");
+  const result = guessEverythingWrong(db, "guesser2", yesterday);
+  assert.equal(result.correctCount, 0);
+  assert.equal(result.points, SCORING.guessScoreByCorrectCount[0]);
+  assert.ok(result.points < 0, "0/3 must be a genuine penalty");
+  assert.equal(db.profiles.guesser2.langs.no.pointsTotal, 500 + result.points,
+    "the reported points are exactly what the total moved by");
+});
+
+test("a 0/3 penalty is trimmed to what the player actually has — the total never goes below the floor", () => {
+  const db = freshDb();
+  ensureToday(db, DAY0);
+  const yesterdayKey = addDays(dayKey(DAY0), -1);
+  const yesterday = db.batches.find((b) => b.lang === "no" && b.dayKey === yesterdayKey);
+
+  // A brand-new player has nothing to lose: the penalty reports as 0, not as
+  // the raw -15, because reporting the raw number would put a figure on the
+  // score screen that the header's total never moved by (see js/ui.js).
+  ensureProfileFor(db, "broke", "Broke Newcomer");
+  const brokeResult = guessEverythingWrong(db, "broke", yesterday);
+  assert.equal(brokeResult.correctCount, 0);
+  assert.equal(brokeResult.points, 0);
+  assert.equal(db.profiles.broke.langs.no.pointsTotal, 0);
+
+  // A player with less than a full penalty's worth loses exactly what's left.
+  ensureProfileFor(db, "nearly", "Nearly Broke");
+  setEnabledLangs(db, "nearly", ["no"]);
+  db.profiles.nearly.langs.no.pointsTotal = 6;
+  const nearlyResult = guessEverythingWrong(db, "nearly", yesterday);
+  assert.equal(nearlyResult.points, -6);
+  assert.equal(db.profiles.nearly.langs.no.pointsTotal, 0);
 });
 
 test("submitGuess rejects a repeat guess on the same word and an invalid choiceId", () => {

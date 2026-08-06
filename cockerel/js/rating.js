@@ -1,7 +1,16 @@
-// rating.js — rating + streak, ported in spirit from ordkrig/src/services/
-// profileStore.ts (rating = base + avg(per-day performance)), with two
-// deliberate differences: NO quit penalty (see CLAUDE.md Provenance), and a
-// PERCENTAGE streak bonus (see config.js STREAK_BONUS) instead of a flat add.
+// rating.js — points total + streak, ported in spirit from ordkrig/src/
+// services/profileStore.ts, with three deliberate differences: NO quit
+// penalty (see CLAUDE.md Provenance), a PERCENTAGE streak bonus (see
+// config.js STREAK_BONUS) instead of a flat add, and — the reason this file
+// is no longer really about a "rating" at all — a running SUM of daily points
+// instead of Ordkrig's `base + average(per-day performance)`.
+//
+// Why the sum: the average made the two numbers a player sees contradict each
+// other. The score screen said "+390 today" while the header moved +23 (or
+// DOWN, if 390 was below your average), because the header was an average
+// around a base of 800 and the score screen was raw points. One currency, one
+// arithmetic — `totalPoints` is now literally the sum of every day's shown
+// points, and nothing converts between the two. See config.js POINTS.
 //
 // Two separate day-sets, tracking two separate things:
 //  - `participatedDays`: touched IMMEDIATELY when a user writes or guesses —
@@ -10,24 +19,32 @@
 //    display and the streak bonus %.
 //  - `countedDays`: touched only when POINTS for a day are actually known —
 //    which, because of the write-today/guess-tomorrow pipeline, happens at
-//    TWO different times for the same day (see db.mjs). Drives the rating
-//    average's denominator. A day can be in participatedDays long before
-//    (or even without ever fully) landing in countedDays.
+//    TWO different times for the same day (see db.mjs). It no longer divides
+//    anything (that was the average's denominator); it survives as the record
+//    of which days have actually settled, which is what the admin dashboard
+//    and any future per-day history would be built from. A day can be in
+//    participatedDays long before (or even without ever fully) landing in
+//    countedDays — don't merge the two back together.
 import { isNextDay, addDays } from "./engine.js";
-import { STREAK_BONUS, RATING } from "./config.js";
+import { STREAK_BONUS, POINTS } from "./config.js";
 
-const PROFILE_VERSION = 3;
+// 4: `ratingSum` (an average's numerator, on the old ~4x point scale) became
+// `pointsTotal` (a running sum on the current scale). Migrated on read — see
+// server/db.mjs loadDb.
+const PROFILE_VERSION = 4;
 
 export function freshProfile(displayName) {
   return {
     v: PROFILE_VERSION,
     displayName,
-    ratingSum: 0,
+    pointsTotal: POINTS.start,
     countedDays: [],
     participatedDays: [],
     lastResultSeenDate: null,
   };
 }
+
+export { PROFILE_VERSION };
 
 /** Consecutive-day streak ending at the LAST entry of a sorted day-key array. */
 export function currentStreak(days) {
@@ -77,20 +94,35 @@ export function markParticipated(profile, dayKey) {
 }
 
 /**
- * Credit `points` (already streak-multiplied — see db.mjs settleBatch) for
- * calendar day `dayKey`. Idempotent on the rating average's denominator: a
- * day already in countedDays just gets more points added, never double-counts.
+ * How many points crediting `points` would ACTUALLY move this profile's
+ * total, once config.js POINTS.floor is taken into account — i.e. a penalty
+ * larger than the points you have is trimmed to what you have.
+ *
+ * Callers must credit this value AND show this value (see db.mjs), never the
+ * raw one: the whole contract of the points system is that the number on the
+ * score screen is exactly the number the header goes up by, and a silently
+ * clamped penalty would be the one place that stopped being true.
  */
-export function creditPoints(profile, { dayKey, points }) {
-  const ratingSum = profile.ratingSum + points;
-  if (profile.countedDays.includes(dayKey)) return { ...profile, ratingSum };
-  return { ...profile, ratingSum, countedDays: [...profile.countedDays, dayKey].sort() };
+export function effectivePoints(profile, points) {
+  return Math.max(POINTS.floor, profile.pointsTotal + points) - profile.pointsTotal;
 }
 
-export function currentRating(profile) {
-  const days = profile.countedDays.length;
-  if (days === 0) return RATING.base;
-  return Math.round(RATING.base + profile.ratingSum / days);
+/**
+ * Credit `points` (already streak-multiplied and floor-clamped — see
+ * effectivePoints and db.mjs settleBatch) for calendar day `dayKey`.
+ * Idempotent on `countedDays`: a day already settled once (guess-points and
+ * write-points for the same calendar day settle a rollover apart) just gets
+ * more points added to the total, and is never listed twice.
+ */
+export function creditPoints(profile, { dayKey, points }) {
+  const pointsTotal = Math.max(POINTS.floor, profile.pointsTotal + points);
+  if (profile.countedDays.includes(dayKey)) return { ...profile, pointsTotal };
+  return { ...profile, pointsTotal, countedDays: [...profile.countedDays, dayKey].sort() };
+}
+
+/** The one headline number: the running sum of every day's points. */
+export function totalPoints(profile) {
+  return profile.pointsTotal;
 }
 
 /**

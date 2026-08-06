@@ -10,7 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createServer as createNetServer } from "node:net";
@@ -47,6 +47,25 @@ async function waitForServer(base, timeoutMs = 5000) {
  * temp port. Registers cleanup on `t.after` — call from inside a test/subtest. */
 async function startServer(t, env = {}) {
   const dataDir = await mkdtemp(path.join(tmpdir(), "cockerel-test-"));
+  const port = await getFreePort();
+  const proc = spawn(process.execPath, [SERVER_SCRIPT, String(port)], {
+    env: { ...process.env, COCKEREL_DATA_DIR: dataDir, DEV_TOOLS: "1", ADMIN_TOKEN: "", GOOGLE_CLIENT_ID: "", ...env },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const base = `http://127.0.0.1:${port}`;
+  t.after(async () => {
+    proc.kill();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  await waitForServer(base);
+  return base;
+}
+
+/** Like startServer, but seeds the data dir with a hand-written db.json first
+ * — for exercising loadDb()'s on-read migrations against genuinely old data. */
+async function startServerWithDb(t, dbJson, env = {}) {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "cockerel-test-"));
+  await writeFile(path.join(dataDir, "db.json"), JSON.stringify(dbJson, null, 2));
   const port = await getFreePort();
   const proc = spawn(process.execPath, [SERVER_SCRIPT, String(port)], {
     env: { ...process.env, COCKEREL_DATA_DIR: dataDir, DEV_TOOLS: "1", ADMIN_TOKEN: "", GOOGLE_CLIENT_ID: "", ...env },
@@ -326,4 +345,81 @@ test("dev-server.mjs admin endpoints with ADMIN_TOKEN set", async (t) => {
     assert.equal(confirmed.status, 200);
     assert.equal(confirmed.body.ok, true);
   });
+});
+
+
+// -- loadDb migrations against genuinely old data ---------------------------
+
+test("an old average-based profile is converted to a points total ONCE, not on every request", async (t) => {
+  // A pre-PROFILE_VERSION-4 profile: `ratingSum` is an average's numerator on
+  // the old ~4x point scale, with no `pointsTotal` at all.
+  const base = await startServerWithDb(t, {
+    batches: [], submissions: [], guesses: [], dayResults: {}, devClock: null, identities: {},
+    profiles: {
+      veteran: {
+        displayName: "Gammel Ravn",
+        enabledLangs: ["no"],
+        langs: {
+          no: {
+            v: 3, displayName: "Gammel Ravn", ratingSum: 1200,
+            countedDays: ["2026-07-20", "2026-07-21"], participatedDays: ["2026-07-20", "2026-07-21"],
+            lastResultSeenDate: null,
+          },
+        },
+      },
+    },
+  });
+
+  // 1200 old-scale points / 4 = 300 on the current scale.
+  const first = await getJson(base, "/api/today?userId=veteran");
+  assert.equal(first.body.byLang.no.profile.points, 300);
+
+  // loadDb() runs on EVERY request, and this migration is arithmetic rather
+  // than a shape change — without its version gate, each request would divide
+  // the total by 4 again (300 -> 75 -> 19 -> ...). This is the assertion that
+  // catches that regression.
+  for (let i = 0; i < 4; i++) {
+    const again = await getJson(base, "/api/today?userId=veteran");
+    assert.equal(again.body.byLang.no.profile.points, 300, `request ${i + 2} must still report 300`);
+  }
+});
+
+test("a pre-dual-language, pre-points-total profile survives BOTH migrations in one read", async (t) => {
+  // The oldest shape on record: flat freshProfile() fields at the top level
+  // (no `langs`), and a `ratingSum` on the old scale. migrateToMultiLang has
+  // to run before migrateToPointsTotal for this to work at all.
+  const base = await startServerWithDb(t, {
+    batches: [], submissions: [], guesses: [], dayResults: {}, devClock: null, identities: {},
+    profiles: {
+      ancient: {
+        v: 3, displayName: "Urgammel Ugle", ratingSum: 800,
+        countedDays: ["2026-07-20"], participatedDays: ["2026-07-20"], lastResultSeenDate: null,
+      },
+    },
+  });
+
+  const { body } = await getJson(base, "/api/today?userId=ancient");
+  assert.deepEqual(body.enabledLangs, ["no"], "an old flat profile becomes a Norwegian-only player");
+  assert.equal(body.byLang.no.profile.points, 200); // 800 / 4
+  assert.equal(body.byLang.no.profile.displayName, "Urgammel Ugle");
+});
+
+test("an old profile whose average was net-negative lands at the floor, not below it", async (t) => {
+  const base = await startServerWithDb(t, {
+    batches: [], submissions: [], guesses: [], dayResults: {}, devClock: null, identities: {},
+    profiles: {
+      unlucky: {
+        displayName: "Uheldig Hare", enabledLangs: ["no"],
+        langs: {
+          no: {
+            v: 3, displayName: "Uheldig Hare", ratingSum: -150,
+            countedDays: ["2026-07-20"], participatedDays: ["2026-07-20"], lastResultSeenDate: null,
+          },
+        },
+      },
+    },
+  });
+
+  const { body } = await getJson(base, "/api/today?userId=unlucky");
+  assert.equal(body.byLang.no.profile.points, 0);
 });

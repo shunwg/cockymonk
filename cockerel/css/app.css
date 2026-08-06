@@ -20,9 +20,33 @@
 
 * { box-sizing: border-box; }
 
+/* -- app shell: three fixed bands, not a scrolling document -----------------
+ * The whole app is exactly one viewport tall and never scrolls as a page.
+ * Instead it's a column of three bands, which is what makes it read as a
+ * native app rather than a web page:
+ *
+ *   #header       pinned at the top, never scrolls away
+ *   #screen-root  the ONLY scroll container — content is centered in it when
+ *                 it fits, and scrolls within it when it doesn't
+ *   .btn-cta      position: fixed at the bottom, always visible
+ *
+ * The rule that ties the last two together: #screen-root reserves
+ * --cta-clearance at its bottom whenever a CTA exists, so scrolled content
+ * can never end up underneath the button. Nothing here relies on the page
+ * itself growing — `overflow: hidden` on html/body is what guarantees that,
+ * and it's why the header can stay put without needing position: sticky.
+ *
+ * Before this, #app was `min-height: 100vh` inside a normally-scrolling
+ * document, and full-height screens (the done step) added their OWN 100vh
+ * BELOW the header — so their "centered" content was centered in a box that
+ * started below the header, pushing it visibly down the screen and making
+ * the whole page scroll by roughly the header's height. */
 html, body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
+  /* The app owns its own scrolling (see #screen-root) — the page must not
+   * also scroll, or the header scrolls away with it. */
+  overflow: hidden;
   /* Page chrome is plain white — the game itself (its dark blue) lives only
    * inside the portrait #app column, since the intended surface is a phone,
    * not a desktop browser tab. */
@@ -31,6 +55,27 @@ html, body {
   font-family: -apple-system, "SF Pro", system-ui, sans-serif;
   font-size: var(--type-body-size);
 }
+
+/* body is itself the outermost column, purely so the dev toolbar (a sibling
+ * ABOVE #app in index.html, testing-only — see CLAUDE.md) takes its natural
+ * height off the top and #app fills exactly what's left, instead of being
+ * pushed 40px past the bottom edge. */
+body {
+  /* The DYNAMIC viewport, so the shell measures the space actually visible
+   * rather than including mobile Safari's collapsible URL bar — which, now
+   * that the page itself can't scroll, never collapses out of the way.
+   * Browsers without dvh fall back to the height: 100% above. */
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+#devbar { flex: 0 0 auto; }
+/* ...and takes NO height when there's nothing in it — which is every
+ * deployed instance (both set DEV_TOOLS=0, so js/ui.js never renders the
+ * toolbar) and every gallery preview card. Without this it still contributed
+ * its own padding + bottom border, i.e. a 17px grey strip above the header
+ * on production. Same guard #header:empty already carries. */
+#devbar:empty { display: none; }
 
 /* Space reserved at the bottom of #app for the fixed primary CTA button
  * (see .btn-cta below) on screens that have one — the ONE number to change
@@ -48,19 +93,53 @@ html, body {
 
 #app {
   max-width: 480px;
+  width: 100%;
   margin: 0 auto;
-  min-height: 100vh;
-  padding: 24px 20px 24px;
+  flex: 1 1 auto;
+  min-height: 0; /* lets #screen-root shrink instead of overflowing the shell */
   display: flex;
   flex-direction: column;
-  gap: 20px;
   background: var(--color-bg);
   color: var(--color-text-on-bg);
+  /* No padding of its own — that moved to the screens themselves (.screen /
+   * .screen-success below), so a full-bleed screen can reach the edges
+   * without the negative-margin trick this used to need. */
 }
-/* Only screens with a fixed CTA (see .btn-cta) need the reservation — this
- * matches ANY descendant, any depth (e.g. the write screen's submit button,
- * nested inside .word-block), not just a direct child of #app. */
-#app:has(.btn-cta) { padding-bottom: var(--cta-clearance); }
+
+/* The one scroll container in the app. `min-height: 0` is load-bearing: a
+ * flex item defaults to min-height:auto, which refuses to shrink below its
+ * content and would push the CTA off-screen on long screens instead of
+ * scrolling. */
+#screen-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* no rubber-banding the page behind the app */
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Vertical centering that degrades gracefully to scrolling.
+ * `margin-block: auto` (NOT the parent's `justify-content: center`) is the
+ * load-bearing choice: auto margins absorb leftover space when the screen
+ * fits, and collapse to 0 when it doesn't. `justify-content: center` would
+ * center it too, but when content overflows a scroll container it centers by
+ * pushing the TOP out of the scrollable range — the first thing on the
+ * screen becomes permanently unreachable. Don't "simplify" this back. */
+#screen-root > * {
+  width: 100%;
+  margin-block: auto;
+}
+
+/* Reserve room at the bottom of the scroll region for whatever fixed element
+ * is pinned down there, so scrolled content can never end up behind it.
+ * These match ANY descendant, any depth (e.g. the write screen's submit
+ * button, nested inside .word-block). The .btn-cta rule comes LAST on
+ * purpose: a screen carrying both (a guess screen with a hint chip) needs
+ * the bigger of the two reservations, not whichever rule happens to win. */
+#screen-root:has(.hint-btn) > * { padding-bottom: 72px; }
+#screen-root:has(.btn-cta) > * { padding-bottom: var(--cta-clearance); }
 
 /* -- persistent header: settings menu button (always) + icon/name/points/
  * streak (only once a profile exists — onboarding screens show just the
@@ -80,7 +159,10 @@ html, body {
 #header:empty { display: none; }
 #header {
   --header-text: #F4EFE4;
-  margin: -24px -20px 0;
+  /* A fixed band at the top of the shell — it doesn't scroll, so it needs no
+   * negative margins to escape #app's padding (there isn't any any more) and
+   * no position: sticky (nothing scrolls past it). */
+  flex: 0 0 auto;
   padding: 12px 20px;
   display: flex;
   align-items: center;
@@ -172,20 +254,35 @@ html, body {
   100% { transform: translateY(75vh) rotate(360deg); opacity: 0; }
 }
 
-/* Every screen transition gets a soft rise-and-fade entrance — reuses the
+/* Every screen owns its own padding (see the #app comment) — so a screen
+ * that wants to bleed edge-to-edge simply doesn't inherit any.
+ * Every screen transition gets a soft rise-and-fade entrance — reuses the
  * token literally named for this (tokens.json motion.durations.screenIn). */
-.screen { animation: screen-in var(--motion-dur-screen-in) ease-out; }
+.screen {
+  padding: 24px 20px;
+  animation: screen-in var(--motion-dur-screen-in) ease-out;
+}
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* The final step of the day: full-bleed green, no card — "you're done,
- * everything is fine" should read at a glance, not from reading a box. No
- * CTA button on this screen, so no --cta-clearance needed — just the same
- * extra 48px of bottom breathing room the design always had, independent of
- * that. */
+ * everything is fine" should read at a glance, not from reading a box.
+ *
+ * `min-height: 100%` fills the SCROLL REGION (#screen-root), which is the fix
+ * for what this used to be: `min-height: 100vh`, a full viewport's worth of
+ * green stacked BELOW the header, so its centered content sat half a header
+ * lower than the real centre of the screen and the page scrolled. The green
+ * now spans exactly the band between the header and the bottom of the app,
+ * and `justify-content: center` centres within it — genuinely centred, both
+ * axes, with no leftover scroll.
+ *
+ * A CTA on this screen (the dual-language "play the other language too"
+ * button) needs no special case any more: #screen-root:has(.btn-cta) > *
+ * already adds --cta-clearance to whatever screen is showing, this one
+ * included, so the green keeps filling the region and the content centres in
+ * the space above the reserved band. */
 .screen-success {
-  margin: -24px -20px -48px;
-  padding: 24px 20px 48px;
-  min-height: 100vh;
+  padding: 24px 20px;
+  min-height: 100%;
   background: var(--color-accent-truth);
   color: var(--color-ink-night, #1B1B2E);
   display: flex;
@@ -194,20 +291,6 @@ html, body {
   justify-content: center;
   gap: 12px;
   animation: pop-in var(--spring-reveal-pop-duration) var(--spring-reveal-pop-ease);
-}
-/* The done-step's own bottom padding is normally a flat 48px (no CTA button
- * lives here in the common single-language case) — but a dual-language
- * player who still has the OTHER language pending today gets a second,
- * secondary-style .btn-cta here (see js/ui.js renderDoneStep's
- * "play the other language too" button). That's a FIXED element needing the
- * same full --cta-clearance every other .btn-cta screen reserves, or it
- * would overlap the streak number — the flat 48px above is nowhere near
- * enough. #app:has(.btn-cta) already adds this on #app itself, but
- * .screen-success cancels #app's own padding via its negative margin trick
- * (see above) and must therefore reserve it again here, on itself. */
-.screen-success:has(.btn-cta) {
-  margin-bottom: calc(-1 * var(--cta-clearance));
-  padding-bottom: var(--cta-clearance);
 }
 /* Today's write/guess progress ("3/3 gjettet + 1/3 skrevet") — used to live
  * in the persistent header on every screen; now shown exactly once, here,
@@ -362,7 +445,8 @@ p { margin: 0; line-height: 1.4; }
  * same way #app itself is (viewport-center == #app-center at every width,
  * since #app is itself centered with the same max-width). Content that
  * would otherwise sit behind it gets scroll clearance via
- * #app:has(.btn-cta) above, not by shrinking this button.
+ * #screen-root:has(.btn-cta) > * near the top of this file, not by shrinking
+ * this button.
  * `position: fixed` pins to the LAYOUT viewport, not the visual one — on iOS
  * Safari the on-screen keyboard only shrinks the visual viewport, so without
  * --keyboard-inset this button ends up sitting behind the keyboard instead
@@ -466,11 +550,9 @@ textarea, input[type="text"] {
 }
 .hint-btn:active { opacity: 0.6; }
 .hint-btn:disabled { opacity: 0.5; cursor: default; }
-/* Reserves scroll room so a long option list's last item never ends up
- * hidden behind the fixed hint chip — same reasoning as
- * #app:has(.btn-cta) above, just a smaller reservation for a much smaller
- * fixed element. */
-#app:has(.hint-btn) { padding-bottom: 72px; }
+/* Scroll room so a long option list's last item never ends up hidden behind
+ * this chip is reserved by #screen-root:has(.hint-btn) > * near the top of
+ * this file, alongside the equivalent (larger) reservation for .btn-cta. */
 .hint-pct {
   flex-shrink: 0;
   font-weight: 700;
@@ -536,33 +618,47 @@ textarea, input[type="text"] {
 @keyframes pop-in { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 .stat-row { display: flex; justify-content: space-between; gap: 12px; font-size: var(--type-sub-size); color: var(--color-text-secondary); }
+/* The bottom line of a points receipt (js/ui.js pointsBreakdownRows): the
+ * running TOTAL, ruled off from the day's own base/bonus rows above it and
+ * set in full-strength text, since it's the same number the header carries. */
+.points-total-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-on-surface); /* full-strength, unlike .stat-row's muted default */
+  font-weight: 700;
+}
 .streak-badge { font-weight: 700; color: var(--color-accent-turn); }
 .done-banner { text-align: center; color: var(--color-accent-truth); font-weight: 700; }
 .empty-note { color: var(--color-text-secondary); font-style: italic; }
 
-/* -- countdown bar: one word, one timer. animation-duration is set inline
- * per word (30s guess / 60s write — config.js TIMERS) so this one keyframe
- * serves both. Color rides calm -> warn -> urgent, same tokens the design
- * system already reserves for exactly this. The seconds label is a plain
- * once-a-second JS tick (startCountdownSeconds), independent of the CSS bar —
- * gives the bar's width an actual scale to read against. */
+/* -- countdown bar: one word, one timer, ONE clock. Both the fill's scale and
+ * the seconds label beside it are painted by js/ui.js's startCountdown, from a
+ * single deadline, in the same frame — see that function's comment for why
+ * this is no longer a CSS keyframe animation (it and the label's setInterval
+ * drifted apart, so the bar could empty while the label still showed time
+ * left). All this file still owns is the colour, which rides calm -> warn ->
+ * urgent via classes JS toggles at the same two breakpoints the old keyframes
+ * interpolated between, using the tokens the design system already reserves
+ * for exactly this. Don't reintroduce an animation here — a second clock is
+ * the bug. */
 .countdown-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .countdown-seconds { font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--type-sub-size); color: var(--color-text-secondary); flex-shrink: 0; min-width: 2.5em; text-align: right; }
 .countdown-bar { flex: 1; height: 6px; border-radius: var(--radius-chip); overflow: hidden; background: rgba(0,0,0,0.15); }
 .countdown-fill {
   height: 100%;
   width: 100%;
+  /* scaleX, not width — JS repaints this every frame, and a transform costs
+   * no layout. The origin is what makes it drain leftwards. */
   transform-origin: left;
-  animation-name: countdown;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
+  transform: scaleX(1);
+  background: var(--color-timer-calm);
+  /* Only the COLOUR transitions. The scale must not, or it would lag a frame
+   * behind the seconds label and put the two back out of step. */
+  transition: background var(--motion-dur-screen-in, 200ms) linear;
 }
-@keyframes countdown {
-  0% { width: 100%; background: var(--color-timer-calm); }
-  60% { background: var(--color-timer-calm); }
-  85% { background: var(--color-timer-warn); }
-  100% { width: 0%; background: var(--color-timer-urgent); }
-}
+.countdown-fill.is-warn { background: var(--color-timer-warn); }
+.countdown-fill.is-urgent { background: var(--color-timer-urgent); }
 
 /* -- timeout screen: "du rakk ikke..." — muted, not a failure state, just a
  * miss. Deliberately NOT red/bluff-pink (that's reserved for a wrong guess). */

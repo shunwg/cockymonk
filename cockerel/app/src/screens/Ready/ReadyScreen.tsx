@@ -20,7 +20,7 @@ export function ReadyScreen({ profile, onStart }: { profile: Profile; onStart: (
         Velkommen tilbake, {profile.displayName}!
       </Text>
       <Card>
-        <StatRow label="Poeng" value={String(profile.rating)} bold />
+        <StatRow label="Poeng" value={String(profile.points)} bold />
         <StatRow label="Streak" value={streakText(profile.streakDays, profile.streakBonusPct)} bold style={{ marginTop: 8 }} />
       </Card>
       <Button title="Gjett gårsdagens ord" onPress={onStart} />

@@ -15,7 +15,7 @@ import {
   ensureToday, getTodayState, submitDefinition, submitGuess, ensureProfileFor, setEnabledLangs, ackRecap, freshDb,
 } from "../server/db.mjs";
 import { hasUnseenResult, currentStreak } from "../js/rating.js";
-import { LANGS } from "../js/config.js";
+import { LANGS, POINTS } from "../js/config.js";
 
 const USERS = Array.from({ length: 12 }, (_, i) => `user-${i + 1}`);
 const DAYS = 6;
@@ -100,23 +100,28 @@ for (const lang of LANGS) {
   }
   assert.ok(anyBotFill, `expected at least one ${lang} word to need bot-fill decoys given partial participation`);
 
-  let anyRatingProgress = false;
+  let anyPointsProgress = false;
   for (const userId of USERS) {
     const langProfile = db.profiles[userId].langs[lang];
-    if (langProfile?.countedDays.length > 0) anyRatingProgress = true;
+    if (!langProfile) continue;
+    if (langProfile.countedDays.length > 0) anyPointsProgress = true;
+    // The points total is a running sum with a floor (js/config.js POINTS) —
+    // nothing in a multi-day, many-user run may drive it below that.
+    assert.equal(typeof langProfile.pointsTotal, "number", `${userId}/${lang} must have a numeric points total`);
+    assert.ok(langProfile.pointsTotal >= POINTS.floor, `${userId}/${lang} total ${langProfile.pointsTotal} fell below the floor`);
   }
-  assert.ok(anyRatingProgress, `expected at least one ${lang} profile to have accumulated day credit`);
+  assert.ok(anyPointsProgress, `expected at least one ${lang} profile to have accumulated day credit`);
 }
 
 // Cross-language independence: a user enrolled in only ONE language must
-// never accumulate a rating track for the other one — this is the one
+// never accumulate a points track for the other one — this is the one
 // invariant that would silently break if any per-lang scoping in db.mjs
 // leaked into the wrong language.
 for (const userId of USERS) {
   const langs = userLangs.get(userId);
   for (const lang of LANGS) {
     if (!langs.includes(lang)) {
-      assert.ok(!db.profiles[userId].langs[lang], `${userId} never enabled ${lang} — must have no ${lang} rating track`);
+      assert.ok(!db.profiles[userId].langs[lang], `${userId} never enabled ${lang} — must have no ${lang} points track`);
     }
   }
 }
@@ -126,7 +131,7 @@ for (const userId of USERS) {
   const p = db.profiles[userId];
   const parts = (userLangs.get(userId)).map((lang) => {
     const lp = p.langs[lang];
-    return `${lang}: ratingSum=${lp.ratingSum} countedDays=${lp.countedDays.length} streak=${currentStreak(lp.participatedDays)}`;
+    return `${lang}: points=${lp.pointsTotal} countedDays=${lp.countedDays.length} streak=${currentStreak(lp.participatedDays)}`;
   });
   console.log(`  ${userId} [${userLangs.get(userId).join(",")}]: ${parts.join(" | ")}`);
 }

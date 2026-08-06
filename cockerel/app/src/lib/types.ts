@@ -10,7 +10,7 @@ export interface Identity {
 
 export interface Profile {
   displayName: string;
-  rating: number;
+  points: number; // running total — see cockerel/js/rating.js totalPoints
   rank: number;
   streakDays: number;
   streakBonusPct: number;

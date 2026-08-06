@@ -11,7 +11,7 @@ import {
 } from "./engine.js";
 import {
   freshProfile, creditPoints, currentStreak, streakEndingAt, streakBonusPct,
-  applyStreakBonus, markParticipated, currentRating, hasUnseenResult, markResultSeen,
+  applyStreakBonus, markParticipated, totalPoints, effectivePoints, hasUnseenResult, markResultSeen,
 } from "./rating.js";
 import { SCORING, HINT } from "./config.js";
 
@@ -133,9 +133,9 @@ test("scoreFooledVotes scales sub-linearly with absolute fooled-count, no fixed 
     options, guesses: mkGuesses(n), bluffBaseK: SCORING.bluffBaseK, bluffExponent: SCORING.bluffExponent,
   }).deltas.get("p1");
 
-  assert.equal(score(1), 40); // small game: fooling just one person is real, not trivial
-  assert.equal(score(25), 200); // mid-size crowd: a solid, clearly bigger reward
-  assert.equal(score(400), 800); // large/viral crowd: a huge reward, no ceiling in sight
+  assert.equal(score(1), 12); // small game: fooling just one person is real, not trivial
+  assert.equal(score(25), 60); // mid-size crowd: a solid, clearly bigger reward
+  assert.equal(score(400), 240); // large/viral crowd: a huge reward, no ceiling in sight
 
   // sub-linear: 400x the audience of the 1-person case earns only 20x the
   // points, not 400x — a lucky single vote can never rival a genuine crowd.
@@ -225,7 +225,7 @@ test("markParticipated is idempotent and immediate (not tied to point settlement
   profile = markParticipated(profile, "2026-07-20");
   profile = markParticipated(profile, "2026-07-20"); // same day again, e.g. a 2nd guess
   assert.deepEqual(profile.participatedDays, ["2026-07-20"]);
-  assert.equal(profile.countedDays.length, 0, "participation must not touch the rating-average day-set");
+  assert.equal(profile.countedDays.length, 0, "participation must not touch the settled-points day-set");
 });
 
 for (const v of vectors.creditPoints) {
@@ -233,28 +233,52 @@ for (const v of vectors.creditPoints) {
     const before = {
       ...freshProfile("Test"),
       countedDays: v.priorCountedDays,
-      ratingSum: v.priorRatingSum ?? 0,
+      pointsTotal: v.priorPointsTotal ?? 0,
     };
     const after = creditPoints(before, { dayKey: v.dayKey, points: v.points });
-    assert.equal(after.ratingSum, v.expected.ratingSum);
+    assert.equal(after.pointsTotal, v.expected.pointsTotal);
     assert.deepEqual(after.countedDays, v.expected.countedDays);
   });
 }
 
-test("creditPoints never counts the same dayKey twice toward ratingDays", () => {
+test("creditPoints never counts the same dayKey twice toward countedDays", () => {
+  // The write-today/guess-tomorrow pipeline settles ONE calendar day's points
+  // in two passes, a rollover apart — both land on the same dayKey.
   let profile = freshProfile("Test");
   profile = creditPoints(profile, { dayKey: "2026-07-20", points: 100 });
   profile = creditPoints(profile, { dayKey: "2026-07-20", points: 50 });
   assert.equal(profile.countedDays.length, 1);
-  assert.equal(profile.ratingSum, 150);
+  assert.equal(profile.pointsTotal, 150);
 });
 
-for (const v of vectors.currentRating) {
-  test(`currentRating ${v.id}`, () => {
-    const profile = { ...freshProfile("Test"), ratingSum: v.ratingSum, countedDays: v.countedDays };
-    assert.equal(currentRating(profile), v.expected);
+for (const v of vectors.effectivePoints) {
+  test(`effectivePoints ${v.id}`, () => {
+    const profile = { ...freshProfile("Test"), pointsTotal: v.pointsTotal };
+    assert.equal(effectivePoints(profile, v.points), v.expected);
   });
 }
+
+for (const v of vectors.totalPoints) {
+  test(`totalPoints ${v.id}`, () => {
+    const profile = { ...freshProfile("Test"), pointsTotal: v.pointsTotal, countedDays: v.countedDays };
+    assert.equal(totalPoints(profile), v.expected);
+  });
+}
+
+// The whole contract of the points system in one assertion: what the score
+// screen shows for a day is exactly what the header's total moves by — for
+// gains, for losses, and for a loss trimmed by the floor. If this breaks, the
+// two numbers a player sees have drifted apart again (see js/rating.js).
+test("a day's shown points always equal the change in the total", () => {
+  let profile = freshProfile("Test");
+  for (const [dayKey, raw] of [["2026-07-20", 30], ["2026-07-21", -15], ["2026-07-22", -15], ["2026-07-23", -15]]) {
+    const shown = effectivePoints(profile, raw);
+    const before = totalPoints(profile);
+    profile = creditPoints(profile, { dayKey, points: shown });
+    assert.equal(totalPoints(profile), before + shown, `day ${dayKey} (raw ${raw})`);
+  }
+  assert.equal(totalPoints(profile), 0, "a long enough bad run bottoms out at the floor, never below");
+});
 
 test("hasUnseenResult / markResultSeen", () => {
   const played = { ...freshProfile("Test"), lastResultSeenDate: null };
